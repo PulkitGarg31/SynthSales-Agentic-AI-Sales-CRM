@@ -43,3 +43,6 @@ Thumbs.db
 .claude/
 .cursor/
 *.log
+
+# --- Binary / large assets we don't want in the repo ---
+*.pdf
