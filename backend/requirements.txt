@@ -1,0 +1,33 @@
+# Web framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy>=2.0
+psycopg[binary]
+alembic
+
+# Config & validation
+pydantic
+pydantic-settings
+email-validator
+
+# Auth
+pyjwt
+passlib
+
+# Realtime / background
+apscheduler
+websockets
+
+# HTTP
+httpx
+
+# Integrations (providers)
+anthropic              # AI provider (Claude)
+ddgs                   # DuckDuckGo search (company research)
+# verifalia REST API is called directly via httpx (no 3.14-compatible SDK wheel)
+google-api-python-client       # Gmail + Calendar
+google-auth-oauthlib
+google-auth-httplib2

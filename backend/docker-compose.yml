@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: reachly_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reachly
+      POSTGRES_PASSWORD: reachly_dev_pw
+      POSTGRES_DB: reachly
+    ports:
+      # Host 5433 → container 5432 (host 5432 is taken by a local Postgres install)
+      - "5433:5432"
+    volumes:
+      - reachly_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reachly -d reachly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  reachly_pgdata:

@@ -1,0 +1,718 @@
+AI-Powered B2B Outreach & Lead Generation
+Platform
+
+Product Requirement & System Workflow Document
+(PRD)
+
+1. Product Overview
+
+Objective
+
+Build an AI-powered outreach and lead generation platform that automates:
+      Company research
+      Lead qualification
+      Contact discovery
+      Email verification
+      Personalized outreach
+      Follow-up automation
+      Conversation tracking
+      Meeting scheduling
+      Customer notifications
+
+The platform should operate as an end-to-end intelligent sales outreach assistant while still
+allowing user review and control.
+
+2. User Inputs
+
+The platform will collect the following inputs from customers:
+
+Company Target Data
+
+      CSV file containing target companies
+
+Product Information
+      Product/service details
+      Value proposition
+      Industry category
+      Key differentiators
+
+Target Customer Requirements
+
+      Ideal customer profile
+      Industry preference
+      Geography preference (optional)
+      Company size preference
+      Business requirements
+      Customer-defined ranking criteria
+
+Outreach Configuration
+
+      Email template/format (Optional)
+      Email footer/signature
+      Tone preference
+      Outreach personalization level
+
+3. Backend Workflow
+
+Phase 1: Company Intake & Research
+
+Objectives
+
+Process uploaded company data and gather intelligence.
+
+Workflow
+
+Company Processing
+
+      Parse uploaded CSV
+      Validate company data
+      Remove duplicates
+      Normalize company information
+Automated Company Research
+
+AI will collect:
+
+      Company profile
+      Industry
+      Products/services
+      Business model
+      Company size
+      Public information
+      Website insights
+      Market relevance
+      Recent Funding
+      Recent Negative News
+      Active Hiring or not (Active Hiring is a positive sign)
+
+Phase 2: Company Scoring & Ranking
+
+Objective
+
+Rank companies based on customer requirements.
+
+Weighted Scoring Parameters
+
+Possible factors:
+
+      Product fit
+      Industry alignment
+      Company relevance
+      Requirement satisfaction
+      Market compatibility
+      Growth indicators
+
+Workflow
+
+Platform will:
+
+  1. Assign weighted score
+  2. Generate explainable scoring
+  3. Rank all companies
+  4. Select top N companies specified by customer
+Phase 3: Contact Discovery
+
+Objective
+
+Identify relevant decision-makers.
+
+Workflow
+
+For each shortlisted company:
+
+Contact Search
+
+Find:
+      Top 3 sales contacts
+      Decision makers
+      Relevant business personnel
+
+Contact Information
+
+Collect:
+      Name
+      Role
+      Linked profile (if available)
+      Company association
+
+Phase 4: Email Discovery & Verification
+
+Objective
+
+Generate and verify email addresses.
+
+Workflow
+
+Email Guessing Logic
+
+Generate emails using:
+      Company domain
+      Standard patterns
+      Name-domain combinations
+Examples:
+      firstname@company.com
+      firstname.lastname@company.com
+      f.lastname@company.com
+
+Email Verification
+
+Use Verifalia.
+Logic:
+
+      Verify guessed emails
+      Stop guessing once verified email found
+      Mark verification status
+Possible states:
+      Verified
+      Risky
+      Invalid
+      Unknown
+
+Phase 5: AI Outreach Generation
+
+Objective
+
+Create personalized outreach. Use AI API key
+
+Email Generation Inputs
+
+      Customer template (optional)
+      Customer product details
+      Company research
+      Contact role
+      Email footer
+
+Workflow
+
+Platform will:
+      Personalize outreach
+      Generate subject line
+      Generate body content
+      Maintain tone consistency
+      Create recipient-specific messaging
+
+Phase 6: Automated Outreach Execution
+
+Objective
+
+Send emails.
+
+Workflow
+
+      Use verified email only
+      Send outreach
+      Track delivery status
+      Store thread history
+Possible states:
+      Queued
+      Sent
+      Delivered
+      Failed
+
+Phase 7: Email Monitoring & Follow-Up
+Automation
+
+Objective
+
+Automate conversation management.
+
+Tracking Frequency
+
+Every 15 minutes.
+Workflow
+
+System will:
+      Monitor inbox
+      Detect unread/unanswered emails
+      Analyze prior thread
+      Generate contextual follow-up
+      Send intelligent replies
+
+Continue until:
+      Meeting scheduled
+      Campaign stopped
+      Lead closed
+
+Phase 8: Meeting Coordination
+
+Objective
+
+Manage meetings.
+
+Workflow
+
+When meeting fixed:
+Platform will:
+
+      Capture meeting link
+      Store meeting details
+      Notify customer
+      Notify company contact
+      Maintain meeting history
+
+4. Frontend Requirements
+
+Module 1: Authentication
+Login Page
+
+Features:
+      Email login
+      Password login
+      Forgot password
+
+Sign-Up Page
+
+Features:
+      Email registration
+      Password creation
+      OTP email verification
+      Google Sign-Up (subject to free-tier support)
+
+Security
+
+      Session management
+      OTP validation
+      Authentication protection
+
+Module 2: Dashboard (Home Page)
+
+Purpose
+
+Primary control center.
+
+Dashboard Widgets
+
+Campaign Overview
+
+      Active campaigns
+      Completed campaigns
+      Paused campaigns
+
+Outreach Metrics
+
+      Companies uploaded
+      Companies researched
+      Emails sent
+      Replies received
+      Meetings booked
+
+Conversion Funnel
+
+     Upload  Qualified  Contacted  Replied  Meeting
+
+Activity Feed
+
+Recent actions:
+
+      Email sent
+      Reply received
+      Meeting fixed
+      Follow-up triggered
+
+Module 3: Campaign Management
+
+Purpose
+
+Manage outreach campaigns.
+
+Features
+
+Campaign Operations
+
+      Create campaign
+      View campaigns
+      Pause campaign
+      Resume campaign
+      Duplicate campaign
+      Archive campaign
+      Delete campaign
+
+Campaign Status
+
+      Draft
+      Running
+      Paused
+      Completed
+      Failed
+Module 4: New User / Campaign Creation
+Form
+
+Upload Section
+
+      Upload CSV
+      Download sample CSV
+      Validate format
+
+Product Details
+
+      Product description
+      Value proposition
+      Industry
+
+Requirement Details
+
+      Target customer requirements
+      Ranking criteria
+
+Outreach Settings
+
+      Optional email template
+      Footer
+      Tone selection
+
+Module 5: Company Research & Ranking
+Interface
+
+Company List View
+
+Display:
+      Company name
+      Industry
+      AI score
+      Rank
+      Match level
+      Status
+
+Company Detail View
+
+Display:
+      Research summary
+      Match explanation
+      Scoring breakdown
+      Contacts discovered
+      Verification progress
+
+Actions:
+      Approve
+      Exclude
+      Re-rank
+
+Module 6: Contact Discovery Review
+
+Purpose
+
+Human approval layer.
+
+Display
+
+For each company:
+      Contact name
+      Position
+      Email
+      Verification status
+      Confidence score
+
+Actions
+
+      Approve
+      Reject
+      Edit contact
+Module 7: Email Draft Review & Editor
+
+Purpose
+
+Review AI-generated outreach.
+
+Features
+
+Email Preview
+
+      Subject line
+      Body
+      Footer
+      Personalization preview
+
+Editor
+
+      Rich text editing
+      Manual edits
+      AI regenerate
+
+Testing
+
+      Send test email
+      Recipient preview
+
+Module 8: Conversation / Inbox Interface
+
+Purpose
+
+CRM-style communication center.
+
+Features
+
+Display:
+      Sent emails
+      Replies
+      Thread history
+      Follow-up history
+      AI reply suggestions
+      Lead progress
+Navigation:
+
+Campaign  Company  Contact  Email Thread
+
+Module 9: Meeting Management
+
+Purpose
+
+Meeting tracking.
+
+Features
+
+      Upcoming meetings
+      Meeting history
+      Meeting status
+      Calendar view
+      Meeting notes
+      Join link
+      Reminder system
+
+Module 10: Notifications Center
+
+Purpose
+
+Real-time updates.
+
+Notification Types
+
+      New reply
+      Meeting scheduled
+      Verification failed
+      Campaign completed
+      Follow-up sent
+      System errors
+UI:
+      Bell icon
+      Notification panel
+      Mark as read
+
+Module 11: Agents Section
+
+Purpose
+
+AI workflow management.
+
+Features
+
+      Agent configuration
+      Workflow editing
+      Automation settings
+      Personalization controls
+      Edit details
+
+Module 12: Settings
+
+Profile Settings
+
+      Name
+      Email
+      Password change
+
+Email Settings
+
+      Sender email
+      Signature defaults
+      SMTP/API settings
+
+AI Settings
+
+      Tone
+      Follow-up timing
+      Personalization level
+
+Security Settings
+
+      OTP
+      Session control
+      Login history
+
+Module 13: Billing & Subscription (Future
+Ready)
+
+Features
+
+      Current plan
+      Usage limits
+      Email credits
+      Payment history
+      Upgrade plans
+
+Module 14: Integrations
+
+Potential Integrations
+
+      Email providers
+      Calendar systems
+      CRM export
+      Meeting tools
+      API/Webhooks
+
+Module 15: Activity Logs & Audit Trail
+
+Purpose
+
+Transparency and debugging.
+Logs
+
+      Campaign actions
+      Email events
+      AI actions
+      Verification attempts
+      User changes
+
+Module 16: Support Pages
+
+About Us
+
+      Product mission
+      Team
+      Features
+
+Contact Us
+
+      Support form
+      Email support
+      FAQ links
+
+Module 17: Error Handling & Empty States
+
+Error Handling
+
+Clear UI for:
+      Invalid CSV
+      Missing data
+      Email failure
+      Verification failure
+      API timeout
+
+Empty States
+
+Provide:
+      Guided onboarding
+      Tooltips
+      Demo campaign
+      Sample workflows
+
+Module 18: Admin Panel (Optional)
+
+For platform administrators.
+
+Features
+
+      User management
+      Campaign monitoring
+      Support dashboard
+      System logs
+      Abuse detection
+
+5. End-to-End Workflow Summary
+
+User Journey
+
+Sign Up  Create Campaign  Upload Companies  Research  AI Scoring  Contact
+Discovery  Email Verification  Email Review  Outreach  Conversation Tracking 
+Follow-Up Automation  Meeting Scheduling  Customer Notification
+
+6. Suggested Navigation Structure
+
+  Authentication
+  
+   Dashboard
+   Campaigns
+    Create Campaign
+    Company Research
+    Contacts
+    Email Review
+    Conversations
+   Meetings
+   Notifications
+   Agents
+   Integrations
+   Billing
+   Settings
+   About Us
+   Contact Us
+
+1. Final Tech Stack
+
+      Frontend stack
+      Backend stack
+      Database
+      Authentication
+      Email infrastructure
+      AI layer
+      Search + scraping stack
+      WebSocket/realtime stack
+      Hosting & deployment
+      Free-tier services
+
+2. System Architecture
+
+      Full system flow
+      Component interaction
+      Request lifecycle
+      Data flow
+
+3. Multi-Agent Architecture
+
+Separate agents for:
+
+      Company Enrichment
+      Company Scoring
+      Employee Finder
+      Email Guessing
+      Email Verification
+      Outreach Generation
+      Email Tracking & Follow-up
+      Meeting Coordination
+
+including how they communicate sequentially.
+4. Database Design Overview
+
+Core schemas/tables:
+
+      Users
+      Campaigns
+      Companies
+      Contacts
+      Email Threads
+      Meetings
+      Notifications
+      Logs
+
+5. API & Backend Design
+
+      FastAPI services
+      REST/WebSocket layer
+      Background job handling
+      Gmail + Calendar integration
+      DuckDuckGo + scraping pipeline
+
+6. Frontend Architecture
+
+      Next.js structure
+      Pages
+      Dashboard flow
+      Auth flow
+      State management
+      Component strategy
+
+7. Deployment & DevOps
+
+Free-tier deployment:
+
+      Frontend
+      Backend
+      PostgreSQL
+      Worker deployment
+      Environment variables
+      CI/CD suggestion
+
+8. Suggested Folder Structure
+
+For:
+Frontend
+Backend
+Agent modules
+Shared configs
+
