@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     followup_interval_minutes: int = 15
     enable_scheduler: bool = True
 
+    # Comma-separated list of emails that should be auto-granted the admin
+    # role. Applied at startup (sweeps existing users) and when a new user
+    # finishes email verification. Case-insensitive.
+    admin_emails: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
@@ -63,6 +68,10 @@ class Settings(BaseSettings):
     @property
     def ai_providers_list(self) -> list[str]:
         return [p.strip().lower() for p in self.ai_providers.split(",") if p.strip()]
+
+    @property
+    def admin_emails_list(self) -> list[str]:
+        return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
 
 
 @lru_cache

@@ -53,6 +53,24 @@ async def lifespan(app: FastAPI):
                 "domain_status VARCHAR(20) NOT NULL DEFAULT 'unknown'"
             )
         )
+        # Widen multi-select columns so picking many industries / countries /
+        # size brackets doesn't overflow. Idempotent on Postgres.
+        conn.execute(text("ALTER TABLE campaigns ALTER COLUMN industry_pref TYPE VARCHAR(600)"))
+        conn.execute(text("ALTER TABLE campaigns ALTER COLUMN geography TYPE VARCHAR(400)"))
+        conn.execute(text("ALTER TABLE campaigns ALTER COLUMN company_size TYPE VARCHAR(120)"))
+        conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "is_admin BOOLEAN NOT NULL DEFAULT false"
+            )
+        )
+        # Auto-promote any user whose email matches the ADMIN_EMAILS config.
+        # Lets you set the admin list in .env instead of running ad-hoc SQL.
+        if settings.admin_emails_list:
+            conn.execute(
+                text("UPDATE users SET is_admin=true WHERE LOWER(email) = ANY(:emails)"),
+                {"emails": settings.admin_emails_list},
+            )
 
     # Seed demo data (idempotent).
     from app.services.seed import seed_demo
@@ -87,6 +105,7 @@ app.add_middleware(
 
 # Routers
 from app.api.routers import (  # noqa: E402
+    admin,
     agents,
     auth,
     campaigns,
@@ -103,6 +122,7 @@ from app.api.routers import (  # noqa: E402
 
 for module in (
     auth,
+    admin,
     campaigns,
     companies,
     contacts,

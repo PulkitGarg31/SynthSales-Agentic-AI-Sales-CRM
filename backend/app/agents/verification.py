@@ -12,7 +12,22 @@ class VerificationAgent(Agent):
     key = "verification"
     name = "Email Verification"
 
-    def run(self, db: Session, company: Company, owner_id: int) -> None:
+    def run(
+        self,
+        db: Session,
+        company: Company,
+        owner_id: int,
+        force: bool = False,
+    ) -> None:
+        # Forced re-run wipes the previously guessed email + verification
+        # state so we re-guess the address and re-call the verifier instead
+        # of trusting whatever was recorded last time.
+        if force:
+            for contact in company.contacts:
+                contact.email = ""
+                contact.verification = "Unknown"
+                contact.confidence = 0
+            db.commit()
         domain = company.domain or f"{company.name.lower().replace(' ', '')}.com"
         for contact in company.contacts:
             candidates = guess_emails(contact.name, domain)

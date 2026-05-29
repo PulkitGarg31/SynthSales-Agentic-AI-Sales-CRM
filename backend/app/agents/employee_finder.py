@@ -23,15 +23,34 @@ class EmployeeFinderAgent(Agent):
     key = "employee_finder"
     name = "Employee Finder"
 
-    def run(self, db: Session, company: Company, owner_id: int, count: int = 3) -> list[Contact]:
-        # Don't duplicate on re-run.
-        if company.contacts:
+    def run(
+        self,
+        db: Session,
+        company: Company,
+        owner_id: int,
+        count: int = 3,
+        force: bool = False,
+    ) -> list[Contact]:
+        # Skip if we already have contacts — unless the caller asked for a
+        # forced re-search. Forced re-runs wipe the prior contacts (and their
+        # email drafts, via CASCADE) so the new search starts from a clean
+        # slate instead of returning the stale data the user already rejected.
+        if company.contacts and not force:
             return company.contacts
+        if force and company.contacts:
+            for stale in list(company.contacts):
+                db.delete(stale)
+            db.commit()
+            db.refresh(company)
 
         # 1. Search the web for real LinkedIn profiles employed at this company.
         profiles: list[dict] = []
         try:
-            profiles = search.find_linkedin_profiles(company.name, max_per_query=6)
+            profiles = search.find_linkedin_profiles(
+                company.name,
+                domain=company.domain or "",
+                max_per_query=6,
+            )
         except Exception as exc:  # pragma: no cover
             logger.warning("LinkedIn search failed for %s: %s", company.name, exc)
 
@@ -90,22 +109,58 @@ class EmployeeFinderAgent(Agent):
                 f"Company: {company.name} "
                 f"(industry: {company.industry or 'unknown'}, domain: {company.domain or 'n/a'})\n\n"
                 f"Below are LinkedIn profiles surfaced by a web search for "
-                f"'{company.name}'. Pick up to {count} that:\n"
-                "  - are CURRENT senior employees at this exact company,\n"
-                "  - have decision-making influence (C-suite, VP, Head of, Director),\n"
-                "  - are likely B2B-outreach-relevant (sales/ops/data/eng leaders).\n\n"
-                "Drop profiles that look like:\n"
-                "  - former employees (snippet says 'previously', 'ex-', past dates only),\n"
-                "  - similarly-named companies (different industry/region),\n"
-                "  - vendors, journalists, or interns,\n"
-                "  - company pages (linkedin.com/company/...).\n\n"
+                f"'{company.name}'. Pick up to {count} contacts that we should "
+                "approach for a B2B sales conversation.\n\n"
+                "STRONGLY PREFER, in this order:\n"
+                "  1. Heads of the COMMERCIAL function — CRO, VP Sales, Head of Sales, "
+                "VP Revenue, Sales Director, Business Development / Partnerships / "
+                "Alliances leaders. They own inter-company deals.\n"
+                "  2. Senior Account Executives or Strategic Account leads.\n"
+                "  3. For sub-200-employee companies: Founder / CEO / President — "
+                "at that size founders still own commercial conversations.\n\n"
+                "REJECT (do NOT include) anyone in a non-commercial function, "
+                "no matter how senior:\n"
+                "  - Engineering: CTO, VP Engineering, Head of Engineering, "
+                "Software Engineer, Architect, DevOps, SRE, Data Engineer, "
+                "ML/AI Engineer, Tech Lead.\n"
+                "  - Product/Design: CPO, Product Manager, Designer, UX, UI, "
+                "Researcher.\n"
+                "  - Operations / Finance / Legal / HR: CFO, COO (UNLESS the "
+                "company has < 200 employees), General Counsel, CHRO, Recruiter, "
+                "HR / Talent / People Ops.\n"
+                "  - Security: CISO, Security Engineer, SOC, GRC.\n"
+                "  - Marketing IC: Content Writer, SEO Specialist, Brand Manager, "
+                "Community Manager. (CMO is borderline — accept only if no real "
+                "sales leader is available.)\n"
+                "  - Support / Success / IT helpdesk / Internal tools.\n\n"
+                "REJECT profiles whose role is just the company name, a single "
+                "ambiguous word, or blank — without an explicit commercial title "
+                "we cannot trust them.\n\n"
+                "HARD REJECTS — drop these even if the title looks impressive:\n"
+                "  - Anyone whose snippet identifies a DIFFERENT current employer "
+                "(e.g. \"VP Sales at OtherCorp. Previously at " + company.name + "\"). "
+                "Past employment at our target does NOT qualify.\n"
+                "  - Profiles with \"Former\", \"Ex-\", \"Previously\", \"Past:\" "
+                "near the company name.\n"
+                "  - Similarly-named companies in a different industry or country.\n"
+                "  - Vendors, journalists, recruiters writing about the company.\n"
+                "  - Company pages (linkedin.com/company/...).\n\n"
+                "If you are uncertain whether someone is current, in sales, or "
+                "former — REJECT. A missed lead is cheaper than a wrong outreach. "
+                "Returning {\"picks\": []} is a valid and preferred answer when "
+                "nothing in the list is clearly a commercial decision-maker.\n\n"
                 "Candidates:\n" + "\n\n".join(tagged) + "\n\n"
                 "Return JSON: {\"picks\": [list of indices in priority order]}. "
                 "If none qualify, return {\"picks\": []}."
             )
             data = ai.complete_json(
                 prompt,
-                system="You are a B2B sales research analyst. Be strict — better to return zero than to recommend a wrong contact.",
+                system=(
+                    "You are a B2B sales research analyst. Your job is to find "
+                    "CURRENT commercial decision-makers — not former employees, "
+                    "not unrelated staff. Be strict: zero contacts is better than "
+                    "one wrong contact."
+                ),
             )
             if not data:
                 return profiles

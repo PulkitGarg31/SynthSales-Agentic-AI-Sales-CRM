@@ -12,13 +12,22 @@ class OutreachAgent(Agent):
     name = "Outreach Generation"
 
     def run(
-        self, db: Session, contact: Contact, company: Company, campaign: Campaign, owner_id: int
+        self,
+        db: Session,
+        contact: Contact,
+        company: Company,
+        campaign: Campaign,
+        owner_id: int,
+        force: bool = False,
     ) -> EmailDraft:
         existing = (
             db.query(EmailDraft).filter(EmailDraft.contact_id == contact.id).first()
         )
-        if existing:
+        if existing and not force:
             return existing
+        if existing and force:
+            db.delete(existing)
+            db.commit()
 
         subject, body = self._generate(contact, company, campaign)
         footer = campaign.footer or "Best regards,\nThe Reachly Team"

@@ -155,10 +155,10 @@ export const api = {
     }),
   campaignPipeline: (id: number) =>
     request<PipelineAgent[]>(`/api/campaigns/${id}/pipeline`),
-  runCampaignAgent: (id: number, key: string) =>
+  runCampaignAgent: (id: number, key: string, force = false) =>
     request<{ detail: string }>(`/api/campaigns/${id}/run-agent`, {
       method: "POST",
-      body: { key },
+      body: { key, force },
     }),
 
   // ---- companies ----
