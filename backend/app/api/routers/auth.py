@@ -92,6 +92,9 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Code expired")
     user.is_verified = True
     user.otp_code = None
+    # Auto-grant admin if this email is in the configured admin list.
+    if user.email.lower() in settings.admin_emails_list:
+        user.is_admin = True
     db.commit()
     return Token(access_token=create_access_token(str(user.id)))
 

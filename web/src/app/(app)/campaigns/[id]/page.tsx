@@ -83,7 +83,10 @@ export default function CampaignDetailPage() {
     setBusyKey(key);
     setError(null);
     try {
-      await api.runCampaignAgent(id, key);
+      // Per-agent triggers always force-clear the prior output so a re-run
+      // produces genuinely fresh research instead of returning the stale data
+      // the user already saw (or rejected).
+      await api.runCampaignAgent(id, key, true);
       flash(`Agent started — ${key}`);
       setTimeout(() => pipelineQ.reload(), 1500);
     } catch (e) {

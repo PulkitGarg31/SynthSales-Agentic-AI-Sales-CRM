@@ -37,6 +37,10 @@ class User(Base):
     # Outbound email kill-switch. Starts OFF so no real emails go to prospects
     # until the user explicitly enables sending in Settings.
     outbound_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Admin role — grants access to the cross-tenant /api/admin/* routes
+    # (read or delete any user's data). Bootstrap the first admin by setting
+    # this column true directly in the DB (see README / db.ps1).
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     otp_code: Mapped[str | None] = mapped_column(String(6), nullable=True)
     otp_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -67,9 +71,9 @@ class Campaign(Base):
 
     # Target requirements
     icp: Mapped[str] = mapped_column(Text, default="")
-    industry_pref: Mapped[str] = mapped_column(String(120), default="")
-    geography: Mapped[str] = mapped_column(String(120), default="")
-    company_size: Mapped[str] = mapped_column(String(40), default="")
+    industry_pref: Mapped[str] = mapped_column(String(600), default="")
+    geography: Mapped[str] = mapped_column(String(400), default="")
+    company_size: Mapped[str] = mapped_column(String(120), default="")
     business_requirements: Mapped[str] = mapped_column(Text, default="")
     ranking_criteria: Mapped[str] = mapped_column(Text, default="")
 

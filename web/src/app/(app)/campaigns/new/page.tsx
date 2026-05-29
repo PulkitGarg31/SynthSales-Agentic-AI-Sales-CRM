@@ -15,32 +15,54 @@ const TONES = [
 ];
 
 const INDUSTRIES = [
-  "Logistics", "Manufacturing", "Retail", "Healthcare", "Technology",
-  "Financial Services", "Media", "Consumer Goods", "Energy",
-  "Transportation", "Telecommunications", "Education",
+  "Aerospace & Defense", "Agriculture", "Automotive", "Banking",
+  "Biotechnology", "Chemicals", "Construction", "Consulting",
+  "Consumer Goods", "Cybersecurity", "E-commerce", "Education",
+  "Energy", "Financial Services", "Food & Beverage", "Gaming",
+  "Government / Public Sector", "Healthcare", "Hospitality",
+  "Insurance", "Legal Services", "Logistics", "Manufacturing",
+  "Marketing & Advertising", "Media", "Mining & Metals", "Non-Profit",
+  "Pharmaceuticals", "Professional Services", "Real Estate", "Retail",
+  "SaaS", "Technology", "Telecommunications", "Transportation",
+  "Travel", "Utilities", "Wholesale Distribution",
 ];
 const COUNTRIES = [
-  "United States", "Canada", "United Kingdom", "Germany", "France",
-  "Australia", "India", "Netherlands", "Singapore", "UAE",
+  "United States", "Canada", "Mexico", "United Kingdom", "Ireland",
+  "Germany", "France", "Netherlands", "Spain", "Italy", "Sweden",
+  "Denmark", "Switzerland", "Australia", "New Zealand", "Japan",
+  "South Korea", "Singapore", "India", "UAE", "Saudi Arabia",
+  "Israel", "Brazil", "South Africa",
 ];
 const SIZES = ["1–50", "51–200", "201–1,000", "1,000–5,000", "5,000+"];
-const BUSINESS_SIGNALS = [
-  "Cloud migration in progress",
-  "Actively hiring",
-  "Recently raised funding",
-  "Growing headcount",
-  "Expanding to new markets",
-  "Uses a competitor product",
-  "Recent leadership change",
-];
-const RANKING_FACTORS = [
-  "Product fit",
-  "Industry alignment",
-  "Company size match",
-  "Growth indicators",
-  "Recent funding",
-  "Hiring activity",
-];
+
+// Generalized buying signals + ranking criteria. We decide these so every
+// campaign is judged on the full set of evidence rather than whichever
+// chips the user happened to tick.
+const DEFAULT_BUSINESS_REQUIREMENTS = [
+  "Recent funding (Series A or later) or visible revenue growth",
+  "Headcount growth in the last 6–12 months",
+  "Actively hiring — especially roles adjacent to our buyer persona",
+  "Cloud, data, or core-systems modernization underway",
+  "Expansion into new markets, geographies, or product lines",
+  "Uses a competitor product or an obvious adjacent tool",
+  "Recent leadership change in the buyer's function",
+  "Recent M&A, partnership, or rebrand activity",
+  "Compliance, regulatory, or audit deadline forcing change",
+  "Public engineering / product / careers content signalling investment in this area",
+].join("; ");
+
+const DEFAULT_RANKING_CRITERIA = [
+  "Product fit — how directly our product solves their stated pain",
+  "Industry alignment with the configured target industries",
+  "Company size match with the configured size brackets",
+  "Geography match with the configured target countries",
+  "Growth indicators (headcount, revenue, market expansion)",
+  "Recent funding or financial events",
+  "Hiring activity in buyer or end-user roles",
+  "Tech-stack overlap with our product or its integrations",
+  "Buyer accessibility — decision makers visible on LinkedIn",
+  "Recency of relevant trigger events or news",
+].join("; ");
 
 const stepTitles = ["Upload companies", "Product details", "Target requirements", "Outreach settings"];
 
@@ -63,8 +85,6 @@ interface Form {
   industries: string[];
   countries: string[];
   sizes: string[];
-  businessReqs: string[];
-  rankingCriteria: string[];
   top_n: number;
   email_template: string;
   footer: string;
@@ -83,8 +103,6 @@ const initial: Form = {
   industries: [],
   countries: [],
   sizes: [],
-  businessReqs: [],
-  rankingCriteria: [],
   top_n: 3,
   email_template: "",
   footer: "",
@@ -103,7 +121,7 @@ export default function NewCampaignPage() {
   const [error, setError] = useState<string | null>(null);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const toggle = (k: "industries" | "countries" | "sizes" | "businessReqs" | "rankingCriteria", v: string) =>
+  const toggle = (k: "industries" | "countries" | "sizes", v: string) =>
     setForm((f) => ({
       ...f,
       [k]: f[k].includes(v) ? f[k].filter((x) => x !== v) : [...f[k], v],
@@ -151,8 +169,6 @@ export default function NewCampaignPage() {
       if (!form.icp.trim()) return "Ideal customer profile is required.";
       if (form.industries.length === 0) return "Pick at least one target industry.";
       if (form.sizes.length === 0) return "Pick at least one company size.";
-      if (form.businessReqs.length === 0) return "Select at least one buying signal.";
-      if (form.rankingCriteria.length === 0) return "Pick at least one ranking factor.";
     }
     return null;
   }
@@ -181,8 +197,8 @@ export default function NewCampaignPage() {
         industry_pref: form.industries.join(", "),
         geography: form.countries.join(", "),
         company_size: form.sizes.join(", "),
-        business_requirements: form.businessReqs.join("; "),
-        ranking_criteria: form.rankingCriteria.join("; "),
+        business_requirements: DEFAULT_BUSINESS_REQUIREMENTS,
+        ranking_criteria: DEFAULT_RANKING_CRITERIA,
         top_n: clampTopN(form.top_n),
         email_template: form.email_template,
         footer: form.footer,
@@ -315,14 +331,6 @@ export default function NewCampaignPage() {
                 <ChipMulti options={SIZES} selected={form.sizes} onToggle={(v) => toggle("sizes", v)} />
               </Field>
             </div>
-
-            <Field label="Buying signals to look for" required hint="Select the signals that make a company a strong prospect.">
-              <ChipMulti options={BUSINESS_SIGNALS} selected={form.businessReqs} onToggle={(v) => toggle("businessReqs", v)} />
-            </Field>
-
-            <Field label="What should we rank on?" required hint="Pick what matters most when ordering companies.">
-              <ChipMulti options={RANKING_FACTORS} selected={form.rankingCriteria} onToggle={(v) => toggle("rankingCriteria", v)} />
-            </Field>
 
             <Field
               label="How many top companies to pursue?"

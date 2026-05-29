@@ -281,14 +281,19 @@ def get_pipeline(
 
 class RunAgentIn(BaseModel):
     key: str
+    # force=True clears the agent's prior output before re-running. Useful for
+    # re-runs from the per-campaign agent timeline so users don't get the same
+    # stale contacts / drafts they already rejected. Defaults False so the
+    # bulk "run all" path stays incremental and fast.
+    force: bool = False
 
 
-def _run_agent_task(campaign_id: int, owner_id: int, key: str) -> None:
+def _run_agent_task(campaign_id: int, owner_id: int, key: str, force: bool) -> None:
     db = SessionLocal()
     try:
         campaign = db.get(Campaign, campaign_id)
         if campaign:
-            run_agent_for_campaign(db, campaign, owner_id, key)
+            run_agent_for_campaign(db, campaign, owner_id, key, force=force)
     finally:
         db.close()
 
@@ -304,6 +309,7 @@ def run_agent(
     c = _owned(db, user, campaign_id)
     if payload.key not in RUNNABLE_KEYS:
         raise HTTPException(status_code=400, detail=f"Agent '{payload.key}' cannot be run on demand")
-    add_log(db, user.id, "Campaign", f"Triggered '{payload.key}' agent for '{c.name}'.")
-    background.add_task(_run_agent_task, c.id, user.id, payload.key)
+    suffix = " (force)" if payload.force else ""
+    add_log(db, user.id, "Campaign", f"Triggered '{payload.key}' agent for '{c.name}'{suffix}.")
+    background.add_task(_run_agent_task, c.id, user.id, payload.key, payload.force)
     return {"detail": f"Agent '{payload.key}' started"}
