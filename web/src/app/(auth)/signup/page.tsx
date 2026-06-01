@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { api, setToken } from "@/lib/api";
+import { api, setToken, googleStartUrl } from "@/lib/api";
 
 type Step = "details" | "otp";
 
@@ -20,7 +20,15 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [googleOn, setGoogleOn] = useState(false);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
+
+  useEffect(() => {
+    api
+      .authProviders()
+      .then((p) => setGoogleOn(p.google))
+      .catch(() => {});
+  }, []);
 
   function applyDevOtp(code?: string | null) {
     if (code && /^\d{6}$/.test(code)) {
@@ -195,14 +203,24 @@ export default function SignupPage() {
         Start filling your pipeline in minutes.
       </p>
 
-      <button className="mt-6 flex w-full items-center justify-center gap-3 rounded-full border border-line bg-surface py-2.5 text-sm font-semibold text-ink hover:bg-ink/5">
-        <span className="font-display text-base text-accent">G</span>
-        Sign up with Google
-      </button>
+      {googleOn && (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = googleStartUrl();
+            }}
+            className="mt-6 flex w-full items-center justify-center gap-3 rounded-full border border-line bg-surface py-2.5 text-sm font-semibold text-ink hover:bg-ink/5"
+          >
+            <span className="font-display text-base text-accent">G</span>
+            Sign up with Google
+          </button>
 
-      <div className="my-5 flex items-center gap-3 text-xs text-ink-300">
-        <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-      </div>
+          <div className="my-5 flex items-center gap-3 text-xs text-ink-300">
+            <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+          </div>
+        </>
+      )}
 
       <form onSubmit={submitDetails} className="space-y-4">
         <div>

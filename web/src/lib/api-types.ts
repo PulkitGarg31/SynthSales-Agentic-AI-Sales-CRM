@@ -219,3 +219,7 @@ export interface ResendResponse {
   email_sent: boolean;
   dev_otp?: string | null;
 }
+
+export interface AuthProviders {
+  google: boolean;
+}

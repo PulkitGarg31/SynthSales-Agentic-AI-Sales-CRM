@@ -45,6 +45,14 @@ class User(Base):
     otp_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Wrong-code counter for the current OTP. Reset to 0 whenever a fresh code is
+    # issued (register / resend) and on successful verification. Once it hits
+    # MAX_OTP_ATTEMPTS the code is locked until a new one is requested — stops a
+    # 6-digit code from being brute-forced before it expires.
+    otp_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Google account subject ("sub") when the user signed in via Google OAuth.
+    # Null for password-only accounts. Presence ⇒ the account is Google-linked.
+    google_sub: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     campaigns: Mapped[list[Campaign]] = relationship(

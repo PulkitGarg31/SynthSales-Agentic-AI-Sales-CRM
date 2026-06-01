@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 from app.providers.ai import ai
 from app.providers.email import email_provider
+from app.providers.oauth import oauth_provider
 from app.providers.search import search
 from app.providers.verification import verification
 from app.workers.scheduler import start_scheduler, stop_scheduler
@@ -63,6 +64,15 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "is_admin BOOLEAN NOT NULL DEFAULT false"
             )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "otp_attempts INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255)")
         )
         # Auto-promote any user whose email matches the ADMIN_EMAILS config.
         # Lets you set the admin list in .env instead of running ad-hoc SQL.
@@ -149,6 +159,7 @@ def health():
             # Free syntax/MX verification always runs; paid layer is optional.
             "email_verification": verification.paid_mode or "free (syntax+MX)",
             "email_mode": email_provider.mode,
+            "google_oauth": oauth_provider.available,
         },
     }
 
