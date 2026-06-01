@@ -1,17 +1,21 @@
 import random
+import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.agents.orchestrator import ensure_agents
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.core.ratelimit import limiter
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models import User, utcnow
 from app.core.config import settings
 from app.providers.email import email_provider
+from app.providers.oauth import oauth_provider
 from app.schemas import (
     LoginIn,
     RegisterIn,
@@ -24,6 +28,25 @@ from app.schemas import (
 from app.services.events import add_log
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+# --- Abuse controls -------------------------------------------------------
+# OTP brute-force lockout + per-IP/per-email throttles. State is in-memory (see
+# core/ratelimit.py: per-process, resets on restart). The messages below surface
+# verbatim in the UI, so keep them human-readable.
+MAX_OTP_ATTEMPTS = 5
+_RL_WINDOW = 600  # seconds (10 minutes)
+THROTTLE_MSG = "Too many sign-up attempts. Please wait a few minutes and try again."
+RESEND_THROTTLE_MSG = (
+    "Too many code requests. Please wait a few minutes before requesting another code."
+)
+OTP_LOCKED_MSG = "Too many incorrect codes. Request a new code to continue."
+
+
+def _client_ip(request: Request) -> str:
+    # No reverse proxy fronts the app today, so X-Forwarded-For would be
+    # attacker-controlled — trust only the direct peer address.
+    return request.client.host if request.client else "unknown"
+
 
 def _new_otp() -> str:
     return f"{random.randint(0, 999999):06d}"
@@ -56,7 +79,17 @@ def _dev_otp(otp: str, delivered: bool) -> str | None:
 
 
 @router.post("/register", response_model=RegisterOut, status_code=201)
-def register(payload: RegisterIn, db: Session = Depends(get_db)):
+def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db)):
+    ip = _client_ip(request)
+    if not limiter.check(f"register:ip:{ip}", 5, _RL_WINDOW) or not limiter.check(
+        f"register:email:{payload.email.lower()}", 3, _RL_WINDOW
+    ):
+        add_log(
+            db, None, "User",
+            f"Registration throttled for {payload.email} from {ip}.",
+            level="warning",
+        )
+        raise HTTPException(status_code=429, detail=THROTTLE_MSG)
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     otp = _new_otp()
@@ -67,6 +100,7 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
         is_verified=False,
         otp_code=otp,
         otp_expires_at=utcnow() + timedelta(minutes=15),
+        otp_attempts=0,
     )
     db.add(user)
     db.commit()
@@ -86,12 +120,36 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
 @router.post("/verify-otp", response_model=Token)
 def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
-    if not user or user.otp_code != payload.code:
+    # Unknown email or no active code is reported exactly like a wrong code, so
+    # this endpoint can't be used to enumerate accounts.
+    if not user or not user.otp_code:
         raise HTTPException(status_code=400, detail="Invalid code")
+    # Expiry is checked before the lock so an expired code self-heals: the user
+    # is routed to request a new one (resend resets the attempt counter).
     if user.otp_expires_at and user.otp_expires_at < utcnow():
-        raise HTTPException(status_code=400, detail="Code expired")
+        raise HTTPException(status_code=400, detail="Code expired. Request a new code.")
+    if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+        add_log(
+            db, user.id, "User",
+            f"OTP verification locked for {user.email} (too many attempts).",
+            level="warning",
+        )
+        raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
+    if user.otp_code != payload.code:
+        user.otp_attempts += 1
+        db.commit()
+        if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+            add_log(
+                db, user.id, "User",
+                f"OTP verification locked for {user.email} (too many attempts).",
+                level="warning",
+            )
+            raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
+        raise HTTPException(status_code=400, detail="Invalid code")
+    # Correct code — verify, clear the code, and reset the attempt counter.
     user.is_verified = True
     user.otp_code = None
+    user.otp_attempts = 0
     # Auto-grant admin if this email is in the configured admin list.
     if user.email.lower() in settings.admin_emails_list:
         user.is_admin = True
@@ -100,14 +158,32 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
 
 
 @router.post("/resend-otp")
-def resend_otp(payload: LoginIn | None = None, email: str = "", db: Session = Depends(get_db)):
-    target = email or (payload.email if payload else "")
+def resend_otp(
+    request: Request,
+    payload: LoginIn | None = None,
+    email: str = "",
+    db: Session = Depends(get_db),
+):
+    target = (email or (payload.email if payload else "")).strip()
+    ip = _client_ip(request)
+    # Throttle before the DB lookup: this both blunts email enumeration and caps
+    # how many real OTP emails a single inbox can be made to receive.
+    if not limiter.check(f"resend:ip:{ip}", 5, _RL_WINDOW) or not limiter.check(
+        f"resend:email:{target.lower()}", 3, _RL_WINDOW
+    ):
+        add_log(
+            db, None, "User",
+            f"Resend-OTP throttled for {target or '(blank)'} from {ip}.",
+            level="warning",
+        )
+        raise HTTPException(status_code=429, detail=RESEND_THROTTLE_MSG)
     user = db.query(User).filter(User.email == target).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     otp = _new_otp()
     user.otp_code = otp
     user.otp_expires_at = utcnow() + timedelta(minutes=15)
+    user.otp_attempts = 0
     db.commit()
     delivered = _send_otp(user.email, otp)
     return {
@@ -163,3 +239,114 @@ def update_me(
     db.commit()
     db.refresh(user)
     return user
+
+
+# --- Google OAuth ---------------------------------------------------------
+# Authorization Code flow. The SPA sends the browser to /google/start, which
+# redirects to Google; Google redirects back to /google/callback, which mints
+# our JWT and redirects to the frontend /oauth-callback page. Everything 404s /
+# stays hidden when Google credentials aren't configured.
+
+
+@router.get("/providers")
+def auth_providers():
+    """Which social-login providers are configured — drives the auth-page UI."""
+    return {"google": oauth_provider.available}
+
+
+def _oauth_error_redirect(reason: str) -> RedirectResponse:
+    # Send failures back to the SPA (never raw JSON in the browser) so the
+    # callback page can show friendly copy.
+    return RedirectResponse(
+        f"{settings.frontend_url}/oauth-callback?error={reason}", status_code=307
+    )
+
+
+@router.get("/google/start")
+def google_start():
+    if not oauth_provider.available:
+        raise HTTPException(status_code=404, detail="Google sign-in is not enabled")
+    # CSRF via double-submit cookie: the state echoed back by Google must match
+    # the one in this cookie (no server-side session store exists).
+    state = secrets.token_urlsafe(24)
+    resp = RedirectResponse(oauth_provider.authorization_url(state), status_code=307)
+    resp.set_cookie(
+        "oauth_state",
+        state,
+        max_age=600,
+        httponly=True,
+        samesite="lax",
+        path="/api/auth",
+    )
+    return resp
+
+
+@router.get("/google/callback")
+def google_callback(
+    request: Request,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+    db: Session = Depends(get_db),
+):
+    if not oauth_provider.available:
+        raise HTTPException(status_code=404, detail="Google sign-in is not enabled")
+    if error:  # user denied consent at Google
+        return _oauth_error_redirect("denied")
+    if not state or state != request.cookies.get("oauth_state"):
+        return _oauth_error_redirect("state")
+    if not code:
+        return _oauth_error_redirect("missing_code")
+
+    tokens = oauth_provider.exchange_code(code)
+    if not tokens or not tokens.get("access_token"):
+        return _oauth_error_redirect("exchange")
+    info = oauth_provider.fetch_userinfo(tokens["access_token"])
+    if not info:
+        return _oauth_error_redirect("userinfo")
+
+    sub = info.get("sub")
+    email = (info.get("email") or "").lower()
+    name = info.get("name") or email
+    if not sub or not email:
+        return _oauth_error_redirect("userinfo")
+    # Never trust an unverified Google email — it could be someone else's.
+    if not info.get("email_verified"):
+        return _oauth_error_redirect("unverified_google")
+
+    # Resolve the account: by Google sub, else by email (link onto the existing
+    # password account), else create a fresh verified user.
+    user = db.query(User).filter(User.google_sub == sub).first()
+    is_new = False
+    if not user:
+        user = db.query(User).filter(User.email == email).first()
+        if user:
+            user.google_sub = sub
+            user.is_verified = True
+        else:
+            user = User(
+                name=name,
+                email=email,
+                # Google verified the email; there's no password login path, so
+                # store a random unguessable hash to satisfy the non-null column.
+                hashed_password=hash_password(secrets.token_urlsafe(32)),
+                is_verified=True,
+                google_sub=sub,
+            )
+            db.add(user)
+            is_new = True
+    # Admin auto-grant, mirroring verify-otp.
+    if user.email.lower() in settings.admin_emails_list:
+        user.is_admin = True
+    db.commit()
+    db.refresh(user)
+    if is_new:
+        ensure_agents(db, user.id)
+    add_log(db, user.id, "User", f"Signed in with Google ({user.email}).")
+
+    token = create_access_token(str(user.id))
+    resp = RedirectResponse(
+        f"{settings.frontend_url}/oauth-callback?token={token}", status_code=307
+    )
+    resp.delete_cookie("oauth_state", path="/api/auth")
+    return resp

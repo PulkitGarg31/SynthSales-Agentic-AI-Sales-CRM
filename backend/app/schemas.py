@@ -1,13 +1,34 @@
 """Pydantic request/response schemas."""
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+# Password policy: long enough to resist guessing, capped so a multi-kilobyte
+# string can't waste pbkdf2 CPU, and at least two character classes so trivial
+# passwords ("password", "12345678") are rejected without forcing every class.
+_PW_MIN, _PW_MAX = 8, 128
+_PW_CLASSES = (r"[a-z]", r"[A-Z]", r"\d", r"[^A-Za-z0-9]")
+
+
+def _validate_password_strength(value: str) -> str:
+    if len(value) < _PW_MIN:
+        raise ValueError(f"Password must be at least {_PW_MIN} characters.")
+    if len(value) > _PW_MAX:
+        raise ValueError(f"Password must be at most {_PW_MAX} characters.")
+    if sum(bool(re.search(p, value)) for p in _PW_CLASSES) < 2:
+        raise ValueError(
+            "Password must include at least two of: lowercase, uppercase, "
+            "number, symbol."
+        )
+    return value
 
 
 # ---------- Auth ----------
@@ -15,6 +36,11 @@ class RegisterIn(BaseModel):
     name: str
     email: EmailStr
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def _password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class VerifyOtpIn(BaseModel):

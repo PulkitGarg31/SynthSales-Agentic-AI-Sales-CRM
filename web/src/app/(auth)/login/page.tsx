@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { api, setToken } from "@/lib/api";
+import { api, setToken, googleStartUrl } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +13,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("password123");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [googleOn, setGoogleOn] = useState(false);
+
+  useEffect(() => {
+    api
+      .authProviders()
+      .then((p) => setGoogleOn(p.google))
+      .catch(() => {});
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,14 +43,24 @@ export default function LoginPage() {
         Sign in to your Reachly workspace.
       </p>
 
-      <button className="mt-6 flex w-full items-center justify-center gap-3 rounded-full border border-line bg-surface py-2.5 text-sm font-semibold text-ink hover:bg-ink/5">
-        <span className="font-display text-base text-accent">G</span>
-        Continue with Google
-      </button>
+      {googleOn && (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = googleStartUrl();
+            }}
+            className="mt-6 flex w-full items-center justify-center gap-3 rounded-full border border-line bg-surface py-2.5 text-sm font-semibold text-ink hover:bg-ink/5"
+          >
+            <span className="font-display text-base text-accent">G</span>
+            Continue with Google
+          </button>
 
-      <div className="my-5 flex items-center gap-3 text-xs text-ink-300">
-        <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-      </div>
+          <div className="my-5 flex items-center gap-3 text-xs text-ink-300">
+            <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+          </div>
+        </>
+      )}
 
       <form onSubmit={submit} className="space-y-4">
         <Field label="Email">

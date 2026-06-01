@@ -1,6 +1,7 @@
 import type {
   Agent,
   AppNotification,
+  AuthProviders,
   Campaign,
   Company,
   CompanyDetail,
@@ -33,6 +34,10 @@ export function setToken(token: string) {
 export function clearToken() {
   window.localStorage.removeItem(TOKEN_KEY);
 }
+
+// Full-page entry point for the Google OAuth flow. It's a browser navigation
+// (the backend 302s to Google), not a fetch — so it's a URL, not an api method.
+export const googleStartUrl = () => `${API_URL}/api/auth/google/start`;
 
 export class ApiError extends Error {
   status: number;
@@ -118,6 +123,8 @@ export const api = {
       auth: false,
       body: { email, password },
     }),
+  authProviders: () =>
+    request<AuthProviders>("/api/auth/providers", { auth: false }),
   me: () => request<User>("/api/auth/me"),
   setOutbound: (enabled: boolean) =>
     request<User>("/api/auth/me", {

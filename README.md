@@ -451,3 +451,53 @@ app still runs: AI/Verifalia degrade gracefully and email uses "console" mode
 - Optional Admin Panel (frontend Module 18).
 - Alembic migrations, Google Calendar event creation, deployment/CI-CD.
 - Forgot-password is still a frontend-only stub (no backend reset endpoint yet).
+
+### 2026-06-01 (registration hardening + Google OAuth)
+
+Closed the four gaps from `.claude/specs/01-registration.md` (the core register → OTP →
+verify flow already existed; see also the plan in `.claude/plans/01-registration.md`).
+Backend hardening ships with no new deps; Google OAuth is fully mergeable with **no**
+credentials — it degrades like every other integration.
+
+#### Password strength on signup
+- First pydantic-v2 `@field_validator` in the codebase (`schemas.py`): password must be
+  8–128 chars (128 is a pbkdf2 DoS guard, **not** a bcrypt 72-byte cap — the hasher is
+  pbkdf2_sha256) and include ≥2 of 4 character classes. Surfaces as a readable 422.
+
+#### Abuse controls (in-memory, zero deps)
+- New `core/ratelimit.py` — thread-safe sliding-window limiter (monotonic clock,
+  `threading.Lock`; per-process, resets on restart — Redis-swappable behind `.check()`).
+- `POST /register` and `/resend-otp` now throttle by **both IP and email** (register 5/IP·
+  3/email; resend 5/IP·3/email per 10 min) → 429 plus a `level="warning"` audit log.
+- `POST /verify-otp` gained an **OTP brute-force lockout**: new `User.otp_attempts` column;
+  5 wrong codes → 429 (locked); the counter resets when a fresh code is issued
+  (register/resend) or on success. Expiry is checked before the lock so an expired code
+  self-heals (the user is routed to resend).
+
+#### Google OAuth (sign-in / sign-up)
+- New `providers/oauth.py` (`GoogleOAuthProvider`, httpx, no SDK) + 4 config keys;
+  `.available` is False with no client id/secret, exactly like the other providers.
+- Authorization-code flow: `GET /api/auth/google/start` (random `state` in an HttpOnly
+  cookie for CSRF) → Google → `GET /api/auth/google/callback` exchanges the code, fetches
+  userinfo, **requires `email_verified`**, resolves the account (by `google_sub`, else links
+  onto an existing password account by email, else creates a verified user + `ensure_agents`),
+  then 307-redirects to the SPA `/oauth-callback?token=…`. New nullable, indexed
+  `User.google_sub` column.
+- `GET /api/auth/providers` tells the frontend whether to show the button; `/health` now
+  reports `google_oauth`.
+- Frontend: new Suspense-wrapped `(auth)/oauth-callback` page; the previously-inert
+  "Continue with Google" buttons on login + signup now render only when OAuth is configured
+  and kick off the flow via a full-page nav.
+
+#### Schema / migrations
+- Two idempotent `ALTER TABLE users ADD COLUMN IF NOT EXISTS` (`otp_attempts`, `google_sub`)
+  in `main.py::lifespan` (still no Alembic).
+
+#### Verified
+- Backend imports clean; `npm run build` passes (incl. the `/oauth-callback` Suspense
+  boundary that Next.js 16 requires for `useSearchParams`).
+- Unit: password validator, rate limiter (T,T,T,F sequence), OAuth degrade.
+- Live (Postgres on 5433): migrations applied; weak password → 422; 5 wrong OTP codes →
+  400×4 then **429**, `otp_attempts`=5, resend resets it to 0; register throttle →
+  400,400,**429**; unconfigured OAuth → `providers.google=false`, `/google/start` &
+  `/google/callback` → 404.

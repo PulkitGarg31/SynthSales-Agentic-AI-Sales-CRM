@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = "Reachly <no-reply@reachly.example>"
 
+    # Google OAuth (sign-in / sign-up). Optional: leave the id/secret blank to
+    # disable — the "Continue with Google" button hides and the OAuth routes
+    # 404. `frontend_url` is where the backend redirects the SPA after a
+    # successful callback.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://127.0.0.1:8000/api/auth/google/callback"
+    frontend_url: str = "http://localhost:3000"
+
     # Automation
     followup_interval_minutes: int = 15
     enable_scheduler: bool = True
