@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import concurrent.futures as _futures
+
 from sqlalchemy.orm import Session
 
 from app.agents.base import AGENT_REGISTRY, Agent
@@ -9,6 +11,7 @@ from app.agents.outreach import outreach_agent
 from app.agents.scoring import scoring_agent
 from app.agents.tracking import tracking_agent
 from app.agents.verification import verification_agent
+from app.core.database import SessionLocal
 from app.models import AgentConfig, Campaign, Company, Contact
 from app.services.events import add_notification
 
@@ -53,6 +56,58 @@ def _phase(db: Session, owner_id: int, agent: Agent, fn) -> None:
     except Exception:
         agent.mark(db, owner_id, "Error")
         raise
+
+
+# Bounded fan-out for enrichment. External rate limits (DuckDuckGo throttling,
+# the AI provider's 60s 429 cooldown) dominate over local CPU, so a small pool
+# is both faster and safer than unbounded concurrency. Kept well under the DB
+# connection-pool ceiling (see core/database.py, which pins pool_size to match).
+ENRICH_MAX_WORKERS = 4
+
+
+def _enrich_one(company_id: int, campaign_id: int, owner_id: int, force_ai: bool) -> None:
+    """Enrich a single company on a PRIVATE session — safe inside a worker
+    thread. Opens its own SessionLocal(), re-fetches the Company + Campaign by id
+    (the orchestrator's ORM objects belong to another thread's session and must
+    never be touched here), runs the existing agent, and always closes. Per-
+    company exceptions are swallowed + logged so one bad company can't abort the
+    batch (mirrors the finder's tolerance in _walk_for_contactable)."""
+    db = SessionLocal()
+    try:
+        company = db.get(Company, company_id)
+        campaign = db.get(Campaign, campaign_id)
+        if company is not None and campaign is not None:
+            enrichment_agent.run(db, company, campaign, owner_id, force_ai=force_ai)
+    except Exception:
+        try:
+            enrichment_agent.log(
+                db, owner_id, f"Enrichment failed for company {company_id}.", level="error",
+            )
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+def _run_enrichment_concurrent(
+    companies: list[Company], campaign_id: int, owner_id: int, force_ai: bool,
+) -> None:
+    """Fan enrichment out across a bounded thread pool, one private session per
+    worker. Capture ids up front so no ORM object (bound to THIS thread's
+    session) crosses a thread boundary. Blocks until every worker joins, so the
+    caller (a _phase lambda) only returns once the whole batch is done — which
+    preserves the enrichment → scoring ordering and keeps mark()/_phase single-
+    threaded on the main session."""
+    ids = [c.id for c in companies]
+    if not ids:
+        return
+    workers = min(ENRICH_MAX_WORKERS, len(ids))
+    with _futures.ThreadPoolExecutor(max_workers=workers, thread_name_prefix="enrich") as pool:
+        futures = [
+            pool.submit(_enrich_one, cid, campaign_id, owner_id, force_ai) for cid in ids
+        ]
+        for f in _futures.as_completed(futures):
+            f.result()  # _enrich_one never raises; drain so the pool joins cleanly
 
 
 # Keys that can be triggered on-demand for a single campaign. "meeting" is
@@ -164,13 +219,11 @@ def run_agent_for_campaign(
     if key == "enrichment":
         # Enrichment uses `force_ai` (single flag — it both means "run AI even
         # for dead/parked domains" and "redo the search instead of reusing
-        # cached summary"). Tie it to the same `force` toggle.
+        # cached summary"). Tie it to the same `force` toggle. Fan out across a
+        # bounded pool so a large campaign isn't researched one company at a time.
         _phase(
             db, owner_id, enrichment_agent,
-            lambda: [
-                enrichment_agent.run(db, c, campaign, owner_id, force_ai=force)
-                for c in companies
-            ],
+            lambda: _run_enrichment_concurrent(companies, campaign.id, owner_id, force_ai=force),
         )
     elif key == "scoring":
         _phase(db, owner_id, scoring_agent, lambda: scoring_agent.run(db, campaign, owner_id))
@@ -213,10 +266,11 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
     """Phases 1–6: research → score → contacts → guess/verify → outreach drafts."""
     companies = db.query(Company).filter(Company.campaign_id == campaign.id).all()
 
-    # Phase 1 — enrichment
+    # Phase 1 — enrichment (concurrent: one private session per worker, bounded
+    # pool). force_ai=False — the bulk path still skips AI for dead/parked domains.
     _phase(
         db, owner_id, enrichment_agent,
-        lambda: [enrichment_agent.run(db, c, campaign, owner_id) for c in companies],
+        lambda: _run_enrichment_concurrent(companies, campaign.id, owner_id, force_ai=False),
     )
 
     # Phase 2 — scoring + ranking

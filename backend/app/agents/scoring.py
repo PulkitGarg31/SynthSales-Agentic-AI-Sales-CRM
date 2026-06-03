@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import hashlib
-
 from sqlalchemy.orm import Session
 
 from app.agents.base import Agent
 from app.models import Campaign, Company
+from app.providers.ai import ai
 
 FACTORS = [
     ("Product fit", 0.30),
@@ -15,10 +14,6 @@ FACTORS = [
     ("Market compatibility", 0.10),
     ("Growth indicators", 0.10),
 ]
-
-
-def _h(text: str, salt: str) -> int:
-    return int(hashlib.sha256(f"{text}:{salt}".encode()).hexdigest()[:8], 16) % 100
 
 
 class ScoringAgent(Agent):
@@ -51,73 +46,196 @@ class ScoringAgent(Agent):
         )
         return len(companies)
 
+    # ---- Per-company scoring ------------------------------------------------
     def _score(self, c: Company, campaign: Campaign) -> None:
-        factors = []
-        # Signals that nudge the heuristic.
-        hiring_bonus = 12 if c.active_hiring else 0
-        funding_bonus = 10 if c.recent_funding else 0
-        news_penalty = 14 if c.recent_news else 0
-        # industry_pref may be a comma-separated list of preferred industries.
-        prefs = [p.strip().lower() for p in (campaign.industry_pref or "").split(",") if p.strip()]
-        company_industry = (c.industry or "").lower()
-        industry_match = (
-            18 if any(p in company_industry or company_industry in p for p in prefs) else 0
-        )
-        for label, weight in FACTORS:
-            base = 55 + _h(c.name, label) % 30  # 55–84 baseline
-            score = base + industry_match + hiring_bonus + funding_bonus - news_penalty
-            if label == "Growth indicators":
-                score += hiring_bonus + funding_bonus
-            if label == "Industry alignment":
-                score += industry_match
-            score = max(5, min(99, score))
-            factors.append({"label": label, "weight": weight, "score": int(score)})
+        """Score a company against the campaign's ICP. AI-driven when a provider
+        is configured (uses the full ICP + the enrichment profile); otherwise a
+        deterministic real-signal heuristic. Both paths are discounted by the
+        per-metric confidence and finally clamped by the overall
+        enrichment_confidence ceiling."""
+        if ai.available:
+            factors, explanation = self._score_ai(c, campaign)
+            if factors is None:
+                factors, explanation = self._score_heuristic(c, campaign)
+        else:
+            factors, explanation = self._score_heuristic(c, campaign)
 
         c.score_factors = factors
         raw = int(round(sum(f["weight"] * f["score"] for f in factors)))
+        c.ai_score = self._apply_confidence_ceiling(raw, c)
+        c.match_level = self._match_level(c.ai_score)
+        c.match_explanation = explanation
 
-        # Confidence cap — companies with no real evidence (dead domain, no
-        # search hits, AI couldn't corroborate) can't reach "Strong" no matter
-        # what the name-hash baseline produced. Otherwise a hallucinated
-        # profile would outrank a real, well-researched company.
+    # ---- AI path ------------------------------------------------------------
+    def _score_ai(self, c: Company, campaign: Campaign):
+        """Ask the AI to score the company against the real ICP using the
+        enrichment profile. Returns (factors, explanation), or (None, None) if
+        the response is unusable so the caller falls back to the heuristic."""
+        profile = "\n".join(f"- {p}" for p in (c.research_points or [])) or "(no research points)"
+        signals = []
+        if c.recent_funding:
+            signals.append(f"recent funding: {c.recent_funding}")
+        if c.recent_news:
+            signals.append(f"recent news: {c.recent_news}")
+        signals.append(f"actively hiring: {bool(c.active_hiring)}")
+
+        prompt = (
+            "Score how well this company fits our Ideal Customer Profile (ICP). "
+            "Rate EACH factor 0-100 based ONLY on the evidence below — do not "
+            "invent facts that aren't in the research profile. If the profile is "
+            "thin, score conservatively (40-60), never high.\n\n"
+            "=== WHAT WE SELL ===\n"
+            f"Product: {campaign.product}\n"
+            f"Description: {campaign.product_description}\n"
+            f"Value proposition: {campaign.value_proposition}\n"
+            f"Our industry: {campaign.industry}\n"
+            f"Differentiators: {campaign.differentiators}\n\n"
+            "=== OUR IDEAL CUSTOMER (ICP) ===\n"
+            f"ICP description: {campaign.icp or 'not specified'}\n"
+            f"Preferred industries: {campaign.industry_pref or 'any'}\n"
+            f"Business requirements: {campaign.business_requirements or 'none specified'}\n"
+            f"Ranking criteria: {campaign.ranking_criteria or 'none specified'}\n"
+            f"Target geography: {campaign.geography or 'any'}\n"
+            f"Target company size: {campaign.company_size or 'any'}\n\n"
+            "=== THE COMPANY ===\n"
+            f"Name: {c.name}\n"
+            f"Industry: {c.industry or 'unknown'}\n"
+            f"Size: {c.size or 'unknown'}\n"
+            f"Location: {c.location or 'unknown'}\n"
+            f"Research profile:\n{profile}\n"
+            f"Signals: {'; '.join(signals)}\n\n"
+            'Return JSON exactly like: {"scores": {"Product fit": 0, '
+            '"Industry alignment": 0, "Company relevance": 0, '
+            '"Requirement satisfaction": 0, "Market compatibility": 0, '
+            '"Growth indicators": 0}, "match_explanation": "2-3 sentence '
+            'justification grounded in the profile"} — each score an integer 0-100.'
+        )
+        data = ai.complete_json(
+            prompt,
+            system="You are a precise B2B ICP-fit scoring analyst. Evidence over optimism.",
+        )
+        if not data or not isinstance(data.get("scores"), dict):
+            return None, None
+        raw = data["scores"]
+        factors = self._build_factors(c, lambda label: raw.get(label, 50))
+        explanation = str(data.get("match_explanation") or "").strip() or self._auto_explanation(c, factors)
+        return factors, explanation
+
+    # ---- Deterministic fallback (no AI, or AI unusable) ---------------------
+    def _score_heuristic(self, c: Company, campaign: Campaign):
+        """Score from REAL signals only — no name-hash randomness. Research
+        depth (number of honest bullets) sets the baseline; industry match,
+        funding, hiring and news adjust it. On the heuristic enrichment path the
+        funding/news/hiring signals are always absent, so a low-evidence company
+        stays low and the confidence ceiling then keeps it out of Strong/Good."""
+        prefs = [p.strip().lower() for p in (campaign.industry_pref or "").split(",") if p.strip()]
+        ind = (c.industry or "").lower()
+        industry_match = bool(prefs) and any(p in ind or ind in p for p in prefs)
+
+        evidence = len(c.research_points or [])      # 0–8 honest bullets, real signal
+        base = 45 + min(evidence, 6) * 3             # 45–63 from research depth
+        funding = 12 if c.recent_funding else 0
+        hiring = 10 if c.active_hiring else 0
+        news_pen = 14 if c.recent_news else 0
+        ind_bonus = 20 if industry_match else 0
+        has_reqs = bool((campaign.business_requirements or "").strip())
+
+        per_factor = {
+            "Product fit": base + ind_bonus // 2,
+            "Industry alignment": base + ind_bonus,
+            "Company relevance": base + min(evidence, 6) * 2,
+            "Requirement satisfaction": base + (8 if has_reqs and evidence >= 3 else 0),
+            "Market compatibility": base + ind_bonus // 2,
+            "Growth indicators": base + funding + hiring - news_pen,
+        }
+        factors = self._build_factors(c, lambda label: per_factor[label])
+        return factors, self._auto_explanation(c, factors)
+
+    # ---- Shared factor assembly --------------------------------------------
+    def _build_factors(self, c: Company, base_for) -> list[dict]:
+        """Turn per-label base scores into the score_factors list, applying the
+        per-metric confidence discount to the factors whose evidence it rates,
+        and clamping to 5–99."""
+        factors = []
+        for label, weight in FACTORS:
+            try:
+                score = float(max(0, min(100, int(base_for(label)))))
+            except (TypeError, ValueError):
+                score = 50.0
+            if label == "Industry alignment":
+                score *= self._disc(c, "industry")
+            elif label == "Growth indicators":
+                score *= max(self._disc(c, "recent_funding"), self._disc(c, "active_hiring"))
+            elif label == "Market compatibility":
+                score *= self._disc(c, "location")
+            factors.append(
+                {"label": label, "weight": weight, "score": int(max(5, min(99, round(score))))}
+            )
+        return factors
+
+    @staticmethod
+    def _disc(c: Company, key: str, floor: float = 0.4) -> float:
+        """Per-metric confidence discount in [floor, 1.0]. Absent key → 1.0, so
+        legacy rows (empty metric_confidence) are unaffected. `floor` keeps a
+        known-but-unverified signal from zeroing out its factor entirely."""
+        mc = getattr(c, "metric_confidence", None) or {}
+        if key not in mc:
+            return 1.0
+        try:
+            v = max(0, min(100, int(mc[key])))
+        except (TypeError, ValueError):
+            return 1.0
+        return floor + (1.0 - floor) * (v / 100.0)
+
+    @staticmethod
+    def _apply_confidence_ceiling(raw: int, c: Company) -> int:
+        """Final clamp by OVERALL enrichment_confidence — load-bearing. Companies
+        with no real evidence (dead domain, no search hits, AI couldn't
+        corroborate) can't reach "Strong"/"Good" no matter what the factor
+        scores produced, so a hallucinated profile can't outrank a real one."""
         conf = max(0, min(100, getattr(c, "enrichment_confidence", 50)))
-        # Tightened ceilings — without real evidence a company can't display as
-        # "Good" or better. conf=30 (heuristic / parked / no-snippets path)
-        # now caps in the Moderate range, not Good.
         if conf < 20:
-            ceiling = 45   # Weak
+            ceiling = 45    # Weak
         elif conf < 40:
-            ceiling = 60   # Moderate (was 70/Good)
+            ceiling = 60    # Moderate (was Good)
         elif conf < 60:
-            ceiling = 75   # Good but not top of Good
+            ceiling = 75    # Good but not top of Good
         elif conf < 75:
-            ceiling = 87   # Strong achievable
+            ceiling = 87    # Strong achievable
         else:
             ceiling = 99
-        c.ai_score = min(raw, ceiling)
+        return min(raw, ceiling)
 
-        c.match_level = (
-            "Strong" if c.ai_score >= 85
-            else "Good" if c.ai_score >= 70
-            else "Moderate" if c.ai_score >= 55
+    @staticmethod
+    def _match_level(score: int) -> str:
+        return (
+            "Strong" if score >= 85
+            else "Good" if score >= 70
+            else "Moderate" if score >= 55
             else "Weak"
         )
+
+    def _auto_explanation(self, c: Company, factors: list) -> str:
+        """Deterministic explanation — used on the heuristic path and as the
+        backstop when the AI omits its own match_explanation."""
+        conf = max(0, min(100, getattr(c, "enrichment_confidence", 50)))
         bits = []
-        if industry_match:
-            bits.append("strong industry alignment")
         if c.active_hiring:
             bits.append("active hiring (a growth signal)")
         if c.recent_funding:
             bits.append("recent funding")
         if c.recent_news:
-            bits.append("recent negative news lowers timing")
+            bits.append("recent news affecting timing")
         if conf < 20:
             bits.append("very low research confidence — domain unreachable or parked")
         elif conf < 40:
             bits.append("low research confidence — limited public signals")
-        c.match_explanation = (
-            f"Scored {c.ai_score}/100 (research confidence {conf}/100) — "
-            + (", ".join(bits) if bits else "based on baseline fit signals")
+        score = self._apply_confidence_ceiling(
+            int(round(sum(f["weight"] * f["score"] for f in factors))), c
+        )
+        return (
+            f"Scored {score}/100 (research confidence {conf}/100) — "
+            + (", ".join(bits) if bits else "based on ICP-fit factors")
             + "."
         )
 

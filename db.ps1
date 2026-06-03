@@ -83,6 +83,7 @@ ORDER BY id;
         Invoke-Sql @"
 SELECT id, campaign_id, rank, ai_score AS score,
        match_level AS match, enrichment_confidence AS conf,
+       jsonb_array_length(research_points) AS pts,
        domain_status AS site, status,
        LEFT(name, 30) AS name,
        LEFT(domain, 30) AS domain,

@@ -501,3 +501,49 @@ credentials — it degrades like every other integration.
   400×4 then **429**, `otp_attempts`=5, resend resets it to 0; register throttle →
   400,400,**429**; unconfigured OAuth → `providers.google=false`, `/google/start` &
   `/google/callback` → 404.
+
+### 2026-06-03 (enrichment & scoring upgrade)
+
+Implemented `.claude/specs/02-enrichment-scoring.md` (plan in `.claude/plans/`). Pipeline
+phases 1–2 were upgraded; closes the spec's prior gaps #11–#14. No new dependencies.
+
+#### Enrichment (`agents/enrichment.py`)
+- **5–8 bullet research profile** — the AI now returns `research_points` (new `Company`
+  JSON column) instead of a 2–3 sentence blob. `research_summary` is **retained but derived**
+  (space-joined points) so every existing consumer (outreach prompt + fallback, pipeline
+  `stats()`, admin debug, seed) keeps working untouched.
+- **Per-metric confidence** — new `metric_confidence` JSON column: a 0–100 confidence for each
+  AI-filled field. **Backend-only** — deliberately absent from `CompanyOut`/`api-types.ts`/UI;
+  its sole job is to make scoring more correct. When low overall confidence suppresses
+  funding/news/hiring, those per-metric values are capped too. Dead/parked/heuristic paths emit
+  honest bullet lists + `{}` (no fabricated signals).
+- **`domain_status` caching** — the live HTTP probe (the slowest step) now runs only on `force`
+  or when status is `unknown`; non-force re-runs reuse the cached value. The per-company
+  Re-research button still forces a fresh probe.
+
+#### Scoring (`agents/scoring.py`)
+- **Removed the `sha256(name)` baseline.** With an AI key, `_score()` scores against the full
+  campaign ICP (`product`, `product_description`, `value_proposition`, `icp`, `industry_pref`,
+  `business_requirements`, `ranking_criteria`, `geography`, `company_size`, `differentiators`)
+  using the enrichment profile; with no key, a **deterministic real-signal heuristic** (research
+  depth + industry/funding/hiring/news) drives it.
+- **Per-metric discount** — `metric_confidence` discounts the factors it rates (industry →
+  Industry alignment; funding/hiring → Growth indicators; location → Market compatibility). The
+  load-bearing `enrichment_confidence` → `ai_score` **ceiling is preserved** as the final clamp.
+- **AI-written `match_explanation`** in the AI path, deterministic backstop otherwise.
+
+#### Performance (`agents/orchestrator.py`, `core/database.py`)
+- Enrichment fans out across a **bounded `ThreadPoolExecutor`** (`ENRICH_MAX_WORKERS=4`), each
+  worker on its **own `SessionLocal()`** (re-fetch by id — no ORM object crosses a thread).
+  Blocks until join, so enrichment→scoring ordering and `mark()` on the main session are
+  preserved. Engine `pool_size` pinned to hold the workers.
+
+#### Schema / migrations / UI
+- Two idempotent `ALTER TABLE companies ADD COLUMN IF NOT EXISTS` (`research_points`,
+  `metric_confidence` JSONB) in `main.py::lifespan`. `research_points` added to `CompanyOut`
+  (not `metric_confidence`). `CompanyDetail.tsx` renders the bullets (prose fallback for legacy
+  rows). Seed/admin/`db.ps1` show the new fields for debugging.
+
+#### Verified
+- All changed backend modules byte-compile; `npm run build` passes (typechecks `research_points`).
+- Live smoke (Postgres 5433): see the spec's Definition of done.

@@ -69,6 +69,7 @@ export interface Company {
   match_level: "Strong" | "Good" | "Moderate" | "Weak";
   status: CompanyStatus;
   research_summary: string;
+  research_points: string[];
   match_explanation: string;
   score_factors: ScoreFactor[];
   recent_funding?: string | null;

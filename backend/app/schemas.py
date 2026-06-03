@@ -182,6 +182,9 @@ class CompanyOut(ORMModel):
     match_level: str
     status: str
     research_summary: str
+    # 5–8 bullet research profile. metric_confidence is intentionally NOT here —
+    # it's a backend-only scoring signal and must never reach the client.
+    research_points: list[str] = []
     match_explanation: str
     score_factors: list = []
     recent_funding: str | None = None

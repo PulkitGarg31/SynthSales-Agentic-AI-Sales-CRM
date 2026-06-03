@@ -117,6 +117,10 @@ class Company(Base):
     status: Mapped[str] = mapped_column(String(20), default="Researching")
 
     research_summary: Mapped[str] = mapped_column(Text, default="")
+    # 5–8 bullet research profile — the new primary narrative shown to the user.
+    # research_summary is auto-derived from these (space-joined) so existing
+    # consumers (outreach prompt, pipeline stats, admin debug, seed) keep working.
+    research_points: Mapped[list] = mapped_column(JSON, default=list)
     match_explanation: Mapped[str] = mapped_column(Text, default="")
     score_factors: Mapped[list] = mapped_column(JSON, default=list)
     recent_funding: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -126,6 +130,12 @@ class Company(Base):
     # no search hits, or AI couldn't find supporting signals. Scoring uses this
     # to cap fabricated/low-evidence companies away from "Strong".
     enrichment_confidence: Mapped[int] = mapped_column(Integer, default=50)
+    # INTERNAL backend-only signal — NOT exposed in CompanyOut / frontend.
+    # Per-metric 0–100 confidence for each AI-filled field (keys: industry, size,
+    # location, recent_funding, recent_news, active_hiring, summary). Scoring
+    # DISCOUNTS individual factors by these; the overall enrichment_confidence
+    # stays the final ceiling. Empty {} on legacy/heuristic rows → no discount.
+    metric_confidence: Mapped[dict] = mapped_column(JSON, default=dict)
     # "live" | "parked" | "dead" | "unknown" — explicit website status surfaced
     # to the UI so users can see at a glance when a CSV domain is broken.
     domain_status: Mapped[str] = mapped_column(String(20), default="unknown")
