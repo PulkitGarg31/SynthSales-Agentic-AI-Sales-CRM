@@ -54,6 +54,20 @@ async def lifespan(app: FastAPI):
                 "domain_status VARCHAR(20) NOT NULL DEFAULT 'unknown'"
             )
         )
+        # 5–8 bullet research profile (user-facing) + per-metric confidence
+        # (backend-only, feeds scoring). JSON maps to JSONB on Postgres.
+        conn.execute(
+            text(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "research_points JSONB NOT NULL DEFAULT '[]'::jsonb"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "metric_confidence JSONB NOT NULL DEFAULT '{}'::jsonb"
+            )
+        )
         # Widen multi-select columns so picking many industries / countries /
         # size brackets doesn't overflow. Idempotent on Postgres.
         conn.execute(text("ALTER TABLE campaigns ALTER COLUMN industry_pref TYPE VARCHAR(600)"))

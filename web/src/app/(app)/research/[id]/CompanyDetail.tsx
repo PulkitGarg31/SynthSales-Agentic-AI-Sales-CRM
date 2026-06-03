@@ -152,7 +152,21 @@ export function CompanyDetail({
           <Card>
             <CardHeader title="Research summary" />
             <div className="space-y-4 p-5 text-sm leading-relaxed text-ink-700">
-              <p>{company.research_summary || "Not yet researched."}</p>
+              {company.research_points && company.research_points.length > 0 ? (
+                <ul className="space-y-2">
+                  {company.research_points.map((point, i) => (
+                    <li key={i} className="flex gap-2.5">
+                      <span
+                        aria-hidden
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600"
+                      />
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{company.research_summary || "Not yet researched."}</p>
+              )}
               {company.recent_news && (
                 <div className="flex items-start gap-2 rounded-lg bg-warn/10 px-3 py-2 text-warn">
                   <Icon.Info width={16} height={16} className="mt-0.5 shrink-0" />

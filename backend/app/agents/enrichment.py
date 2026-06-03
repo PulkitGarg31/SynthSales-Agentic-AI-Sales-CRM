@@ -11,6 +11,13 @@ from app.providers.search import search
 
 SIZES = ["1–50", "51–200", "201–1,000", "1,000–5,000", "5,000+"]
 
+# Per-metric confidence keys the AI may return (and that scoring reads). This is
+# a BACKEND-ONLY signal — never serialized to the user-facing API.
+METRIC_KEYS = (
+    "industry", "size", "location",
+    "recent_funding", "recent_news", "active_hiring", "summary",
+)
+
 
 def _seed(text: str) -> int:
     return int(hashlib.sha256(text.encode()).hexdigest(), 16)
@@ -22,7 +29,7 @@ def _has_real_snippets(snippets: dict) -> bool:
 
 def _csv_context(company: Company) -> str:
     """A human-readable description of what we got from the CSV — used as
-    raw material for an honest fallback summary."""
+    raw material for an honest fallback profile."""
     bits = []
     if company.industry:
         bits.append(f"the {company.industry} sector")
@@ -57,10 +64,16 @@ class EnrichmentAgent(Agent):
             company name and may surface a current website or news the user
             hasn't seen — that's the whole point of clicking "Re-research".
         """
-        # 1. Liveness check — always record the latest status so the UI banner
-        #    stays accurate.
-        status = search.domain_status(company.domain)
-        company.domain_status = status
+        # 1. Liveness check — cache-aware. A live HTTP probe is the slowest
+        #    single step, so on a non-force bulk re-run we reuse the recorded
+        #    status instead of re-probing. force_ai (Re-research) always
+        #    re-probes, which covers a domain that has since recovered/broken.
+        known = (company.domain_status or "").strip().lower()
+        if force_ai or known in ("", "unknown"):
+            status = search.domain_status(company.domain)
+            company.domain_status = status
+        else:
+            status = known
 
         # 2. Bulk path: skip the AI for dead/parked to save tokens.
         if not force_ai:
@@ -88,12 +101,12 @@ class EnrichmentAgent(Agent):
             src = "heuristic"
 
         # 4. If we forced AI despite a bad domain, cap confidence and prepend a
-        #    site warning to the summary so the UI banner still makes sense.
+        #    site warning as the first profile point so the UI still makes sense.
         if force_ai and status in ("dead", "parked"):
             company.enrichment_confidence = min(company.enrichment_confidence, 25)
-            company.research_summary = (
-                self._site_warning_prefix(company, status) + " " + company.research_summary
-            )
+            warning = self._site_warning_prefix(company, status)
+            company.research_points = [warning] + list(company.research_points or [])
+            company.research_summary = self._summary_from_points(company.research_points)
 
         # Once enrichment has run, status must move out of "Researching" (which
         # means "not yet processed"). Promote to "Qualified" if we have enough
@@ -109,16 +122,22 @@ class EnrichmentAgent(Agent):
     # ---- Dead / parked domain paths -----------------------------------------
     def _mark_dead_domain(self, company: Company) -> None:
         ctx = _csv_context(company)
-        suffix = f" Profile data is limited to the CSV upload ({ctx})." if ctx else ""
         company.industry = company.industry or "Unknown"
         company.size = company.size or "Unknown"
         company.location = company.location or "Unknown"
-        company.research_summary = (
+        points = [
             f"The provided website ({company.domain or 'no domain on file'}) did "
             f"not respond, so no public information could be gathered about "
-            f"{company.name}. Treat with caution — verify manually before "
-            f"outreach to confirm the company is still active.{suffix}"
-        )
+            f"{company.name}.",
+            "Treat with caution — verify manually before outreach to confirm the "
+            "company is still active.",
+        ]
+        if ctx:
+            points.append(f"Profile data is limited to the CSV upload ({ctx}).")
+        points.append("No funding, news, or hiring signals could be confirmed.")
+        company.research_points = points
+        company.research_summary = self._summary_from_points(points)
+        company.metric_confidence = {}
         company.recent_funding = None
         company.recent_news = None
         company.active_hiring = False
@@ -126,18 +145,23 @@ class EnrichmentAgent(Agent):
 
     def _mark_parked_domain(self, company: Company) -> None:
         ctx = _csv_context(company)
-        suffix = f" CSV signals indicate {ctx}." if ctx else ""
         company.industry = company.industry or "Unknown"
         company.size = company.size or "Unknown"
         company.location = company.location or "Unknown"
-        company.research_summary = (
+        points = [
             f"The domain {company.domain} responds, but the page is a parked/"
-            f"placeholder site rather than an active company website — no real "
-            f"content was available to research {company.name}. This usually "
-            f"means the company no longer operates under this domain, or the "
-            f"link in the CSV is incorrect. Verify manually before outreach."
-            f"{suffix}"
-        )
+            f"placeholder site rather than an active company website.",
+            f"No real content was available to research {company.name} — this "
+            f"usually means the company no longer operates under this domain, or "
+            f"the link in the CSV is incorrect.",
+            "Verify manually before outreach.",
+        ]
+        if ctx:
+            points.append(f"CSV signals indicate {ctx}.")
+        points.append("No funding, news, or hiring signals could be confirmed.")
+        company.research_points = points
+        company.research_summary = self._summary_from_points(points)
+        company.metric_confidence = {}
         company.recent_funding = None
         company.recent_news = None
         company.active_hiring = False
@@ -145,7 +169,7 @@ class EnrichmentAgent(Agent):
 
     def _site_warning_prefix(self, company: Company, status: str) -> str:
         """One-sentence lead used when force_ai re-research runs against a
-        dead/parked domain — so the summary still surfaces the site issue."""
+        dead/parked domain — so the profile still surfaces the site issue."""
         if status == "dead":
             return (
                 f"Note: the CSV domain {company.domain or '(none)'} did not "
@@ -175,13 +199,13 @@ class EnrichmentAgent(Agent):
         domain_note = ""
         if domain_status == "dead":
             domain_note = (
-                f" — NOTE: the CSV domain did not respond when probed, so don't "
-                f"assume it's the company's current site; rely on the snippets"
+                " — NOTE: the CSV domain did not respond when probed, so don't "
+                "assume it's the company's current site; rely on the snippets"
             )
         elif domain_status == "parked":
             domain_note = (
-                f" — NOTE: the CSV domain returned a parked/placeholder page, "
-                f"not a real company site; rely on the snippets"
+                " — NOTE: the CSV domain returned a parked/placeholder page, "
+                "not a real company site; rely on the snippets"
             )
         prompt = (
             f"Company: {company.name} (domain: {company.domain or 'n/a'}{domain_note})\n"
@@ -198,17 +222,26 @@ class EnrichmentAgent(Agent):
             "evidence.\n"
             "3. recent_funding / recent_news / active_hiring: return null/false "
             "if not actually mentioned in a snippet. Do not extrapolate.\n"
-            "4. research_summary: 2–3 sentences (max ~400 chars). Mention the "
-            "company's apparent business and any noteworthy signals from the "
-            "snippets. If snippets are empty or weak, say so plainly — do not "
-            "pad with generic descriptions.\n"
-            "5. confidence: integer 0–100 — your honest assessment of how much "
-            "real evidence backed your answers. <30 = essentially nothing, "
-            "60+ = solid corroboration across snippets.\n\n"
+            "4. research_points: 5–8 short factual bullets (each under ~160 "
+            "chars, no leading dash). Each bullet must be grounded in a snippet "
+            "or the CSV facts — cover what the company does, its industry/market, "
+            "size/footprint, and any real funding/news/hiring signal. If evidence "
+            "is thin, return FEWER honest bullets (minimum 1) — never pad to 5 "
+            "with filler or generic claims.\n"
+            "5. confidence: integer 0–100 — your honest OVERALL assessment of how "
+            "much real evidence backed your answers. <30 = essentially nothing, "
+            "60+ = solid corroboration across snippets.\n"
+            "6. metric_confidence: an object giving an integer 0–100 PER FIELD "
+            "(industry, size, location, recent_funding, recent_news, "
+            "active_hiring, summary) — how much real evidence backs THAT field. "
+            "A field you set to null/false gets a LOW confidence (absence of "
+            "evidence, not a confident negative). 'summary' rates research_points "
+            "as a whole.\n\n"
             f"Return JSON with keys: industry (string|null), size (one of {SIZES} or null), "
-            "location (string|null), research_summary (string), "
+            "location (string|null), research_points (array of 5-8 strings), "
             "recent_funding (string|null), recent_news (string|null), "
-            "active_hiring (boolean), confidence (integer 0-100)."
+            "active_hiring (boolean), confidence (integer 0-100), "
+            "metric_confidence (object of field→integer 0-100)."
         )
         data = ai.complete_json(
             prompt, system="You are a B2B research analyst. Honesty over completeness."
@@ -235,17 +268,30 @@ class EnrichmentAgent(Agent):
         company.size = (data.get("size") or company.size or "Unknown").strip() or "Unknown"
         company.location = (data.get("location") or company.location or "Unknown").strip() or "Unknown"
 
-        summary = (data.get("research_summary") or "").strip()
-        if not summary:
-            # AI returned other fields but no summary — synthesize from context
-            # so the UI never shows an empty card.
-            summary = self._fallback_summary(company, reason="ai_unusable")
-        company.research_summary = summary
+        points = self._clean_points(data.get("research_points"))
+        if not points:
+            # AI returned other fields but no usable bullets — synthesize an
+            # honest fallback so the UI never shows an empty card.
+            points = self._fallback_points(company, reason="ai_unusable")
+        company.research_points = points
+        company.research_summary = self._summary_from_points(points)
 
         company.recent_funding = data.get("recent_funding") if confidence >= 50 else None
         company.recent_news = data.get("recent_news") if confidence >= 50 else None
         company.active_hiring = bool(data.get("active_hiring")) if confidence >= 50 else False
         company.enrichment_confidence = max(0, min(100, confidence))
+
+        # Per-metric confidence (backend-only, feeds scoring). When low overall
+        # confidence suppressed the funding/news/hiring signals above, their
+        # per-metric confidence must drop too — otherwise scoring would read a
+        # stale-high confidence for a now-empty field. Build the final dict
+        # before assigning so SQLAlchemy persists exactly what we intend.
+        mc = self._clean_metric_conf(data.get("metric_confidence"))
+        if confidence < 50:
+            for k in ("recent_funding", "recent_news", "active_hiring"):
+                if k in mc:
+                    mc[k] = min(mc[k], 20)
+        company.metric_confidence = mc
 
     # ---- Deterministic fallback (used when AI absent OR returns empty) -----
     def _enrich_heuristic(
@@ -262,7 +308,12 @@ class EnrichmentAgent(Agent):
             company.size = SIZES[s % len(SIZES)]
         if not company.location:
             company.location = ["US", "UK", "Germany", "India", "Canada"][s % 5]
-        company.research_summary = self._fallback_summary(company, reason=reason)
+        company.research_points = self._fallback_points(company, reason=reason)
+        company.research_summary = self._summary_from_points(company.research_points)
+        # Per-metric confidence is empty on the heuristic path — we have no real
+        # evidence to rate. An empty dict means scoring applies no per-metric
+        # discount; the overall enrichment_confidence ceiling still applies.
+        company.metric_confidence = {}
         # No fabricated signals — these used to be derived from the name hash,
         # which let dead-domain companies score near 99.
         company.active_hiring = False
@@ -277,29 +328,80 @@ class EnrichmentAgent(Agent):
             "ai_unusable": 22,
         }.get(reason, 25)
 
-    def _fallback_summary(self, company: Company, reason: str) -> str:
+    # ---- Profile / confidence helpers --------------------------------------
+    @staticmethod
+    def _summary_from_points(points: list[str]) -> str:
+        """Derive the prose research_summary (kept for the outreach prompt,
+        pipeline stats, admin debug, and seed consumers) from the bullet
+        points. Space-joined with terminal periods so outreach's
+        `research_summary.split('.')[0]` still yields a clean lead sentence and
+        no newline bleeds into a fallback email body."""
+        return " ".join(
+            p.rstrip(". ").strip() + "." for p in points if p and p.strip()
+        )
+
+    @staticmethod
+    def _clean_points(raw) -> list[str]:
+        """Normalize the AI's research_points: strip leading bullet glyphs,
+        drop blanks/non-strings, cap length and count."""
+        if not isinstance(raw, list):
+            return []
+        out: list[str] = []
+        for p in raw:
+            if not isinstance(p, (str, int, float)):
+                continue
+            text = str(p).strip().lstrip("-•*").strip()
+            if text:
+                out.append(text[:300])
+        return out[:8]
+
+    @staticmethod
+    def _clean_metric_conf(raw) -> dict:
+        """Validate the AI's per-metric confidence object: keep only known
+        keys, clamp each to 0–100, ignore garbage. Returns {} on a non-dict."""
+        if not isinstance(raw, dict):
+            return {}
+        out: dict[str, int] = {}
+        for k in METRIC_KEYS:
+            if k in raw and raw[k] is not None:
+                try:
+                    out[k] = max(0, min(100, int(raw[k])))
+                except (TypeError, ValueError):
+                    continue
+        return out
+
+    def _fallback_points(self, company: Company, reason: str) -> list[str]:
+        """Honest bullet profile for the no-evidence paths. Mirrors the old
+        prose fallback but as a list, and never fabricates signals."""
         ctx = _csv_context(company)
-        ctx_clause = f"is listed as operating in {ctx}" if ctx else "has no detailed profile data on file"
+        lead = (
+            f"{company.name} is listed as operating in {ctx}."
+            if ctx else
+            f"{company.name} has no detailed profile data on file."
+        )
+        points = [lead]
         if reason == "no_ai_key":
-            tail = (
-                "No AI key is configured, so this profile relies on the CSV "
+            points.append(
+                "No AI provider is configured, so this profile relies on the CSV "
                 "upload alone — connect an AI provider for real web-sourced "
                 "enrichment."
             )
         elif reason == "no_snippets":
-            tail = (
+            points.append(
                 f"Public search returned no relevant coverage of "
                 f"{company.domain or 'this company'}, so independent research "
-                "couldn't add to the CSV-provided profile. Verify with the "
-                "company directly before relying on the score."
+                "couldn't add to the CSV-provided profile."
             )
+            points.append("Verify with the company directly before relying on the score.")
         else:  # ai_unusable
-            tail = (
-                "Public sources had signals, but they couldn't be summarized "
-                "into a reliable profile — the AI's response was incomplete or "
-                "unparseable. Re-research, or check the company manually."
+            points.append(
+                "Public sources had some signals, but they couldn't be summarized "
+                "into a reliable profile — the AI response was incomplete or "
+                "unparseable."
             )
-        return f"{company.name} {ctx_clause}. {tail}"
+            points.append("Re-research, or check the company manually.")
+        points.append("No funding, news, or hiring signals could be confirmed.")
+        return points
 
 
 enrichment_agent = EnrichmentAgent()
