@@ -46,3 +46,5 @@ Thumbs.db
 
 # --- Binary / large assets we don't want in the repo ---
 *.pdf
+
+extra/
