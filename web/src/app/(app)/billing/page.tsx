@@ -10,7 +10,7 @@ const usage = [
 
 const plans = [
   { name: "Starter", price: "$0", tagline: "For trying things out", features: ["500 email credits", "1 campaign", "Basic agents"], current: false },
-  { name: "Growth", price: "$99", tagline: "For active outbound teams", features: ["2,000 email credits", "10 campaigns", "All 8 agents", "Verifalia verification"], current: true },
+  { name: "Growth", price: "$99", tagline: "For active outbound teams", features: ["2,000 email credits", "10 campaigns", "All 7 agents", "ZeroBounce verification"], current: true },
   { name: "Scale", price: "$299", tagline: "For high-volume outreach", features: ["10,000 email credits", "Unlimited campaigns", "Priority support", "API & webhooks"], current: false },
 ];
 

@@ -198,10 +198,11 @@ class SearchProvider:
     ) -> list[dict]:
         """Search the web for real LinkedIn profiles employed at the company.
 
-        Biased toward commercial / revenue-side roles (Sales, RevOps, BD,
-        Partnerships) because those are the people who actually own and close
-        inter-company deals. A founder/CEO query is kept as a fallback for
-        small companies where the founder still owns commercial conversations.
+        Biased toward commercial / revenue-side roles (Sales leaders, CRO /
+        VP Revenue, Sales / Account Directors) because those are the people who
+        actually own and close inter-company deals. A founder/CEO query is kept
+        as a fallback for small companies where the founder still owns
+        commercial conversations.
 
         Returns a deduped list of dicts: {name, role, linkedin, snippet}.
         Profiles whose title or snippet identifies them as a FORMER employee
@@ -226,7 +227,6 @@ class SearchProvider:
         role_groups = [
             '"VP Sales" OR "Chief Revenue Officer" OR "CRO" OR "Head of Sales" OR "VP Revenue"',
             '"Director of Sales" OR "Sales Director" OR "Account Director" OR "Regional Sales Manager"',
-            '"Business Development" OR "Partnerships" OR "Alliances" OR "Channel Sales"',
             '"CEO" OR "Founder" OR "President" OR "Managing Director"',
         ]
         seen: dict[str, dict] = {}

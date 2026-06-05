@@ -35,7 +35,7 @@ Agentic CRM/
   web/                          # the Next.js frontend
     src/app/                    # routes (App Router + route groups)
     src/components/             # shell, sidebar, topbar, icons, ui primitives
-    src/lib/                    # types.ts, mock.ts (seed data), nav.ts
+    src/lib/                    # api.ts, api-types.ts, hooks.ts, constants.ts, nav.ts
   backend/                      # the FastAPI backend
     docker-compose.yml          # PostgreSQL 16 (host port 5433 → container 5432)
     .env / .env.example         # config + placeholder integration keys
@@ -47,9 +47,9 @@ Agentic CRM/
       api/routers/              # auth, campaigns, companies, contacts, emails,
                                 #   conversations, meetings, notifications, agents,
                                 #   logs, dashboard, ws (websocket)
-      agents/                   # 8-agent pipeline + orchestrator (PRD §3)
+      agents/                   # 7-agent pipeline + orchestrator (PRD §3)
       providers/                # ai (Claude), search (DuckDuckGo), verification
-                                #   (Verifalia REST), email (Gmail/SMTP/console)
+                                #   (ZeroBounce REST), email (Gmail/SMTP/console)
       services/                 # events (logs+notifications), serializers, seed
       workers/scheduler.py      # APScheduler — 15-min follow-up polling
       realtime/ws.py            # in-process WebSocket hub
@@ -91,8 +91,8 @@ Then restart the backend. Once a password is present the provider switches to `s
 emails the code for real, and stops surfacing `dev_otp`.
 
 To enable other integrations, fill the blank keys in `backend/.env`
-(`ANTHROPIC_API_KEY`, `VERIFALIA_USERNAME`/`PASSWORD`, Gmail/SMTP). Without them the
-app still runs: AI/Verifalia degrade gracefully and email uses "console" mode
+(`ANTHROPIC_API_KEY`, `ZEROBOUNCE_API_KEY`, Gmail/SMTP). Without them the
+app still runs: AI/ZeroBounce degrade gracefully and email uses "console" mode
 (messages are logged). DuckDuckGo search needs no key.
 
 ## PRD frontend modules → implementation status
@@ -125,11 +125,11 @@ app still runs: AI/Verifalia degrade gracefully and email uses "console" mode
 | FastAPI services + REST layer | ✅ 39 endpoints across 12 routers, OpenAPI at `/docs` |
 | Database (PostgreSQL) | ✅ Postgres 16 in Docker; SQLAlchemy 2.0 models; tables auto-created on boot |
 | Authentication | ✅ JWT, password hashing (pbkdf2), register + OTP email verify + login + `/me` |
-| Multi-agent architecture (8 agents) | ✅ Enrichment, Scoring, Employee Finder, Email Guessing, Verification, Outreach, Tracking/Follow-up, Meeting Coordination — sequential orchestrator |
+| Multi-agent architecture (7 agents) | ✅ Enrichment, Scoring, Employee Finder, Email Guessing & Verification, Outreach, Tracking/Follow-up, Meeting Coordination — sequential orchestrator |
 | Email infrastructure | ✅ Provider with Gmail API / SMTP / console fallback |
 | AI layer | ✅ Anthropic Claude provider (graceful fallback when no key) |
 | Search + scraping | ✅ DuckDuckGo (ddgs) provider, no key required |
-| Email verification | ✅ Verifalia via REST (httpx); returns Verified/Risky/Invalid/Unknown |
+| Email verification | ✅ ZeroBounce via REST (httpx); returns Verified/Risky/Invalid/Unknown |
 | WebSocket / realtime | ✅ `/ws?token=…` pushes notification + log events |
 | Background jobs | ✅ APScheduler polls follow-ups every 15 min (PRD Phase 7) |
 | Gmail + Calendar integration | ⚙️ Email send wired; Calendar event creation is a stub (meeting links captured/stored) |
@@ -547,3 +547,42 @@ phases 1–2 were upgraded; closes the spec's prior gaps #11–#14. No new depen
 #### Verified
 - All changed backend modules byte-compile; `npm run build` passes (typechecks `research_points`).
 - Live smoke (Postgres 5433): see the spec's Definition of done.
+
+### 2026-06-05 (contact discovery & verification — agent merge, ZeroBounce-only, finder trim)
+
+Implemented `.claude/specs/03-contact-discovery-verification.md` (plan in `.claude/plans/`).
+Pipeline stages 3–4. No schema changes, no dependency changes.
+
+#### Agent merge → 7-agent pipeline
+- The former `email_guess` + `verification` agents are now **one** agent,
+  `email_guess_verification` ("Email Guessing & Verification") — `guess_emails()` stays a helper
+  called inside `verification_agent.run()`. Updated `AGENT_REGISTRY` (`base.py`),
+  `VerificationAgent.key`, `RUNNABLE_KEYS` + the run-agent branch (`orchestrator.py`), and the
+  `/pipeline` `stats()` (`campaigns.py`). The frontend timeline `resultsLink` switch collapses the
+  two cases. `main.py::lifespan` gets an idempotent `DELETE`+back-fill of `agent_configs` so existing
+  users see 7 agents. CLAUDE.md updated 8→7.
+
+#### Strict verify-or-drop (`agents/verification.py`)
+- `_resolve()` now stores an address **only** on the first ZeroBounce-`Verified` guess (then stops);
+  if no guess verifies it stores **no address** (`email=""`, `verification="Unknown"`,
+  `confidence=0`). The old best-ranked Risky/Unknown fallback is gone, so a contact's stored verdict
+  is now only `Verified` or `Unknown`. **ZeroBounce is required** — with no key the free layer never
+  returns `Verified`, so the zero-key demo yields no addresses and no drafts (owner-chosen behavior).
+- Outreach gate (`orchestrator.py`, both `_draft_all`) changed from `verification ∈ {…}` to a
+  non-empty `email` check, so only contacts with a real (verified or human-edited) address are drafted.
+
+#### ZeroBounce-only (Verifalia removed)
+- Stripped Verifalia from `providers/verification.py` (`_verifalia`, `_VF_MAP`, `VERIFALIA_BASE`,
+  the `paid_mode`/`verify` branches, `import time`), `core/config.py` (settings), `.env.example`,
+  `requirements.txt`, the `base.py` registry description, the `seed.py` demo log, and CLAUDE.md.
+  `paid_mode` now returns `"zerobounce"` or `None`.
+
+#### Finder role trim (`providers/search.py`, `agents/employee_finder.py`)
+- Dropped the Business Development / Partnerships / Alliances / Channel role group from the LinkedIn
+  search queries and moved it to the AI ranker's reject list. Keeps top-commercial, mid-level sales,
+  and the small-company Founder/CEO fallback.
+
+#### Verified
+- Backend byte-compiles and imports clean (`AGENT_REGISTRY` = 7 agents, `paid_mode` = None with no key).
+- `npm run build` passes (timeline switch typechecks).
+- Full end-to-end (with/without `ZEROBOUNCE_API_KEY`): see the spec's Definition of done.

@@ -45,8 +45,6 @@ class RateLimiter:
             # Drop timestamps that have aged out of the window.
             hits[:] = [t for t in hits if t > cutoff]
             if len(hits) >= limit:
-                if not hits:
-                    self._hits.pop(key, None)
                 return False
             hits.append(now)
             return True

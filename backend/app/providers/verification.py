@@ -6,7 +6,7 @@ Order (cheapest first):
      Catches obvious bad addresses (typos, dead domains) for free, so we never
      spend paid credits on them.
   2. Paid layer — optional, only for addresses that survive layer 1:
-       ZeroBounce (preferred) or Verifalia, whichever has credentials.
+       ZeroBounce (when ZEROBOUNCE_API_KEY is set).
 
 Returns one of: Verified | Risky | Invalid | Unknown.
 
@@ -16,7 +16,6 @@ catch-all domains, blocked by Gmail/Outlook, and can harm sender reputation.
 from __future__ import annotations
 
 import logging
-import time
 
 import httpx
 
@@ -33,7 +32,6 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 ZEROBOUNCE_BASE = "https://api.zerobounce.net/v2"
-VERIFALIA_BASE = "https://api.verifalia.com/v2.6"
 
 # Common mailbox names that are shared aliases, not a specific person. They're
 # usually deliverable but low quality for 1:1 outreach → flag as Risky.
@@ -64,14 +62,6 @@ _ZB_MAP = {
     "unknown": "Unknown",
 }
 
-# Verifalia classification -> our vocabulary.
-_VF_MAP = {
-    "Deliverable": "Verified",
-    "Risky": "Risky",
-    "Undeliverable": "Invalid",
-    "Unknown": "Unknown",
-}
-
 
 class VerificationProvider:
     # The free layer always works, so verification is always "available".
@@ -83,8 +73,6 @@ class VerificationProvider:
     def paid_mode(self) -> str | None:
         if settings.zerobounce_api_key:
             return "zerobounce"
-        if settings.verifalia_username and settings.verifalia_password:
-            return "verifalia"
         return None
 
     def verify(self, email: str) -> str:
@@ -95,11 +83,8 @@ class VerificationProvider:
             return local
 
         # ---- Layer 2: paid confirmation of survivors ----
-        mode = self.paid_mode
-        if mode == "zerobounce":
+        if self.paid_mode == "zerobounce":
             return self._zerobounce(email)
-        if mode == "verifalia":
-            return self._verifalia(email)
 
         # No paid provider configured: syntax + MX look fine, but we can't
         # confirm the actual mailbox exists.
@@ -173,40 +158,6 @@ class VerificationProvider:
         except Exception as exc:  # pragma: no cover
             logger.warning("ZeroBounce verify failed for %s: %s", email, exc)
             return "Unknown"
-
-    # -------------------------------------------------------------- verifalia
-    def _verifalia(self, email: str) -> str:
-        auth = (settings.verifalia_username, settings.verifalia_password)
-        try:
-            with httpx.Client(timeout=30, auth=auth) as client:
-                resp = client.post(
-                    f"{VERIFALIA_BASE}/email-validations",
-                    json={"entries": [{"inputData": email}]},
-                    headers={"Content-Type": "application/json"},
-                )
-                if resp.status_code not in (200, 202):
-                    logger.warning("Verifalia HTTP %s: %s", resp.status_code, resp.text)
-                    return "Unknown"
-                data = resp.json()
-                job_id = data.get("overview", {}).get("id")
-                status = data.get("overview", {}).get("status")
-
-                for _ in range(8):
-                    if status == "Completed":
-                        break
-                    time.sleep(1.5)
-                    g = client.get(f"{VERIFALIA_BASE}/email-validations/{job_id}")
-                    if g.status_code == 200:
-                        data = g.json()
-                        status = data.get("overview", {}).get("status")
-
-                entries = data.get("entries", {}).get("data", [])
-                if entries:
-                    classification = entries[0].get("classification", "Unknown")
-                    return _VF_MAP.get(classification, "Unknown")
-        except Exception as exc:  # pragma: no cover
-            logger.warning("Verifalia verify failed for %s: %s", email, exc)
-        return "Unknown"
 
 
 verification = VerificationProvider()

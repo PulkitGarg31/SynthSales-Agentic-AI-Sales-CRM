@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = (
-        "postgresql+psycopg://reachly:reachly_dev_pw@localhost:5432/reachly"
+        "postgresql+psycopg://reachly:reachly_dev_pw@localhost:5433/reachly"
     )
 
     # AI provider selection.
@@ -38,10 +38,8 @@ class Settings(BaseSettings):
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
 
     # Email verification (paid layer — optional; the free MX/syntax layer always runs).
-    # ZeroBounce is preferred; Verifalia is supported as an alternative.
+    # ZeroBounce is the paid provider.
     zerobounce_api_key: str = ""
-    verifalia_username: str = ""
-    verifalia_password: str = ""
 
     # Email
     gmail_credentials_file: str = ""

@@ -95,6 +95,24 @@ async def lifespan(app: FastAPI):
                 text("UPDATE users SET is_admin=true WHERE LOWER(email) = ANY(:emails)"),
                 {"emails": settings.admin_emails_list},
             )
+        # Step 03: the former `email_guess` + `verification` agents were merged
+        # into a single `email_guess_verification` agent. Drop the stale per-user
+        # rows and back-fill the merged one so existing users see 7 agents (new
+        # users get it from ensure_agents()).
+        conn.execute(
+            text("DELETE FROM agent_configs WHERE key IN ('email_guess', 'verification')")
+        )
+        conn.execute(
+            text(
+                "INSERT INTO agent_configs "
+                '(owner_id, key, name, description, enabled, "order", status) '
+                "SELECT u.id, 'email_guess_verification', "
+                "'Email Guessing & Verification', '', true, 4, 'Idle' "
+                "FROM users u WHERE NOT EXISTS ("
+                "SELECT 1 FROM agent_configs ac "
+                "WHERE ac.owner_id = u.id AND ac.key = 'email_guess_verification')"
+            )
+        )
 
     # Seed demo data (idempotent).
     from app.services.seed import seed_demo

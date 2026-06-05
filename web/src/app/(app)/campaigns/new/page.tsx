@@ -5,14 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Card, PageHeader } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { api } from "@/lib/api";
-
-const TONES = [
-  { label: "Professional", value: "professional" },
-  { label: "Friendly", value: "friendly" },
-  { label: "Concise & Direct", value: "concise" },
-  { label: "Consultative", value: "consultative" },
-  { label: "Enthusiastic", value: "enthusiastic" },
-];
+import { TONES } from "@/lib/constants";
 
 const INDUSTRIES = [
   "Aerospace & Defense", "Agriculture", "Automotive", "Banking",
