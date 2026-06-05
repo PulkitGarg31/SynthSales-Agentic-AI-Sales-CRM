@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.base import Agent
 from app.core.config import settings
-from app.models import Campaign, Message, Thread, User, utcnow
+from app.models import Campaign, Contact, Message, Thread, User, utcnow
 from app.providers.ai import ai
 from app.providers.email import email_provider
 from app.services.events import add_notification
@@ -87,7 +87,11 @@ class TrackingAgent(Agent):
         )
         db.add(msg)
         thread.last_activity = utcnow()
-        email_provider.send(thread.subject or "Following up", thread.subject, body)
+        # Resolve the recipient from the thread's contact; only send if we have
+        # a real address (the thread's contact may have no verified email).
+        contact = db.get(Contact, thread.contact_id) if thread.contact_id else None
+        if contact and contact.email:
+            email_provider.send(contact.email, thread.subject or "Following up", body)
         db.commit()
         add_notification(
             db,

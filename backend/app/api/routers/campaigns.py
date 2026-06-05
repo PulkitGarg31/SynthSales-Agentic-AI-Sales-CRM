@@ -243,10 +243,8 @@ def get_pipeline(
             return len(companies), sum(1 for co in companies if (co.rank or 0) > 0)
         if key == "employee_finder":
             return len(qualified), sum(1 for co in qualified if co.contacts)
-        if key == "email_guess":
+        if key == "email_guess_verification":
             return len(contacts), sum(1 for ct in contacts if (ct.email or "").strip())
-        if key == "verification":
-            return len(contacts), sum(1 for ct in contacts if ct.verification and ct.verification != "Unknown")
         if key == "outreach":
             return len(contacts), len(drafts)
         if key == "tracking":

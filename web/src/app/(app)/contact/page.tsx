@@ -5,7 +5,7 @@ import { Button, Card, CardHeader, PageHeader } from "@/components/ui";
 import { Icon } from "@/components/icons";
 
 const faqs = [
-  ["How does email verification work?", "Reachly generates likely addresses from name + domain patterns and verifies them via Verifalia. Sending only ever uses verified addresses."],
+  ["How does email verification work?", "Reachly generates likely addresses from name + domain patterns and verifies them via ZeroBounce. Sending only ever uses verified addresses."],
   ["Can I review messages before they send?", "Yes. Contacts and AI-generated drafts both have a human approval step before any outreach goes out."],
   ["How often are follow-ups sent?", "The tracking agent checks the inbox every 15 minutes and sends contextual follow-ups until a meeting is booked or the campaign is stopped."],
   ["Is my data secure?", "Sessions are protected, OTP is available for sign-in, and you control which integrations are connected."],

@@ -8,7 +8,7 @@ import { Icon } from "@/components/icons";
 /*  Sections:                                                                 */
 /*    1. Hero (dark block, yellow accent)                                     */
 /*    2. Trusted-by / integrations row                                        */
-/*    3. How it works — visual 7-step pipeline                                */
+/*    3. How it works — visual 8-step pipeline                                */
 /*    4. Features grid                                                        */
 /*    5. Product showcase — auto-scrolling carousel (pure CSS marquee)        */
 /*    6. FAQ                                                                  */
@@ -90,7 +90,7 @@ const faqs = [
   },
   {
     q: "Is email verification real?",
-    a: "Yes. A free local layer (syntax + DNS MX lookup + role/disposable detection) filters obvious bad addresses, and ZeroBounce confirms the survivors. Verifalia is supported as an alternative.",
+    a: "Yes. A free local layer (syntax + DNS MX lookup + role/disposable detection) filters obvious bad addresses, and ZeroBounce confirms the survivors.",
   },
   {
     q: "Can I review emails before they send?",
@@ -216,7 +216,7 @@ function HeroBlock() {
               <span className="text-brand">powered by AI agents</span>
             </p>
             <p className="mt-3 text-sm leading-relaxed text-white/65">
-              Eight specialized agents run your pipeline sequentially — with a
+              Seven specialized agents run your pipeline sequentially — with a
               human review layer at every critical step.
             </p>
 
@@ -235,7 +235,7 @@ function HeroBlock() {
               {[
                 ["94%", "ICP match accuracy"],
                 ["15 min", "follow-up cadence"],
-                ["8", "AI agents"],
+                ["7", "AI agents"],
               ].map(([n, l]) => (
                 <div
                   key={l}
@@ -285,7 +285,7 @@ function HowItWorks() {
           How it works
         </p>
         <h2 className="mt-3 font-display text-4xl text-ink sm:text-5xl">
-          One pipeline. Eight agents. Zero busywork.
+          One pipeline. Seven agents. Zero busywork.
         </h2>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-500">
           Each stage hands off to the next automatically. You only step in at
@@ -664,7 +664,7 @@ function FinalCta() {
           </p>
           <h2 className="mx-auto mt-4 max-w-3xl font-display text-[clamp(2.2rem,5vw,4rem)] leading-[1] text-white">
             Your next meeting is{" "}
-            <span className="text-brand">eight agents away.</span>
+            <span className="text-brand">seven agents away.</span>
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/70">
             Spin up your first campaign in minutes. No credit card. Outbound stays paused

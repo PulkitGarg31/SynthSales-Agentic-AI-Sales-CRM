@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"Agentic CRM" (internal name **Reachly**) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then an 8-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
+"Agentic CRM" (internal name **Reachly**) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then a 7-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
 drafts personalized outreach → tracks replies till they are ready for a meetings or reject the deal -> Fix meeting if they are ready -> Send a Google Meet link. 
 Two independent apps in one repo:
 
@@ -51,8 +51,8 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
 
 ### The agent pipeline (the heart of the system)
 
-`backend/app/agents/` holds 8 agents registered in `base.py::AGENT_REGISTRY` (order matters):
-**enrichment → scoring → employee_finder → email_guess → verification → outreach → tracking → meeting**.
+`backend/app/agents/` holds 7 agents registered in `base.py::AGENT_REGISTRY` (order matters):
+**enrichment → scoring → employee_finder → email_guess_verification → outreach → tracking → meeting**.
 
 `agents/orchestrator.py` is the only place that sequences them. Two entry points:
 - `run_campaign_pipeline()` — the full Phase 1–6 run a "Run all agents" click triggers. Also clears the data but before clearing store that in a cache for 24 hours. Ask for confirmation before running this with a clear warning message.
@@ -60,15 +60,16 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
   `RUNNABLE_KEYS` excludes `meeting` (it only fires when a user books a meeting in Conversations).
 
 Non-obvious orchestration rules you must respect when editing agents:
-- **`email_guess` has no standalone run path** — guessing happens *inside* `verification_agent.run()`,
-  so both keys map to the verification agent in the orchestrator.
+- **`email_guess_verification` is one merged agent** — it guesses likely addresses then verifies them
+  in a single pass (`guess_emails()` runs inside `verification_agent.run()`). It stores an address only
+  on a ZeroBounce-confirmed `Verified`; `email_guess`/`verification` are no longer separate keys.
 - **`_walk_for_contactable()`** is the contact-finding fallback the user explicitly asked for: walk
   ranked companies, run the employee finder, and if a Qualified company yields *no real LinkedIn
   contacts*, demote it `Qualified → Reviewed` and promote the next-best company into the top-N slot.
   Quota = `campaign.top_n`.
 - **`force=True`** means "discard prior output and redo": it wipes stale contacts/drafts/verdicts so a
   re-run produces a clean picture instead of a stale+new mix. The full pipeline passes `force=True` to
-  the finder/verification/outreach phases; bulk incremental runs default to `False`.
+  the finder/guess-verify/outreach phases; bulk incremental runs default to `False`.
 - Agents never fabricate. The employee finder returns **real** `site:linkedin.com/in/` profiles or
   **zero contacts** — do not reintroduce hardcoded name lists. Enrichment detects parked/dead domains
   and writes honest low-confidence summaries rather than hallucinating a profile.
@@ -84,8 +85,10 @@ to drive the per-user `agent_configs` status the UI reads.
   Configure with `AI_PROVIDERS=gemini,groq,openrouter`. With no key, `complete()` returns `""` and
   callers fall back to deterministic heuristics.
 - **`verification.py`** — 2 layers. Free layer (always on): syntax → role-account → disposable
-  blocklist → **MX DNS lookup**. Paid layer (survivors only): ZeroBounce (preferred) or Verifalia.
-  No SMTP probing (reputation-safe). Verdicts rank Verified > Risky > Unknown > Invalid.
+  blocklist → **MX DNS lookup**. Paid layer (survivors only): **ZeroBounce**. No SMTP probing
+  (reputation-safe). Verdicts rank Verified > Risky > Unknown > Invalid. **The merged guess-verify
+  agent stores an address only on a ZeroBounce `Verified`, so ZeroBounce is required to produce a
+  contactable email — with no key, contacts stay `Unknown`/blank and outreach drafts nothing.**
 - **`email.py`** — Gmail API / SMTP / **console** fallback. In console mode (default) emails are logged,
   and the signup OTP is also returned to the UI as `dev_otp` so you can verify without email setup.
 - **`search.py`** — DuckDuckGo (`ddgs`), no key. Exposes `domain_status() → live|parked|dead` and
@@ -107,7 +110,8 @@ status fields the UI depends on:
   not selected) | `Excluded`/`Approved`/`Contacted` (user-set, preserved across re-runs).
 - `Company.domain_status`: `live|parked|dead|unknown`; `enrichment_confidence` (0–100) caps scoring so
   a parked/dead-domain company can't display as "Strong".
-- `Contact.verification`: `Verified|Risky|Unknown|Invalid`. `EmailDraft.state`, `Thread.stage`.
+- `Contact.verification`: `Verified|Risky|Unknown|Invalid` (the merged guess-verify agent now persists
+  only `Verified` with an address, else `Unknown` with no address). `EmailDraft.state`, `Thread.stage`.
 
 ### Schema migrations
 
@@ -135,7 +139,7 @@ get_current_user`); cross-tenant `/api/admin/*` routes require `require_admin` (
 Frontend wiring (`web/src/lib/`): `api.ts` is the typed client (token in `localStorage["reachly_token"]`,
 401 auto-redirects to `/login`), `api-types.ts` mirrors backend schemas, `hooks.ts::useApi` is the
 fetch hook. `components/AuthProvider.tsx` wraps the `(app)` route group and guards routes. App pages run
-on live API data — `lib/mock.ts` is legacy seed data, not imported by app pages.
+on live API data (no mock imports); shared UI constants live in `lib/constants.ts`.
 
 ## Frontend gotcha — Next.js 16 is not the Next.js you know
 

@@ -21,7 +21,7 @@ const groups = [
   {
     title: "Verification & data",
     items: [
-      { name: "Verifalia", desc: "Email verification (Verified / Risky / Invalid).", connected: true },
+      { name: "ZeroBounce", desc: "Email verification (Verified / Risky / Invalid).", connected: true },
       { name: "DuckDuckGo Search", desc: "Company research & enrichment source.", connected: true },
     ],
   },

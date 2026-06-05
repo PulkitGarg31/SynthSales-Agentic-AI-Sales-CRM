@@ -33,7 +33,7 @@ export default function AuthLayout({
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/20 text-brand">
               <Icon.Sparkle width={16} height={16} />
             </span>
-            8 AI agents · 15-minute follow-up cadence · explainable scoring
+            7 AI agents · 15-minute follow-up cadence · explainable scoring
           </div>
         </div>
 

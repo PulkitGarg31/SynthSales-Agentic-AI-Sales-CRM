@@ -10,7 +10,7 @@ from app.agents.enrichment import enrichment_agent
 from app.agents.outreach import outreach_agent
 from app.agents.scoring import scoring_agent
 from app.agents.tracking import tracking_agent
-from app.agents.verification import verification_agent
+from app.agents.email_guess_verification import email_guess_verification_agent
 from app.core.database import SessionLocal
 from app.models import AgentConfig, Campaign, Company, Contact
 from app.services.events import add_notification
@@ -115,7 +115,7 @@ def _run_enrichment_concurrent(
 # Conversations UI — there's nothing for it to "run" otherwise.
 RUNNABLE_KEYS = {
     "enrichment", "scoring", "employee_finder",
-    "email_guess", "verification", "outreach", "tracking",
+    "email_guess_verification", "outreach", "tracking",
 }
 
 
@@ -236,13 +236,13 @@ def run_agent_for_campaign(
             db, owner_id, employee_finder_agent,
             lambda: _walk_for_contactable(db, campaign, owner_id, force=force),
         )
-    elif key in ("email_guess", "verification"):
-        # email_guess runs inside verification (verification_agent calls
-        # guess_emails per contact), so they share an entry point.
+    elif key == "email_guess_verification":
+        # The merged agent guesses (guess_emails per contact) then verifies in
+        # one pass, so a single key drives both.
         qualified = _qualified_companies(db, campaign)
         _phase(
-            db, owner_id, verification_agent,
-            lambda: [verification_agent.run(db, c, owner_id, force=force) for c in qualified],
+            db, owner_id, email_guess_verification_agent,
+            lambda: [email_guess_verification_agent.run(db, c, owner_id, force=force) for c in qualified],
         )
     elif key == "outreach":
         qualified = _qualified_companies(db, campaign)
@@ -250,7 +250,9 @@ def run_agent_for_campaign(
         def _draft_all() -> None:
             for c in qualified:
                 for contact in c.contacts:
-                    if contact.verification in ("Verified", "Risky", "Unknown"):
+                    # Draft only for contacts that actually have an address
+                    # (ZeroBounce-verified or human-edited). No address → skip.
+                    if (contact.email or "").strip():
                         outreach_agent.run(db, contact, c, campaign, owner_id, force=force)
 
         _phase(db, owner_id, outreach_agent, _draft_all)
@@ -298,8 +300,8 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
     # newly-found contacts get a fresh email + verification verdict rather
     # than the stale state inherited from prior runs.
     _phase(
-        db, owner_id, verification_agent,
-        lambda: [verification_agent.run(db, c, owner_id, force=True) for c in contactable],
+        db, owner_id, email_guess_verification_agent,
+        lambda: [email_guess_verification_agent.run(db, c, owner_id, force=True) for c in contactable],
     )
 
     # Phase 6 — outreach drafts for verified/contactable contacts. force=True
@@ -307,7 +309,8 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
     def _draft_all():
         for c in contactable:
             for contact in c.contacts:
-                if contact.verification in ("Verified", "Risky", "Unknown"):
+                # Draft only for contacts with a real address (see run-agent path).
+                if (contact.email or "").strip():
                     outreach_agent.run(db, contact, c, campaign, owner_id, force=True)
 
     _phase(db, owner_id, outreach_agent, _draft_all)

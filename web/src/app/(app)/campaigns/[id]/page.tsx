@@ -30,8 +30,7 @@ function resultsLink(key: string, campaignId: number): { href: string; label: st
     case "scoring":
       return { href: `/research?campaign=${campaignId}`, label: "View research" };
     case "employee_finder":
-    case "email_guess":
-    case "verification":
+    case "email_guess_verification":
       return { href: `/contacts?campaign=${campaignId}`, label: "View contacts" };
     case "outreach":
       return { href: `/email-review?campaign=${campaignId}`, label: "View drafts" };

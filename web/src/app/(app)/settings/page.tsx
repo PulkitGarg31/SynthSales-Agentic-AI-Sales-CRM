@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button, Card, CardHeader, PageHeader } from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { TONES } from "@/lib/mock";
+import { TONES } from "@/lib/constants";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 

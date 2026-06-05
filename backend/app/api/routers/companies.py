@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.employee_finder import employee_finder_agent
 from app.agents.enrichment import enrichment_agent
-from app.agents.verification import verification_agent
+from app.agents.email_guess_verification import email_guess_verification_agent
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models import Company, User
@@ -62,5 +62,5 @@ def find_contacts(
 ):
     c = _owned(db, user, company_id)
     employee_finder_agent.run(db, c, user.id)
-    verification_agent.run(db, c, user.id)
+    email_guess_verification_agent.run(db, c, user.id)
     return get_company(company_id, db, user)

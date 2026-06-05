@@ -27,7 +27,6 @@ httpx
 # Integrations (providers)
 anthropic              # AI provider (Claude)
 ddgs                   # DuckDuckGo search (company research)
-# verifalia REST API is called directly via httpx (no 3.14-compatible SDK wheel)
 google-api-python-client       # Gmail + Calendar
 google-auth-oauthlib
 google-auth-httplib2
