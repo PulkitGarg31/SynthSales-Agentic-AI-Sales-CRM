@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.agents.meeting import meeting_agent
+from app.agents.reply_classifier import reply_classifier_agent
 from app.agents.tracking import tracking_agent
 from app.api.deps import get_current_user
 from app.core.database import get_db
@@ -20,8 +21,24 @@ from app.models import (
 )
 from app.providers.email import email_provider
 from app.schemas import ReplyIn, ThreadDetailOut, ThreadOut
+from app.services.events import add_log
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
+
+
+class SyncResult(BaseModel):
+    ingested: int
+    classified: int
+
+
+@router.post("/sync", response_model=SyncResult)
+def sync_inbox(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """Read the user's connected mailbox now, ingest + classify new replies.
+    No mailbox connected ⇒ {ingested:0, classified:0} (no error)."""
+    result = reply_classifier_agent.run(db, user.id)
+    return SyncResult(**result)
 
 
 def _owned(db: Session, user: User, thread_id: int) -> Thread:
@@ -44,6 +61,13 @@ def _enrich(db: Session, t: Thread) -> Thread:
     t.company_name = (  # type: ignore[attr-defined]
         company.name if company else (contact.company.name if contact else "")
     )
+    last_them = (
+        db.query(Message)
+        .filter(Message.thread_id == t.id, Message.direction == "them")
+        .order_by(Message.sent_at.desc())
+        .first()
+    )
+    t.last_intent = last_them.intent if last_them else None  # type: ignore[attr-defined]
     return t
 
 
@@ -182,4 +206,38 @@ def book_meeting(
             status_code=422,
             detail="Connect your Google Calendar or paste a meeting link.",
         )
+    return get_thread(thread_id, db, user)
+
+
+class StageOverrideIn(BaseModel):
+    stage: str | None = None
+    clear_do_not_contact: bool | None = None
+
+
+_ALLOWED_STAGES = {
+    "Contacted", "Replied", "Negotiating", "Meeting", "Closed", "Stalled",
+}
+
+
+@router.patch("/{thread_id}/stage", response_model=ThreadDetailOut)
+def override_stage(
+    thread_id: int,
+    payload: StageOverrideIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Human override of a classification — e.g. reopen a wrongly-Closed thread
+    and clear the contact's do-not-contact flag so normal cadence resumes."""
+    t = _owned(db, user, thread_id)
+    if payload.stage is not None:
+        if payload.stage not in _ALLOWED_STAGES:
+            raise HTTPException(status_code=400, detail="Invalid stage")
+        t.stage = payload.stage
+    if payload.clear_do_not_contact:
+        contact = db.get(Contact, t.contact_id) if t.contact_id else None
+        if contact:
+            contact.do_not_contact = False
+    t.last_activity = utcnow()
+    db.commit()
+    add_log(db, user.id, "User", f"Thread '{t.subject}' overridden by user.")
     return get_thread(thread_id, db, user)
