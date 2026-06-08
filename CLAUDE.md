@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"Agentic CRM" (internal name **Reachly**) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then a 7-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
-drafts personalized outreach → tracks replies till they are ready for a meetings or reject the deal -> Fix meeting if they are ready -> Send a Google Meet link. 
+"Agentic CRM" (internal name **Reachly**) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then an 8-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
+drafts personalized outreach → tracks replies till they are ready for a meetings or reject the deal -> Fix meeting if they are ready -> Send a Google Meet link -> reads inbound replies & classifies intent. 
 Two independent apps in one repo:
 
 - `backend/` — FastAPI + PostgreSQL (SQLAlchemy 2.0). Internal name "Reachly API".
@@ -51,8 +51,8 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
 
 ### The agent pipeline (the heart of the system)
 
-`backend/app/agents/` holds 7 agents registered in `base.py::AGENT_REGISTRY` (order matters):
-**enrichment → scoring → employee_finder → email_guess_verification → outreach → tracking → meeting**.
+`backend/app/agents/` holds 8 agents registered in `base.py::AGENT_REGISTRY` (order matters):
+**enrichment → scoring → employee_finder → email_guess_verification → outreach → tracking → meeting → reply_classifier**.
 
 `agents/orchestrator.py` is the only place that sequences them. Two entry points:
 - `run_campaign_pipeline()` — the full Phase 1–6 run a "Run all agents" click triggers. Also clears the data but before clearing store that in a cache for 24 hours. Ask for confirmation before running this with a clear warning message.
@@ -73,6 +73,14 @@ Non-obvious orchestration rules you must respect when editing agents:
 - Agents never fabricate. The employee finder returns **real** `site:linkedin.com/in/` profiles or
   **zero contacts** — do not reintroduce hardcoded name lists. Enrichment detects parked/dead domains
   and writes honest low-confidence summaries rather than hallucinating a profile.
+- **`reply_classifier` is the inbound half of engagement** — it is NOT part of
+  `run_campaign_pipeline` and is excluded from `RUNNABLE_KEYS` (like `meeting`). It runs via
+  `POST /api/conversations/sync` (on demand) and a second scheduler job (`INBOUND_POLL_MINUTES`,
+  default 5). It reads replies through `providers/inbound.py` (per-user Gmail read + IMAP
+  fallback), de-dupes by `Message.external_id`, classifies via `ai.complete_json`, and acts: a
+  high-confidence *not-interested* sets `Contact.do_not_contact=True` + `Thread.stage="Closed"`
+  (reusing the Step 04 suppression); interested/meeting-ready advance to `Negotiating` + surface;
+  everything else only surfaces. It never auto-sends and never opts a contact out without AI.
 
 Each agent extends `agents/base.py::Agent` and calls `self.mark(db, owner_id, "Running"|"Idle"|"Error")`
 to drive the per-user `agent_configs` status the UI reads.
@@ -96,6 +104,10 @@ to drive the per-user `agent_configs` status the UI reads.
   `User.google_calendar_token`), booking a meeting creates a real Calendar event with a Google Meet
   link on **their** calendar. No connection → falls back to a user-supplied link (else the booking
   route returns 422). Never fabricates a link.
+- **`inbound.py`** — per-user inbound reader. Gmail API read (reconstructed from
+  `User.gmail_read_token`, `gmail.readonly`) with a stdlib `imaplib` global fallback. Returns
+  normalized `InboundMessage`s; returns `[]` and never raises on any error. No mailbox connected
+  → no ingestion.
 - **`search.py`** — DuckDuckGo (`ddgs`), no key. Exposes `domain_status() → live|parked|dead` and
   `find_linkedin_profiles()`.
 
@@ -117,6 +129,8 @@ status fields the UI depends on:
   a parked/dead-domain company can't display as "Strong".
 - `Contact.verification`: `Verified|Risky|Unknown|Invalid` (the merged guess-verify agent now persists
   only `Verified` with an address, else `Unknown` with no address). `EmailDraft.state`, `Thread.stage`.
+  `Contact.do_not_contact` is set by `reply_classifier` on a high-confidence not-interested reply (and
+  cleared by the human reopen control); `Message.intent` holds the classified reply intent.
 
 ### Schema migrations
 
@@ -137,7 +151,9 @@ add the matching idempotent ALTER there or existing dev databases won't pick it 
   gets an automatic follow-up only after our last message goes unanswered for `FOLLOWUP_DELAY_DAYS`
   (default 10 — decoupled from the poll cadence); after `MAX_FOLLOW_UPS` (default 3) unanswered nudges
   it auto-advances to the terminal `Stalled` stage. `Contact.do_not_contact` suppresses every send
-  path (outreach draft, send, auto follow-up, meeting invite).
+  path (outreach draft, send, auto follow-up, meeting invite). A second job polls the inbound reply
+  reader (the `reply_classifier` agent) every `INBOUND_POLL_MINUTES` (default 5) for every user with
+  a connected mailbox.
 
 ### API surface & auth
 

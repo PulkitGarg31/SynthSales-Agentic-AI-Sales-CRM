@@ -586,3 +586,52 @@ Pipeline stages 3–4. No schema changes, no dependency changes.
 - Backend byte-compiles and imports clean (`AGENT_REGISTRY` = 7 agents, `paid_mode` = None with no key).
 - `npm run build` passes (timeline switch typechecks).
 - Full end-to-end (with/without `ZEROBOUNCE_API_KEY`): see the spec's Definition of done.
+
+### 2026-06-08 (reply detection & intent — 8th agent + inbound poller)
+
+Implemented `.claude/specs/05-reply-detection.md` (plan in `.claude/plans/`). Adds the inbound
+half of engagement: read prospect replies, classify intent, and act. Reuses the Step 04
+`do_not_contact` suppression. No new dependencies (Gmail read via httpx, IMAP via stdlib).
+
+#### `reply_classifier` agent (`agents/reply_classifier.py`) → 8-agent registry
+- New 8th agent **`reply_classifier` ("Reply Detection & Intent")**, registered **last** in
+  `AGENT_REGISTRY` (`base.py`). Like `meeting` it is **NOT** part of `run_campaign_pipeline` and is
+  **excluded from `RUNNABLE_KEYS`** — it fires on demand and on a timer, not from the per-agent
+  Re-run buttons. It self-marks `Running`/`Idle`/`Error` via `self.mark`.
+- Per user it reads inbound replies through `providers/inbound.py`, **de-dupes by
+  `Message.external_id`**, classifies each new reply via `ai.complete_json`, and acts: a
+  high-confidence **not-interested** sets `Contact.do_not_contact=True` + `Thread.stage="Closed"`
+  (reusing Step 04 suppression); **interested / meeting-ready** advance the thread to `Negotiating`
+  and surface; everything else only surfaces. **Never auto-sends; never opts a contact out without
+  AI.** `main.py::lifespan` back-fills the `agent_configs` row so existing users see 8 agents.
+
+#### `providers/inbound.py` (`InboundMailProvider`)
+- Per-user **Gmail API read** (reconstructed from `User.gmail_read_token`, `gmail.readonly`) with a
+  stdlib **`imaplib` global IMAP fallback**. Returns normalized `InboundMessage`s; returns `[]` and
+  **never raises** on any error. No mailbox connected → no ingestion.
+
+#### Per-user Gmail mailbox connect (`auth.py`)
+- OAuth connect/callback/disconnect mirroring the calendar grant (offline consent for
+  `gmail.readonly`, refresh token stored on `User.gmail_read_token`). `UserOut.mailbox_connected`
+  reflects connection state.
+
+#### API (`api/routers/conversations.py`)
+- `POST /api/conversations/sync` runs `reply_classifier` on demand and returns a `SyncResult`.
+- `PATCH /api/conversations/{id}/stage` — human override (validated stage; optional
+  `clear_do_not_contact`) to **reopen a wrongly-Closed thread** and re-allow contact.
+- Thread list/detail surface `last_intent` for the UI badge.
+
+#### Scheduler (`workers/scheduler.py`)
+- Second interval job polls the inbound reply reader (`reply_classifier`) every
+  **`INBOUND_POLL_MINUTES`** (default 5) for every user with a connected mailbox, alongside the
+  existing follow-up poll. Both honor `ENABLE_SCHEDULER`.
+
+#### Frontend
+- Conversations: **Sync inbox** button, per-thread **intent badge** (`last_intent`), and a
+  **Reopen** control (calls the stage override with `clear_do_not_contact`).
+- Settings: **Connect Gmail (read replies)** card (connect/disconnect mailbox).
+
+#### Schema / migrations
+- Four idempotent statements in `main.py::lifespan` (still no Alembic): `messages.external_id`
+  (`VARCHAR`, **indexed**), `messages.intent`, `threads.provider_thread_id`, `users.gmail_read_token`
+  (`TEXT`).
