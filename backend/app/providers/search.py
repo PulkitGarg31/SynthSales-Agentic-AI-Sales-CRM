@@ -55,6 +55,45 @@ def _normalize_employer(s: str) -> str:
     return s
 
 
+# --- Commercial-role gate -------------------------------------------------
+# A parsed role is kept only if it names a sales / revenue / deal-owning
+# function (or, for a small company, top leadership) AND is not one of the
+# explicitly-excluded non-commercial functions. Deterministic allowlist applied
+# BEFORE (and independent of) the optional AI ranker, so multi-token junk like
+# "Marketing Manager" or "Investment Analyst" never slips through.
+_NON_COMMERCIAL_RE = re.compile(
+    r"\b(business development|partnership|alliance|channel|marketing|"
+    r"engineer|engineering|developer|architect|devops|sre|"
+    r"product manager|product owner|design|ux|ui|research|analyst|"
+    r"recruit|talent|people|human resources|hr|finance|account(?:ant|ing)|"
+    r"controller|legal|counsel|security|compliance|support|customer success|"
+    r"information technology|operations|administrat)\b",
+    re.IGNORECASE,
+)
+_SALES_ROLE_RE = re.compile(
+    r"\b(sales|revenue|cro|chief revenue|account executive|account exec|"
+    r"account director|commercial|go[\s-]?to[\s-]?market|gtm)\b",
+    re.IGNORECASE,
+)
+_LEADER_ROLE_RE = re.compile(
+    r"\b(founder|co[\s-]?founder|ceo|chief executive|president|"
+    r"managing director|owner)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_commercial_role(role: str) -> bool:
+    """True only for sales/revenue/deal-owning roles (or small-company
+    leadership). Drops marketing, BD/partnerships/channel, engineering,
+    product, finance, analysts, ops, support, etc. — even multi-token titles."""
+    r = (role or "").strip()
+    if not r:
+        return False
+    if _NON_COMMERCIAL_RE.search(r):
+        return False
+    return bool(_SALES_ROLE_RE.search(r) or _LEADER_ROLE_RE.search(r))
+
+
 def _employer_matches(title_employer: str, target_lower: str) -> bool:
     """True if the employer string parsed from a LinkedIn title plausibly
     refers to our target company. Tolerates corporate suffixes ("Inc",
