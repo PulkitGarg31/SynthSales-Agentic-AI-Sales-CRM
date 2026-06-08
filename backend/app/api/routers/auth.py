@@ -418,3 +418,59 @@ def google_calendar_disconnect(
     db.refresh(user)
     add_log(db, user.id, "User", "Disconnected Google Calendar.")
     return user
+
+
+# --- Google Mailbox connection (per-user, gmail.readonly) ------------------
+# Mirrors the calendar grant exactly: connect returns the consent URL as JSON
+# (the SPA navigates to it with its bearer token), the callback is a public
+# browser redirect whose `state` is a short-lived signed JWT binding the grant
+# back to the logged-in user, and disconnect clears the stored token.
+
+
+@router.get("/google/mailbox/connect")
+def google_mailbox_connect(user: User = Depends(get_current_user)):
+    if not oauth_provider.available:
+        raise HTTPException(status_code=404, detail="Google integration is not enabled")
+    state = create_access_token(str(user.id), expires_minutes=10)
+    return {"url": oauth_provider.mailbox_authorization_url(state)}
+
+
+@router.get("/google/mailbox/callback")
+def google_mailbox_callback(
+    code: str = "",
+    state: str = "",
+    error: str = "",
+    db: Session = Depends(get_db),
+):
+    base = f"{settings.frontend_url}/settings?mailbox="
+    if not oauth_provider.available:
+        raise HTTPException(status_code=404, detail="Google integration is not enabled")
+    if error:
+        return RedirectResponse(base + "denied", status_code=307)
+    user_id = decode_access_token(state) if state else None
+    if not user_id or not code:
+        return RedirectResponse(base + "state", status_code=307)
+    tokens = oauth_provider.exchange_code(
+        code, redirect_uri=settings.google_mailbox_redirect_uri
+    )
+    refresh_token = (tokens or {}).get("refresh_token")
+    if not refresh_token:
+        return RedirectResponse(base + "exchange", status_code=307)
+    user = db.get(User, int(user_id))
+    if not user:
+        return RedirectResponse(base + "state", status_code=307)
+    user.gmail_read_token = refresh_token
+    db.commit()
+    add_log(db, user.id, "User", "Connected Gmail (read replies).")
+    return RedirectResponse(base + "connected", status_code=307)
+
+
+@router.post("/google/mailbox/disconnect", response_model=UserOut)
+def google_mailbox_disconnect(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    user.gmail_read_token = None
+    db.commit()
+    db.refresh(user)
+    add_log(db, user.id, "User", "Disconnected Gmail.")
+    return user
