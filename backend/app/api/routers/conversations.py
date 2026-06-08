@@ -154,8 +154,9 @@ def send_from_draft(
 
 class BookMeetingIn(BaseModel):
     scheduled_at: datetime
-    link: str
+    link: str | None = None
     notes: str | None = None
+    duration_minutes: int | None = None
 
 
 @router.post("/{thread_id}/book-meeting", response_model=ThreadDetailOut)
@@ -166,5 +167,19 @@ def book_meeting(
     user: User = Depends(get_current_user),
 ):
     t = _owned(db, user, thread_id)
-    meeting_agent.book(db, t, user.id, payload.scheduled_at, payload.link, payload.notes)
+    try:
+        meeting_agent.book(
+            db,
+            t,
+            user,
+            payload.scheduled_at,
+            payload.link,
+            payload.notes,
+            duration_minutes=payload.duration_minutes,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="Connect your Google Calendar or paste a meeting link.",
+        )
     return get_thread(thread_id, db, user)
