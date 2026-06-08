@@ -14,6 +14,7 @@ AGENT_REGISTRY: list[tuple[str, str, str]] = [
     ("outreach", "Outreach Generation", "Writes personalized subject + body from research, role, and your product."),
     ("tracking", "Email Tracking & Follow-up", "Monitors inboxes and sends contextual follow-ups until a meeting is booked."),
     ("meeting", "Meeting Coordination", "Captures meeting links, stores details, and notifies both parties."),
+    ("reply_classifier", "Reply Detection & Intent", "Reads inbound replies from your connected mailbox, classifies intent (interested, meeting-ready, not-interested, question, out-of-office), and acts: opts the contact out + closes the thread on a clear no, surfaces and advances the rest. Never auto-sends."),
 ]
 
 
