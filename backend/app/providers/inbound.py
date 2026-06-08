@@ -36,8 +36,11 @@ class InboundMessage:
 
 
 def _extract_email(raw: str) -> str:
-    """Pull the bare address out of a From header, lowercased. '' if none."""
-    return (parseaddr(raw or "")[1] or "").strip().lower()
+    """Pull the bare address out of a From header, lowercased. '' if it isn't a
+    real address (no '@') — keeps downstream `if not from_email` guards meaningful
+    and is robust to parseaddr quirks across Python versions."""
+    addr = (parseaddr(raw or "")[1] or "").strip().lower()
+    return addr if "@" in addr else ""
 
 
 class InboundMailProvider:
