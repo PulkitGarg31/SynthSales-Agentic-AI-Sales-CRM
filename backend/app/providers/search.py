@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from typing import Literal
 
 import httpx
@@ -157,28 +158,6 @@ def _matches_any_alias(text: str, aliases: list[str]) -> bool:
     return any(a.lower() in t for a in aliases if a)
 
 
-def _role_is_unusable(role: str, company_lower: str) -> bool:
-    """True if the parsed role string can't support a meaningful pitch:
-    blank, just the target company name, a single ambiguous word, or so
-    short we have nothing to anchor outreach on. Belt-and-braces for the
-    AI ranker, which sometimes accepts profiles like "Thomas Wyatt — Twilio"
-    even though we tell it not to."""
-    r = (role or "").strip().lower()
-    if not r:
-        return True
-    if r == "unknown role":
-        return True
-    # Exact company-name role ("VP Sales at Twilio | LinkedIn" → role="Twilio"
-    # after our trailing-"at"-strip).
-    if r == company_lower:
-        return True
-    # A single short word like "Twilio", "Datadog", "Snowflake" — meaningless
-    # without a function. (Roles with 2+ tokens always slip through.)
-    if len(r.split()) == 1 and len(r) < 25:
-        return True
-    return False
-
-
 def _is_former_employee(role: str, snippet: str, company_lower: str) -> bool:
     """Detect snippets/titles where the target company is clearly listed as
     a PAST job. Conservative: only matches when 'former/ex/previously/past'
@@ -281,6 +260,17 @@ class SearchProvider:
             logger.warning("DuckDuckGo search failed for %r: %s", query, exc)
             return []
 
+    def _search_resilient(self, query: str, max_results: int = 8, attempts: int = 2) -> list[dict]:
+        """search() with a light retry/backoff — DuckDuckGo throttles bursts,
+        so an empty result is often transient. Never raises."""
+        for i in range(attempts):
+            res = self.search(query, max_results=max_results)
+            if res:
+                return res
+            if i + 1 < attempts:
+                time.sleep(1.0 * (i + 1))
+        return []
+
     def research_company(self, name: str, domain: str = "") -> dict:
         """Return raw snippets the AI agent can summarize into a profile."""
         target = f"{name} {domain}".strip()
@@ -296,101 +286,54 @@ class SearchProvider:
         company_name: str,
         domain: str = "",
         max_per_query: int = 8,
+        target: int = 8,
     ) -> list[dict]:
-        """Search the web for real LinkedIn profiles employed at the company.
-
-        Biased toward commercial / revenue-side roles (Sales leaders, CRO /
-        VP Revenue, Sales / Account Directors) because those are the people who
-        actually own and close inter-company deals. A founder/CEO query is kept
-        as a fallback for small companies where the founder still owns
-        commercial conversations.
+        """Find real LinkedIn sales profiles by reading SERP titles/snippets
+        only (never opening a profile page). Runs an escalating query set
+        (precise -> simple/high-recall -> founder fallback) across all aliases
+        and stops once `target` good candidates are collected. Keeps only
+        profiles whose parsed role passes the commercial gate; drops company
+        pages, former employees, and employer mismatches.
 
         Returns a deduped list of dicts: {name, role, linkedin, snippet}.
-        Profiles whose title or snippet identifies them as a FORMER employee
-        of the target company are filtered out here (before AI ranking).
-        Empty list if the company name is blank or no qualifying results.
-        """
-        import re
-
+        Empty list if the company name is blank or nothing qualifies."""
         company_name = (company_name or "").strip()
         if not company_name:
             return []
-
-        # CSV names ("Notion Labs", "A.P. Moller-Maersk") rarely match LinkedIn's
-        # brand display ("Notion", "Maersk"). Generate aliases from the name +
-        # domain so we both search and validate against the same forgiving set.
         aliases = _company_aliases(company_name, domain)
         if not aliases:
             return []
 
-        # Commercial / deal-owner role queries. Each query surfaces a different
-        # slice of the company's go-to-market org; deduped by profile URL below.
-        role_groups = [
-            '"VP Sales" OR "Chief Revenue Officer" OR "CRO" OR "Head of Sales" OR "VP Revenue"',
-            '"Director of Sales" OR "Sales Director" OR "Account Director" OR "Regional Sales Manager"',
-            '"CEO" OR "Founder" OR "President" OR "Managing Director"',
-        ]
         seen: dict[str, dict] = {}
-
-        # Search using each alias — different brand names surface different
-        # profiles. Cap to the first 2 aliases so we don't blow the search
-        # budget (original + most-likely-brand).
-        for query_name in aliases[:2]:
-            for roles in role_groups:
-                query = f'"{query_name}" site:linkedin.com/in/ {roles}'
-                try:
-                    results = self.search(query, max_results=max_per_query)
-                except Exception:
+        for query in _profile_queries(aliases):
+            if len(seen) >= target:
+                break
+            for r in self._search_resilient(query, max_results=max_per_query):
+                url = (r.get("href") or "").rstrip("/")
+                if "/in/" not in url or url in seen:
                     continue
-                for r in results:
-                    url = (r.get("href") or "").rstrip("/")
-                    if "/in/" not in url:
-                        continue
-                    if url in seen:
-                        continue
-                    title = (r.get("title") or "").strip()
-                    body = (r.get("body") or "").strip()
-                    # Accept if ANY alias appears in the result — handles
-                    # "Notion Labs" CSV → "Notion" on LinkedIn.
-                    if not _matches_any_alias(title + " " + body, aliases):
-                        continue
-                    # Parse "Name - Role at Company | LinkedIn" → name, role, employer.
-                    clean_title = re.sub(r"\s*\|\s*LinkedIn.*$", "", title, flags=re.I).strip()
-                    title_employer = ""
-                    m = re.match(r"^(.+?)\s+[-–]\s+(.+?)\s+at\s+(.+?)$", clean_title)
-                    if m:
-                        name = m.group(1).strip()
-                        role = m.group(2).strip()
-                        title_employer = m.group(3).strip()
-                    else:
-                        parts = [p.strip() for p in re.split(r"\s+[-–]\s+", clean_title)]
-                        name = parts[0] if parts else clean_title
-                        role = parts[1] if len(parts) >= 2 else ""
-                    # Drop trailing "at Company" if any survived in role.
-                    role = re.sub(r"\s+at\s+.+$", "", role, flags=re.I).strip()
-                    if not name or len(name) > 120 or len(role) > 200:
-                        continue
-                    # Employer mismatch — check against EVERY alias so
-                    # "VP Sales at Notion" still matches "Notion Labs" CSV.
-                    if title_employer and not any(
-                        _employer_matches(title_employer, a.lower()) for a in aliases
-                    ):
-                        continue
-                    # Former-employee check uses every alias too.
-                    if any(_is_former_employee(role, body, a.lower()) for a in aliases):
-                        continue
-                    # Hard-drop profiles whose parsed role is unusable for a
-                    # sales pitch: blank, just the company name, or so short
-                    # we can't tell what they actually do. Check against every
-                    # alias so "Twilio" and "twilio.com root" both filter out.
-                    if any(_role_is_unusable(role, a.lower()) for a in aliases):
-                        continue
-                    seen[url] = {
-                        "name": name,
-                        "role": role or "Unknown role",
-                        "linkedin": url,
-                        "snippet": body[:400],
-                    }
+                title = (r.get("title") or "").strip()
+                body = (r.get("body") or "").strip()
+                # Accept only if an alias appears (handles "Notion Labs" -> "Notion").
+                if not _matches_any_alias(title + " " + body, aliases):
+                    continue
+                name, role, title_employer = _parse_linkedin_title(title, body)
+                if not name or len(name) > 120 or len(role) > 200:
+                    continue
+                if title_employer and not any(
+                    _employer_matches(title_employer, a.lower()) for a in aliases
+                ):
+                    continue
+                if any(_is_former_employee(role, body, a.lower()) for a in aliases):
+                    continue
+                if not _is_commercial_role(role):       # deterministic sales-role gate
+                    continue
+                seen[url] = {
+                    "name": name,
+                    "role": role,
+                    "linkedin": url,
+                    "snippet": body[:400],
+                }
         return list(seen.values())
 
     # ----------------------------------------------------- domain liveness
