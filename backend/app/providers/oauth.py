@@ -24,6 +24,9 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 GOOGLE_SCOPES = "openid email profile"
+GOOGLE_CALENDAR_SCOPES = (
+    "openid email profile https://www.googleapis.com/auth/calendar.events"
+)
 
 
 class GoogleOAuthProvider:
@@ -44,7 +47,22 @@ class GoogleOAuthProvider:
         }
         return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
 
-    def exchange_code(self, code: str) -> dict | None:
+    def calendar_authorization_url(self, state: str) -> str:
+        """Consent URL for the per-user calendar connection. access_type=offline +
+        prompt=consent forces Google to return a refresh token we can store."""
+        params = {
+            "client_id": settings.google_client_id,
+            "redirect_uri": settings.google_calendar_redirect_uri,
+            "response_type": "code",
+            "scope": GOOGLE_CALENDAR_SCOPES,
+            "state": state,
+            "access_type": "offline",
+            "prompt": "consent",
+            "include_granted_scopes": "true",
+        }
+        return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+
+    def exchange_code(self, code: str, redirect_uri: str | None = None) -> dict | None:
         """Exchange an authorization code for tokens. Returns None on failure."""
         try:
             resp = httpx.post(
@@ -53,7 +71,7 @@ class GoogleOAuthProvider:
                     "code": code,
                     "client_id": settings.google_client_id,
                     "client_secret": settings.google_client_secret,
-                    "redirect_uri": settings.google_redirect_uri,
+                    "redirect_uri": redirect_uri or settings.google_redirect_uri,
                     "grant_type": "authorization_code",
                 },
                 timeout=15.0,
