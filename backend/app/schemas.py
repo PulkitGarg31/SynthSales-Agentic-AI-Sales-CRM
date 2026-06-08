@@ -65,6 +65,7 @@ class UserOut(ORMModel):
     is_verified: bool
     outbound_enabled: bool = False
     calendar_connected: bool = False
+    mailbox_connected: bool = False
     created_at: datetime
 
 
@@ -232,6 +233,7 @@ class MessageOut(ORMModel):
     subject: str | None = None
     body: str
     is_follow_up: bool
+    intent: str | None = None
     sent_at: datetime
 
 
@@ -248,6 +250,8 @@ class ThreadOut(ORMModel):
     contact_name: str = ""
     role: str = ""
     email: str = ""
+    # Intent of the most recent inbound (`them`) message, for the thread badge.
+    last_intent: str | None = None
 
 
 class ThreadDetailOut(ThreadOut):
