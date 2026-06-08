@@ -64,6 +64,7 @@ class UserOut(ORMModel):
     email: EmailStr
     is_verified: bool
     outbound_enabled: bool = False
+    calendar_connected: bool = False
     created_at: datetime
 
 
@@ -160,6 +161,7 @@ class ContactOut(ORMModel):
     verification: str
     confidence: int
     approved: bool | None = None
+    do_not_contact: bool = False
 
 
 class ContactUpdate(BaseModel):
@@ -167,6 +169,7 @@ class ContactUpdate(BaseModel):
     approved: bool | None = None
     role: str | None = None
     name: str | None = None
+    do_not_contact: bool | None = None
 
 
 class CompanyOut(ORMModel):
