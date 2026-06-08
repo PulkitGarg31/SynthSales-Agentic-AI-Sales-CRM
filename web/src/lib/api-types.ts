@@ -104,6 +104,13 @@ export interface Contact {
   do_not_contact: boolean;
 }
 
+export interface ContactCreate {
+  name: string;
+  role?: string;
+  email?: string;
+  linkedin?: string | null;
+}
+
 export interface CompanyDetail extends Company {
   contacts: Contact[];
 }

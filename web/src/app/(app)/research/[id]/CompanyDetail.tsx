@@ -6,7 +6,7 @@ import { Icon } from "@/components/icons";
 import { api, ApiError } from "@/lib/api";
 import type { CompanyDetail as Company, VerificationStatus } from "@/lib/api-types";
 
-type Action = "approve" | "exclude" | "research" | "contacts";
+type Action = "approve" | "exclude" | "research" | "contacts" | "add-contact";
 
 const verifTone: Record<VerificationStatus, "ok" | "warn" | "danger" | "neutral"> = {
   Verified: "ok",
@@ -24,6 +24,8 @@ export function CompanyDetail({
 }) {
   const [busyAction, setBusyAction] = useState<Action | null>(null);
   const [toast, setToast] = useState<{ msg: string; tone: "ok" | "warn" | "danger" } | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ name: "", role: "", email: "" });
   const busy = busyAction !== null;
 
   function flash(msg: string, tone: "ok" | "warn" | "danger" = "ok") {
@@ -254,7 +256,52 @@ export function CompanyDetail({
                   ))}
                 </ul>
               )}
-              <Button href="/contacts" variant="ghost" className="mt-4 w-full text-sm">
+              {adding ? (
+                <div className="mt-4 space-y-2 rounded-xl border border-line p-3">
+                  <input
+                    className="form-input h-9 w-full text-sm"
+                    placeholder="Full name"
+                    value={draft.name}
+                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                  />
+                  <input
+                    className="form-input h-9 w-full text-sm"
+                    placeholder="Role (e.g. VP Sales)"
+                    value={draft.role}
+                    onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+                  />
+                  <input
+                    className="form-input h-9 w-full text-sm"
+                    placeholder="Email (optional)"
+                    value={draft.email}
+                    onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      className="flex-1 text-sm"
+                      disabled={busy || !draft.name.trim()}
+                      onClick={() =>
+                        act("add-contact", async () => {
+                          await api.addContact(company.id, draft);
+                          setDraft({ name: "", role: "", email: "" });
+                          setAdding(false);
+                        }, "Contact added")
+                      }
+                    >
+                      {busyAction === "add-contact" ? "Adding…" : "Save"}
+                    </Button>
+                    <Button variant="ghost" className="text-sm" disabled={busy} onClick={() => setAdding(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button variant="ghost" className="mt-4 w-full text-sm" disabled={busy} onClick={() => setAdding(true)}>
+                  <Icon.Plus width={14} height={14} /> Add contact manually
+                </Button>
+              )}
+              <Button href="/contacts" variant="ghost" className="mt-2 w-full text-sm">
                 Review all contacts
               </Button>
             </div>

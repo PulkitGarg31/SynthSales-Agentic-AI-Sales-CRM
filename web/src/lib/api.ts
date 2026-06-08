@@ -6,6 +6,7 @@ import type {
   Company,
   CompanyDetail,
   Contact,
+  ContactCreate,
   Dashboard,
   EmailDraft,
   LogEntry,
@@ -187,6 +188,8 @@ export const api = {
     request<CompanyDetail>(`/api/companies/${id}/enrich`, { method: "POST" }),
   findContacts: (id: number) =>
     request<CompanyDetail>(`/api/companies/${id}/find-contacts`, { method: "POST" }),
+  addContact: (companyId: number, data: ContactCreate) =>
+    request<CompanyDetail>(`/api/companies/${companyId}/contacts`, { method: "POST", body: data }),
 
   // ---- contacts ----
   contacts: (campaignId?: number) =>
