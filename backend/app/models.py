@@ -53,7 +53,15 @@ class User(Base):
     # Google account subject ("sub") when the user signed in via Google OAuth.
     # Null for password-only accounts. Presence ⇒ the account is Google-linked.
     google_sub: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    # Per-user Google refresh token for the calendar.events scope — booking creates
+    # a real Meet link on THIS user's calendar. Sensitive: never serialized into
+    # UserOut/logs/WS. Presence ⇒ calendar_connected.
+    google_calendar_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    @property
+    def calendar_connected(self) -> bool:
+        return bool(self.google_calendar_token)
 
     campaigns: Mapped[list[Campaign]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
@@ -162,6 +170,10 @@ class Contact(Base):
     verification: Mapped[str] = mapped_column(String(20), default="Unknown")
     confidence: Mapped[int] = mapped_column(Integer, default=0)
     approved: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Durable suppression flag — when True, EVERY send path (outreach draft, real
+    # send, auto follow-up, meeting invite) skips this contact. Set on explicit
+    # opt-out / "not interested" (Step 05) or manually in Contacts.
+    do_not_contact: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     company: Mapped[Company] = relationship(back_populates="contacts")
