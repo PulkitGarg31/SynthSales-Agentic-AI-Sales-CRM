@@ -56,11 +56,15 @@ class InboundMailProvider:
         """Return the most recent inbound messages (newest first). Never raises.
         Prefers the per-user Gmail token; falls back to the global IMAP mailbox.
         De-dup is the CALLER's job (by external_id) — this just reads."""
-        if user and user.gmail_read_token:
-            return self._fetch_gmail(user, max_results)
-        if self._imap_configured():
-            return self._fetch_imap(max_results)
-        return []
+        try:
+            if user and user.gmail_read_token:
+                return self._fetch_gmail(user, max_results)
+            if self._imap_configured():
+                return self._fetch_imap(max_results)
+            return []
+        except Exception as exc:  # pragma: no cover — the contract is "never raises"
+            logger.warning("Inbound fetch failed: %s", exc)
+            return []
 
     # --- Gmail API (per-user) ---------------------------------------------
     def _credentials(self, user: User):
@@ -166,6 +170,7 @@ class InboundMailProvider:
         import imaplib
 
         out: list[InboundMessage] = []
+        box = None
         try:
             box = imaplib.IMAP4_SSL(settings.imap_host, settings.imap_port)
             box.login(settings.imap_username, settings.imap_password)
@@ -179,10 +184,15 @@ class InboundMailProvider:
                 parsed = self._parse_imap(_email.message_from_bytes(msg_data[0][1]))
                 if parsed:
                     out.append(parsed)
-            box.logout()
         except Exception as exc:  # pragma: no cover — degrade gracefully
             logger.warning("IMAP read failed: %s", exc)
             return []
+        finally:
+            if box is not None:
+                try:
+                    box.logout()
+                except Exception:
+                    pass
         return out
 
     @staticmethod
@@ -191,6 +201,9 @@ class InboundMailProvider:
 
         subject = parsed.get("Subject", "")
         from_email = _extract_email(parsed.get("From", ""))
+        # Message-ID is near-universal; the subject[:200] fallback below is lossy
+        # (two same-subject mails would collapse to one de-dupe key) — acceptable
+        # for the IMAP dev/testing path; the Gmail path uses the stable message id.
         external_id = (parsed.get("Message-ID") or "").strip()
 
         body = ""
