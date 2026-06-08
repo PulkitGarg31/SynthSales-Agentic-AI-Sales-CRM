@@ -173,6 +173,20 @@ class ContactUpdate(BaseModel):
     do_not_contact: bool | None = None
 
 
+class ContactCreate(BaseModel):
+    name: str
+    role: str = ""
+    email: str = ""
+    linkedin: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _name_required(cls, v: str) -> str:
+        if not (v or "").strip():
+            raise ValueError("Contact name is required.")
+        return v.strip()
+
+
 class CompanyOut(ORMModel):
     id: int
     campaign_id: int

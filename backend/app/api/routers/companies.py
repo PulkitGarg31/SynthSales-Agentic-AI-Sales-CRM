@@ -6,8 +6,9 @@ from app.agents.enrichment import enrichment_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.models import Company, User
-from app.schemas import CompanyDetailOut, CompanyStatusUpdate, ContactOut
+from app.models import Company, Contact, User
+from app.schemas import CompanyDetailOut, CompanyStatusUpdate, ContactCreate, ContactOut
+from app.services.events import add_log
 from app.services.serializers import company_out
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
@@ -63,4 +64,30 @@ def find_contacts(
     c = _owned(db, user, company_id)
     employee_finder_agent.run(db, c, user.id)
     email_guess_verification_agent.run(db, c, user.id)
+    return get_company(company_id, db, user)
+
+
+@router.post("/{company_id}/contacts", response_model=CompanyDetailOut)
+def add_contact(
+    company_id: int,
+    payload: ContactCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Manually add a contact to a company (owner-scoped). The email is still
+    subject to ZeroBounce verification before any outreach."""
+    c = _owned(db, user, company_id)
+    contact = Contact(
+        company_id=c.id,
+        name=payload.name,
+        role=payload.role.strip(),
+        email=payload.email.strip(),
+        linkedin=payload.linkedin,
+        verification="Unknown",
+        confidence=0,
+        approved=None,
+    )
+    db.add(contact)
+    db.commit()
+    add_log(db, user.id, "Campaign", f"Manually added contact '{payload.name}' to {c.name}.")
     return get_company(company_id, db, user)
