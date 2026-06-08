@@ -140,6 +140,19 @@ async def lifespan(app: FastAPI):
                 "WHERE ac.owner_id = u.id AND ac.key = 'email_guess_verification')"
             )
         )
+        # Step 05: back-fill the new reply_classifier agent row (order 8) for
+        # existing users so they see 8 agents. New users get it from ensure_agents().
+        conn.execute(
+            text(
+                "INSERT INTO agent_configs "
+                '(owner_id, key, name, description, enabled, "order", status) '
+                "SELECT u.id, 'reply_classifier', 'Reply Detection & Intent', '', "
+                "true, 8, 'Idle' "
+                "FROM users u WHERE NOT EXISTS ("
+                "SELECT 1 FROM agent_configs ac "
+                "WHERE ac.owner_id = u.id AND ac.key = 'reply_classifier')"
+            )
+        )
 
     # Seed demo data (idempotent).
     from app.services.seed import seed_demo
