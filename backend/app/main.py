@@ -88,6 +88,15 @@ async def lifespan(app: FastAPI):
         conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255)")
         )
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_calendar_token TEXT")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "
+                "do_not_contact BOOLEAN NOT NULL DEFAULT false"
+            )
+        )
         # Auto-promote any user whose email matches the ADMIN_EMAILS config.
         # Lets you set the admin list in .env instead of running ad-hoc SQL.
         if settings.admin_emails_list:
