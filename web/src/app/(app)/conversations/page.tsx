@@ -17,6 +17,23 @@ const stageTone: Record<ThreadStage, "neutral" | "info" | "warn" | "ok" | "brand
   Stalled: "warn",
 };
 
+const intentLabel: Record<string, string> = {
+  interested: "Interested",
+  meeting_ready: "Meeting-ready",
+  not_interested: "Not interested",
+  question: "Question",
+  out_of_office: "Out of office",
+  other: "Other",
+};
+const intentTone: Record<string, "neutral" | "info" | "warn" | "ok" | "brand"> = {
+  interested: "ok",
+  meeting_ready: "ok",
+  not_interested: "warn",
+  question: "info",
+  out_of_office: "neutral",
+  other: "neutral",
+};
+
 function time(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     month: "short",
@@ -39,6 +56,8 @@ export default function ConversationsPage() {
   const [bLink, setBLink] = useState("");
   const [bNotes, setBNotes] = useState("");
   const [bErr, setBErr] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const calConnected = !!user?.calendar_connected;
 
   const threads = threadsQ.data ?? [];
@@ -98,6 +117,24 @@ export default function ConversationsPage() {
     }
   }
 
+  async function sync() {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const r = await api.syncInbox();
+      setSyncMsg(`Synced — ${r.ingested} new, ${r.classified} classified.`);
+      threadsQ.reload();
+      if (activeId !== null) {
+        const t = await api.thread(activeId);
+        setActive(t);
+      }
+    } catch (e) {
+      setSyncMsg(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   if (threads.length === 0) {
     return (
       <div>
@@ -113,7 +150,15 @@ export default function ConversationsPage() {
 
   return (
     <div>
-      <PageHeader title="Conversations" subtitle="CRM-style inbox — Campaign → Company → Contact → Thread." />
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <PageHeader title="Conversations" subtitle="CRM-style inbox — Campaign → Company → Contact → Thread." />
+        <div className="flex items-center gap-2">
+          {syncMsg && <span className="text-xs text-ink-500">{syncMsg}</span>}
+          <Button variant="ghost" onClick={sync} disabled={syncing}>
+            <Icon.Arrow width={15} height={15} /> {syncing ? "Syncing…" : "Sync inbox"}
+          </Button>
+        </div>
+      </div>
 
       <div className="grid h-[calc(100vh-220px)] grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-line bg-surface md:grid-cols-[320px_1fr]">
         <div className="hidden flex-col border-r border-line md:flex">
@@ -131,7 +176,14 @@ export default function ConversationsPage() {
                   </div>
                   <p className="truncate text-xs text-ink-500">{c.company_name}</p>
                   <div className="mt-1 flex items-center justify-between">
-                    <Badge tone={stageTone[c.stage]}>{c.stage}</Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge tone={stageTone[c.stage]}>{c.stage}</Badge>
+                      {c.last_intent && (
+                        <Badge tone={intentTone[c.last_intent] ?? "neutral"}>
+                          {intentLabel[c.last_intent] ?? c.last_intent}
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-[11px] text-ink-300">{time(c.last_activity)}</span>
                   </div>
                 </button>
@@ -152,6 +204,28 @@ export default function ConversationsPage() {
                   <p className="text-xs text-ink-500">{active.company_name} · {active.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {active.stage === "Closed" && (
+                    <Button
+                      variant="ghost"
+                      className="h-8"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          const updated = await api.overrideThreadStage(active.id, {
+                            stage: "Replied",
+                            clear_do_not_contact: true,
+                          });
+                          setActive(updated);
+                          threadsQ.reload();
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      Reopen
+                    </Button>
+                  )}
                   <Button variant="ghost" className="h-8" onClick={() => setBooking(true)}>
                     <Icon.Calendar width={14} height={14} /> Book meeting
                   </Button>
