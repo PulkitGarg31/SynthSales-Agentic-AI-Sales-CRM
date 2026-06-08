@@ -91,6 +91,11 @@ to drive the per-user `agent_configs` status the UI reads.
   contactable email — with no key, contacts stay `Unknown`/blank and outreach drafts nothing.**
 - **`email.py`** — Gmail API / SMTP / **console** fallback. In console mode (default) emails are logged,
   and the signup OTP is also returned to the UI as `dev_otp` so you can verify without email setup.
+- **`calendar.py`** — per-user Google Calendar. When a user connects their calendar (Settings →
+  Connect Google Calendar; offline consent for `calendar.events`, refresh token stored on
+  `User.google_calendar_token`), booking a meeting creates a real Calendar event with a Google Meet
+  link on **their** calendar. No connection → falls back to a user-supplied link (else the booking
+  route returns 422). Never fabricates a link.
 - **`search.py`** — DuckDuckGo (`ddgs`), no key. Exposes `domain_status() → live|parked|dead` and
   `find_linkedin_profiles()`.
 
@@ -128,7 +133,11 @@ add the matching idempotent ALTER there or existing dev databases won't pick it 
 - `realtime/ws.py` — in-process hub; `/ws?token=…` streams `log` + `notification` events. The main
   event loop is captured in `lifespan` so threadpool (sync) request handlers can broadcast.
 - `workers/scheduler.py` — APScheduler polls the tracking agent every `FOLLOWUP_INTERVAL_MINUTES`
-  (default 15) for all users. Disable with `ENABLE_SCHEDULER=false`.
+  (default 15, the **poll cadence**) for all users. Disable with `ENABLE_SCHEDULER=false`. A thread
+  gets an automatic follow-up only after our last message goes unanswered for `FOLLOWUP_DELAY_DAYS`
+  (default 10 — decoupled from the poll cadence); after `MAX_FOLLOW_UPS` (default 3) unanswered nudges
+  it auto-advances to the terminal `Stalled` stage. `Contact.do_not_contact` suppresses every send
+  path (outreach draft, send, auto follow-up, meeting invite).
 
 ### API surface & auth
 
