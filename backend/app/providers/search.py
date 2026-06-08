@@ -234,6 +234,33 @@ def _parse_linkedin_title(title: str, body: str = "") -> tuple[str, str, str]:
     return name, role, employer
 
 
+def _profile_queries(aliases: list[str]) -> list[str]:
+    """Ordered LinkedIn-profile search queries: precise first, then simple
+    high-recall, then a founder/CEO fallback. We only ever read result
+    titles/snippets — never open the profile page. Searches the top three
+    aliases (legal name + brand + domain-root) so brand-named employees
+    ("Notion" for "Notion Labs") are actually found."""
+    names = [a for a in aliases[:3] if a]
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(q: str) -> None:
+        if q not in seen:
+            seen.add(q)
+            out.append(q)
+
+    site_sales = '"VP Sales" OR "Head of Sales" OR "Chief Revenue Officer" OR "Sales Director"'
+    simple_roles = ("head of sales", "vp sales", "sales director", "sales")
+    for a in names:                                   # tier 1 — precise
+        add(f'"{a}" site:linkedin.com/in/ {site_sales}')
+    for a in names:                                   # tier 2 — simple / high recall
+        for r in simple_roles:
+            add(f"{a} {r} linkedin")
+    for a in names:                                   # tier 3 — founder/CEO fallback
+        add(f'"{a}" site:linkedin.com/in/ "CEO" OR "Founder" OR "President"')
+    return out
+
+
 class SearchProvider:
     @property
     def available(self) -> bool:
