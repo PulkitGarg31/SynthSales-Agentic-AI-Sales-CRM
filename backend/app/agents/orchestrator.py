@@ -252,7 +252,11 @@ def run_agent_for_campaign(
                 for contact in c.contacts:
                     # Draft only for contacts that actually have an address
                     # (ZeroBounce-verified or human-edited). No address → skip.
-                    if (contact.email or "").strip():
+                    if (
+                        (contact.email or "").strip()
+                        and contact.approved is not False
+                        and not contact.do_not_contact
+                    ):
                         outreach_agent.run(db, contact, c, campaign, owner_id, force=force)
 
         _phase(db, owner_id, outreach_agent, _draft_all)
@@ -310,7 +314,11 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
         for c in contactable:
             for contact in c.contacts:
                 # Draft only for contacts with a real address (see run-agent path).
-                if (contact.email or "").strip():
+                if (
+                    (contact.email or "").strip()
+                    and contact.approved is not False
+                    and not contact.do_not_contact
+                ):
                     outreach_agent.run(db, contact, c, campaign, owner_id, force=True)
 
     _phase(db, owner_id, outreach_agent, _draft_all)

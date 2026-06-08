@@ -39,12 +39,14 @@ class TrackingAgent(Agent):
         )
 
     def run(self, db: Session, owner_id: int) -> int:
-        """Send automatic follow-ups for stale, unanswered outbound threads."""
+        """Send automatic follow-ups for stale, unanswered outbound threads, and
+        auto-stall threads that never reply after the follow-up cap."""
         # Respect the user's outbound kill-switch — no auto follow-ups while paused.
         owner = db.get(User, owner_id)
         if not owner or not owner.outbound_enabled:
             return 0
-        cutoff = utcnow() - timedelta(minutes=settings.followup_interval_minutes)
+        # Staleness is measured in DAYS now, independent of how often we poll.
+        cutoff = utcnow() - timedelta(days=settings.followup_delay_days)
         threads = (
             db.query(Thread)
             .join(Campaign, Campaign.id == Thread.campaign_id)
@@ -52,16 +54,37 @@ class TrackingAgent(Agent):
             .all()
         )
         sent = 0
+        stalled = 0
         for t in threads:
-            if t.stage not in ("Contacted",) or not t.messages:
+            if t.stage != "Contacted" or not t.messages:
+                continue
+            # Suppressed contacts are skipped entirely (do-not-contact).
+            contact = db.get(Contact, t.contact_id) if t.contact_id else None
+            if contact and contact.do_not_contact:
                 continue
             last = t.messages[-1]
+            # Only act when WE spoke last and it's gone unanswered past the delay.
+            if last.direction != "us" or last.sent_at >= cutoff:
+                continue
             follow_ups = sum(1 for m in t.messages if m.is_follow_up)
-            if last.direction == "us" and last.sent_at < cutoff and follow_ups < 3:
+            if follow_ups < settings.max_follow_ups:
                 self._send_follow_up(db, t, owner_id)
                 sent += 1
-        if sent:
-            self.log(db, owner_id, f"Sent {sent} automatic follow-up(s).")
+            else:
+                # Cap reached and still no reply → terminal stall (no more outreach).
+                t.stage = "Stalled"
+                t.last_activity = utcnow()
+                db.commit()
+                add_notification(
+                    db,
+                    owner_id,
+                    "followup",
+                    "Thread stalled",
+                    f"'{t.subject}' — no reply after {settings.max_follow_ups} follow-ups.",
+                )
+                stalled += 1
+        if sent or stalled:
+            self.log(db, owner_id, f"Sent {sent} follow-up(s); stalled {stalled} thread(s).")
         return sent
 
     def _send_follow_up(self, db: Session, thread: Thread, owner_id: int) -> None:

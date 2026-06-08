@@ -116,6 +116,10 @@ def send_from_draft(
     company = contact.company if contact else None
     if not company or company.campaign.owner_id != user.id:
         raise HTTPException(status_code=404, detail="Draft not found")
+    if contact.do_not_contact:
+        raise HTTPException(
+            status_code=403, detail="This contact is marked do-not-contact."
+        )
 
     thread = Thread(
         campaign_id=company.campaign_id,
