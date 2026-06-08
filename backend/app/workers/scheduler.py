@@ -8,6 +8,8 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.agents.tracking import tracking_agent
+from app.agents.reply_classifier import reply_classifier_agent
+from app.providers.inbound import inbound_provider
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models import User
@@ -28,6 +30,20 @@ def _poll_followups() -> None:
         db.close()
 
 
+def _poll_inbound() -> None:
+    db = SessionLocal()
+    try:
+        for user in db.query(User).all():
+            if not inbound_provider.available_for(user):
+                continue
+            try:
+                reply_classifier_agent.run(db, user.id)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("Inbound poll failed for user %s: %s", user.id, exc)
+    finally:
+        db.close()
+
+
 def start_scheduler() -> None:
     global _scheduler
     if not settings.enable_scheduler or _scheduler is not None:
@@ -40,10 +56,18 @@ def start_scheduler() -> None:
         id="followups",
         next_run_time=None,  # don't fire immediately on boot
     )
+    _scheduler.add_job(
+        _poll_inbound,
+        "interval",
+        minutes=settings.inbound_poll_minutes,
+        id="inbound",
+        next_run_time=None,  # don't fire immediately on boot
+    )
     _scheduler.start()
     logger.info(
-        "Scheduler started: follow-up polling every %s min",
+        "Scheduler started: follow-up polling every %s min, inbound polling every %s min",
         settings.followup_interval_minutes,
+        settings.inbound_poll_minutes,
     )
 
 
