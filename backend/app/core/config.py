@@ -57,11 +57,23 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://127.0.0.1:8000/api/auth/google/callback"
+    # Per-user Google Calendar connection (offline consent for calendar.events).
+    # Register this URI in the OAuth client's "Authorized redirect URIs".
+    google_calendar_redirect_uri: str = "http://127.0.0.1:8000/api/auth/google/calendar/callback"
     frontend_url: str = "http://localhost:3000"
 
     # Automation
+    # Scheduler POLL cadence — how often the worker wakes to check threads.
     followup_interval_minutes: int = 15
     enable_scheduler: bool = True
+    # How long a thread must sit unanswered (OUR last message) before an automatic
+    # follow-up nudge fires. Decoupled from the poll cadence above, so you can poll
+    # often but only nudge after, e.g., 10 days.
+    followup_delay_days: int = 10
+    # Max automatic follow-up nudges per thread before it auto-stalls.
+    max_follow_ups: int = 3
+    # Default generated-meeting length (minutes) for the calendar event end time.
+    meeting_default_duration_minutes: int = 30
 
     # Comma-separated list of emails that should be auto-granted the admin
     # role. Applied at startup (sweeps existing users) and when a new user
