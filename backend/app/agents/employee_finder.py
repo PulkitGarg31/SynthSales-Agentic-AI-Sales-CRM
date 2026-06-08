@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.agents.base import Agent
 from app.models import Company, Contact
 from app.providers.ai import ai
-from app.providers.search import search
+from app.providers.search import search, _is_commercial_role
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ class EmployeeFinderAgent(Agent):
                 ),
             )
             if not data:
-                return profiles
+                return [p for p in profiles if _is_commercial_role(p.get("role", ""))]
             picks = data.get("picks") or []
             ranked: list[dict] = []
             seen: set[int] = set()
@@ -182,7 +182,7 @@ class EmployeeFinderAgent(Agent):
             return ranked
         except Exception as exc:  # pragma: no cover
             logger.warning("AI ranking of LinkedIn candidates failed: %s", exc)
-            return profiles
+            return [p for p in profiles if _is_commercial_role(p.get("role", ""))]
 
 
 employee_finder_agent = EmployeeFinderAgent()
