@@ -60,12 +60,22 @@ class Settings(BaseSettings):
     # Per-user Google Calendar connection (offline consent for calendar.events).
     # Register this URI in the OAuth client's "Authorized redirect URIs".
     google_calendar_redirect_uri: str = "http://127.0.0.1:8000/api/auth/google/calendar/callback"
+    # Per-user Gmail read connection (offline consent for gmail.readonly). Register
+    # this URI in the OAuth client's "Authorized redirect URIs".
+    google_mailbox_redirect_uri: str = "http://127.0.0.1:8000/api/auth/google/mailbox/callback"
     frontend_url: str = "http://localhost:3000"
 
     # Automation
     # Scheduler POLL cadence — how often the worker wakes to check threads.
     followup_interval_minutes: int = 15
     enable_scheduler: bool = True
+    # How often the inbound poller wakes to read each connected mailbox for new
+    # replies. Independent of the follow-up cadence above.
+    inbound_poll_minutes: int = 5
+    # Minimum AI confidence (0-100) required before a "not_interested" reply is
+    # allowed to opt the contact out + close the thread. Below this, the reply is
+    # only surfaced — never auto-opted-out.
+    reply_optout_min_confidence: int = 70
     # How long a thread must sit unanswered (OUR last message) before an automatic
     # follow-up nudge fires. Decoupled from the poll cadence above, so you can poll
     # often but only nudge after, e.g., 10 days.
@@ -74,6 +84,12 @@ class Settings(BaseSettings):
     max_follow_ups: int = 3
     # Default generated-meeting length (minutes) for the calendar event end time.
     meeting_default_duration_minutes: int = 30
+    # IMAP fallback (single global mailbox) for inbound reading when no per-user
+    # Gmail token is connected — dev/testing convenience. Blank ⇒ disabled.
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_username: str = ""
+    imap_password: str = ""
 
     # Comma-separated list of emails that should be auto-granted the admin
     # role. Applied at startup (sweeps existing users) and when a new user
