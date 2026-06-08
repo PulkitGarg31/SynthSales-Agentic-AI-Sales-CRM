@@ -27,6 +27,9 @@ GOOGLE_SCOPES = "openid email profile"
 GOOGLE_CALENDAR_SCOPES = (
     "openid email profile https://www.googleapis.com/auth/calendar.events"
 )
+GOOGLE_MAILBOX_SCOPES = (
+    "openid email profile https://www.googleapis.com/auth/gmail.readonly"
+)
 
 
 class GoogleOAuthProvider:
@@ -55,6 +58,21 @@ class GoogleOAuthProvider:
             "redirect_uri": settings.google_calendar_redirect_uri,
             "response_type": "code",
             "scope": GOOGLE_CALENDAR_SCOPES,
+            "state": state,
+            "access_type": "offline",
+            "prompt": "consent",
+            "include_granted_scopes": "true",
+        }
+        return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+
+    def mailbox_authorization_url(self, state: str) -> str:
+        """Consent URL for the per-user mailbox (gmail.readonly) connection.
+        access_type=offline + prompt=consent forces a refresh token we can store."""
+        params = {
+            "client_id": settings.google_client_id,
+            "redirect_uri": settings.google_mailbox_redirect_uri,
+            "response_type": "code",
+            "scope": GOOGLE_MAILBOX_SCOPES,
             "state": state,
             "access_type": "offline",
             "prompt": "consent",
