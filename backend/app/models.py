@@ -57,11 +57,19 @@ class User(Base):
     # a real Meet link on THIS user's calendar. Sensitive: never serialized into
     # UserOut/logs/WS. Presence ⇒ calendar_connected.
     google_calendar_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Per-user Google refresh token for the gmail.readonly scope — lets the
+    # inbound poller read THIS user's replies. Sensitive: never serialized into
+    # UserOut/logs/WS. Presence ⇒ mailbox_connected.
+    gmail_read_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     @property
     def calendar_connected(self) -> bool:
         return bool(self.google_calendar_token)
+
+    @property
+    def mailbox_connected(self) -> bool:
+        return bool(self.gmail_read_token)
 
     campaigns: Mapped[list[Campaign]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
@@ -207,6 +215,9 @@ class Thread(Base):
         ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True
     )
     subject: Mapped[str] = mapped_column(String(300), default="")
+    # Optional provider conversation id (Gmail threadId) to match an inbound
+    # reply to this thread when subject/participant matching is ambiguous.
+    provider_thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     stage: Mapped[str] = mapped_column(String(20), default="Contacted")
     unread: Mapped[bool] = mapped_column(Boolean, default=False)
     last_activity: Mapped[datetime] = mapped_column(
@@ -232,6 +243,13 @@ class Message(Base):
     subject: Mapped[str | None] = mapped_column(String(300), nullable=True)
     body: Mapped[str] = mapped_column(Text, default="")
     is_follow_up: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Provider message id (Gmail message `id` / IMAP Message-ID). De-dupe key so
+    # re-polling the same mailbox never double-inserts a `them` reply. Indexed.
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    # AI-classified intent of a `them` reply (interested | meeting_ready |
+    # not_interested | question | out_of_office | other). Null on `us` messages
+    # and on replies ingested while AI was unavailable.
+    intent: Mapped[str | None] = mapped_column(String(20), nullable=True)
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     thread: Mapped[Thread] = relationship(back_populates="messages")

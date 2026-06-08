@@ -97,6 +97,24 @@ async def lifespan(app: FastAPI):
                 "do_not_contact BOOLEAN NOT NULL DEFAULT false"
             )
         )
+        # Step 05 — inbound reply detection: per-message provider id (de-dupe) +
+        # classified intent; per-thread provider conversation id; per-user gmail
+        # read token.
+        conn.execute(
+            text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)")
+        )
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_messages_external_id ON messages (external_id)")
+        )
+        conn.execute(
+            text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS intent VARCHAR(20)")
+        )
+        conn.execute(
+            text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS provider_thread_id VARCHAR(255)")
+        )
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_read_token TEXT")
+        )
         # Auto-promote any user whose email matches the ADMIN_EMAILS config.
         # Lets you set the admin list in .env instead of running ad-hoc SQL.
         if settings.admin_emails_list:
