@@ -199,6 +199,41 @@ def _is_former_employee(role: str, snippet: str, company_lower: str) -> bool:
     return any(re.search(p, haystack) for p in patterns)
 
 
+def _parse_linkedin_title(title: str, body: str = "") -> tuple[str, str, str]:
+    """Parse a LinkedIn SERP result into (name, role, employer), reading only
+    the title/snippet — we never open the profile page. Handles:
+        "Name - Role - Company | LinkedIn"
+        "Name - Role at Company | LinkedIn"
+        "Name - Role | LinkedIn"
+        "Name - Company | LinkedIn"   (role recovered from the snippet)
+    Returns ("", "", "") when no name can be extracted."""
+    clean = re.sub(r"\s*[|·]\s*LinkedIn.*$", "", title or "", flags=re.IGNORECASE).strip()
+    if not clean:
+        return "", "", ""
+    name = role = employer = ""
+    m = re.match(r"^(.+?)\s+[-–—]\s+(.+?)\s+at\s+(.+?)$", clean, flags=re.IGNORECASE)
+    if m:
+        name, role, employer = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
+    else:
+        parts = [p.strip() for p in re.split(r"\s+[-–—]\s+", clean)]
+        name = parts[0] if parts else clean
+        if len(parts) >= 3:
+            role, employer = parts[1], parts[2]
+        elif len(parts) == 2:
+            role = parts[1]
+    role = re.sub(r"\s+at\s+.+$", "", role, flags=re.IGNORECASE).strip()
+    # If the title gave no usable sales role, try to recover one from the snippet.
+    if not _is_commercial_role(role) and body:
+        m2 = re.search(
+            r"\b(VP\s+Sales|Head\s+of\s+Sales|Chief\s+Revenue\s+Officer|CRO|"
+            r"Sales\s+Director|Director\s+of\s+Sales|Account\s+Executive|"
+            r"VP\s+Revenue|Regional\s+Sales\s+Manager|Founder|CEO|President)\b",
+            body, flags=re.IGNORECASE)
+        if m2:
+            role = m2.group(1)
+    return name, role, employer
+
+
 class SearchProvider:
     @property
     def available(self) -> bool:
