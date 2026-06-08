@@ -167,11 +167,27 @@ class ReplyClassifierAgent(Agent):
     # ---- orchestration ----------------------------------------------------
     def run(self, db: Session, owner_id: int) -> dict:
         """Ingest + classify new inbound replies for one user. Returns
-        {"ingested": int, "classified": int}. Never raises on provider errors."""
+        {"ingested": int, "classified": int}. Never raises on provider errors.
+
+        Marks the agent Running/Idle/Error so its status surfaces in the UI like
+        the other agents — this agent runs via the sync route + scheduler, not the
+        orchestrator's _phase wrapper, so it marks itself."""
         owner = db.get(User, owner_id)
         if not owner or not inbound_provider.available_for(owner):
             return {"ingested": 0, "classified": 0}
+        self.mark(db, owner_id, "Running")
+        try:
+            result = self._run_for_owner(db, owner_id, owner)
+            self.mark(db, owner_id, "Idle")
+            return result
+        except Exception:
+            self.mark(db, owner_id, "Error")
+            raise
 
+    def _run_for_owner(self, db: Session, owner_id: int, owner: User) -> dict:
+        """Core ingest+classify loop for one user (assumes a connected mailbox).
+        Provider/fetch errors degrade to a zero-count no-op (never raises); other
+        unexpected errors propagate to run() which marks the agent Error."""
         try:
             messages = inbound_provider.fetch_new_messages(owner)
         except Exception:
