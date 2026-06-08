@@ -135,6 +135,10 @@ export const api = {
     request<{ url: string }>("/api/auth/google/calendar/connect"),
   disconnectCalendar: () =>
     request<User>("/api/auth/google/calendar/disconnect", { method: "POST" }),
+  connectMailbox: () =>
+    request<{ url: string }>("/api/auth/google/mailbox/connect"),
+  disconnectMailbox: () =>
+    request<User>("/api/auth/google/mailbox/disconnect", { method: "POST" }),
 
   // ---- dashboard ----
   dashboard: () => request<Dashboard>("/api/dashboard"),
@@ -233,6 +237,19 @@ export const api = {
   ) =>
     request<ThreadDetail>(`/api/conversations/${threadId}/book-meeting`, {
       method: "POST",
+      body: data,
+    }),
+  syncInbox: () =>
+    request<{ ingested: number; classified: number }>(
+      "/api/conversations/sync",
+      { method: "POST" }
+    ),
+  overrideThreadStage: (
+    threadId: number,
+    data: { stage?: string; clear_do_not_contact?: boolean }
+  ) =>
+    request<ThreadDetail>(`/api/conversations/${threadId}/stage`, {
+      method: "PATCH",
       body: data,
     }),
 

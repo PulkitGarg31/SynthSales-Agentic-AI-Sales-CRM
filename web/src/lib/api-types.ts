@@ -26,6 +26,13 @@ export type NotificationType =
   | "campaign"
   | "followup"
   | "error";
+export type Intent =
+  | "interested"
+  | "meeting_ready"
+  | "not_interested"
+  | "question"
+  | "out_of_office"
+  | "other";
 
 export interface User {
   id: number;
@@ -34,6 +41,7 @@ export interface User {
   is_verified: boolean;
   outbound_enabled: boolean;
   calendar_connected: boolean;
+  mailbox_connected: boolean;
   created_at: string;
 }
 
@@ -116,6 +124,7 @@ export interface ThreadMessage {
   subject?: string | null;
   body: string;
   is_follow_up: boolean;
+  intent?: Intent | null;
   sent_at: string;
 }
 
@@ -132,6 +141,7 @@ export interface Thread {
   contact_name: string;
   role: string;
   email: string;
+  last_intent?: Intent | null;
 }
 
 export interface ThreadDetail extends Thread {
