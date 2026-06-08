@@ -60,6 +60,7 @@ export default function SettingsPage() {
           {tab === "Email" && (
             <>
             <OutboundControl />
+            <CalendarControl />
             <Card>
               <CardHeader title="Email settings" />
               <div className="space-y-4 p-5">
@@ -213,6 +214,69 @@ function OutboundControl() {
             <Icon.Info width={16} height={16} /> No emails will be sent to prospects until you enable this.
           </div>
         )}
+        {err && (
+          <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{err}</p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function CalendarControl() {
+  const { user, refresh } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const connected = !!user?.calendar_connected;
+
+  async function connect() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const { url } = await api.connectCalendar();
+      window.location.href = url;
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not start Google Calendar connect");
+      setBusy(false);
+    }
+  }
+  async function disconnect() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.disconnectCalendar();
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to disconnect");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader title="Google Calendar" />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-ink">
+              {connected ? "Calendar connected" : "Calendar not connected"}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-500">
+              Connect your Google Calendar so booking a meeting creates a real Google
+              Meet link on your own calendar. Without it, you can still book by pasting
+              a meeting link.
+            </p>
+          </div>
+          {connected ? (
+            <Button variant="ghost" onClick={disconnect} disabled={busy}>
+              Disconnect
+            </Button>
+          ) : (
+            <Button onClick={connect} disabled={busy}>
+              <Icon.Calendar width={16} height={16} /> Connect
+            </Button>
+          )}
+        </div>
         {err && (
           <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{err}</p>
         )}

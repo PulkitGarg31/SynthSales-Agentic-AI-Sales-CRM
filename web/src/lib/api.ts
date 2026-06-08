@@ -131,6 +131,10 @@ export const api = {
       method: "PATCH",
       body: { outbound_enabled: enabled },
     }),
+  connectCalendar: () =>
+    request<{ url: string }>("/api/auth/google/calendar/connect"),
+  disconnectCalendar: () =>
+    request<User>("/api/auth/google/calendar/disconnect", { method: "POST" }),
 
   // ---- dashboard ----
   dashboard: () => request<Dashboard>("/api/dashboard"),
@@ -220,7 +224,12 @@ export const api = {
     }),
   bookMeeting: (
     threadId: number,
-    data: { scheduled_at: string; link: string; notes?: string }
+    data: {
+      scheduled_at: string;
+      link?: string;
+      notes?: string;
+      duration_minutes?: number;
+    }
   ) =>
     request<ThreadDetail>(`/api/conversations/${threadId}/book-meeting`, {
       method: "POST",

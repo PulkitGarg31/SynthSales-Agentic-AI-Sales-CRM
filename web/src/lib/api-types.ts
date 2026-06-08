@@ -17,7 +17,8 @@ export type ThreadStage =
   | "Replied"
   | "Negotiating"
   | "Meeting"
-  | "Closed";
+  | "Closed"
+  | "Stalled";
 export type NotificationType =
   | "reply"
   | "meeting"
@@ -32,6 +33,7 @@ export interface User {
   email: string;
   is_verified: boolean;
   outbound_enabled: boolean;
+  calendar_connected: boolean;
   created_at: string;
 }
 
@@ -91,6 +93,7 @@ export interface Contact {
   verification: "Verified" | "Risky" | "Invalid" | "Unknown";
   confidence: number;
   approved: boolean | null;
+  do_not_contact: boolean;
 }
 
 export interface CompanyDetail extends Company {

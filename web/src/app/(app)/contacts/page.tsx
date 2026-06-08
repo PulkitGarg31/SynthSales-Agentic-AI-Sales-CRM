@@ -66,6 +66,10 @@ export default function ContactsPage() {
     setList((contacts).map((c) => (c.id === id ? updated : c)));
     setEditing(null);
   }
+  async function setDnc(id: number, do_not_contact: boolean) {
+    const updated = await api.updateContact(id, { do_not_contact });
+    setList((contacts).map((c) => (c.id === id ? updated : c)));
+  }
 
   const pending = contacts.filter((c) => c.approved === null).length;
 
@@ -131,6 +135,7 @@ export default function ContactsPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {c.do_not_contact && <Badge tone="danger">Do not contact</Badge>}
                       {c.approved === true ? (
                         <Badge tone="ok"><Icon.Check width={12} height={12} /> Approved</Badge>
                       ) : c.approved === false ? (
@@ -144,6 +149,17 @@ export default function ContactsPage() {
                       </button>
                       <button onClick={() => { setEditing(c.id); setDraftEmail(c.email); }} className="rounded-full bg-ink/5 p-2 text-ink hover:bg-ink/10" title="Edit contact">
                         <Icon.Settings width={16} height={16} />
+                      </button>
+                      <button
+                        onClick={() => setDnc(c.id, !c.do_not_contact)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                          c.do_not_contact
+                            ? "bg-danger/10 text-danger hover:bg-danger/20"
+                            : "bg-ink/5 text-ink-500 hover:bg-ink/10"
+                        }`}
+                        title={c.do_not_contact ? "Allow contact again" : "Mark do-not-contact"}
+                      >
+                        {c.do_not_contact ? "Allow" : "Do not contact"}
                       </button>
                     </div>
                   </li>
