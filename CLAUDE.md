@@ -125,8 +125,10 @@ to drive the per-user `agent_configs` status the UI reads.
   `User.gmail_read_token`, `gmail.readonly`) with a stdlib `imaplib` global fallback. Returns
   normalized `InboundMessage`s; returns `[]` and never raises on any error. No mailbox connected
   → no ingestion.
-- **`search.py`** — DuckDuckGo (`ddgs`), no key. Exposes `domain_status() → live|parked|dead` and
-  `find_linkedin_profiles()`.
+- **`search.py`** — DuckDuckGo (`ddgs`), no key. Exposes `domain_status() → live|parked|dead`,
+  `find_linkedin_profiles()`, and `find_email_domain()` (the company's real mail domain — scrapes the
+  company's own site for a published info@/sales@ first, then a DDG email-format search; rejects free
+  webmail, aggregators, and asset filenames like `logo@2x.png`).
 
 ### Outbound email kill-switch (safety — do not bypass)
 

@@ -277,6 +277,26 @@ _AGGREGATOR_DOMAINS = {
 }
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})")
 
+# File extensions that masquerade as email domains via the retina "logo@2x.png"
+# trick or asset paths — never a real corporate mail domain.
+_BAD_EMAIL_TLDS = {
+    "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "bmp", "tiff", "css",
+    "js", "json", "xml", "pdf", "woff", "woff2", "ttf", "eot", "mp4", "mp3",
+    "webm", "html", "htm", "php", "aspx",
+}
+
+
+def _is_corp_mail_domain(dom: str) -> bool:
+    """True if `dom` is a plausible corporate mail domain — not free webmail, a
+    data-aggregator, or an asset filename ("logo@2x.png" -> "2x.png")."""
+    dom = (dom or "").lower().strip(".")
+    if not dom or "." not in dom:
+        return False
+    tld = dom.rsplit(".", 1)[-1]
+    if len(tld) < 2 or not tld.isalpha() or tld in _BAD_EMAIL_TLDS:
+        return False
+    return dom not in _GENERIC_EMAIL_DOMAINS and dom not in _AGGREGATOR_DOMAINS
+
 
 class SearchProvider:
     @property
@@ -377,11 +397,11 @@ class SearchProvider:
         return list(seen.values())
 
     def find_email_domain(self, company_name: str, website_domain: str = "") -> str:
-        """Search the web for the company's real email domain (the part after
-        '@') — e.g. Notion's site is notion.so but its mail is @makenotion.com.
-        Returns the most likely corporate mail domain, or '' if none can be
-        confidently found (the caller then falls back to the website domain).
-        Reads search snippets only; free."""
+        """Find the company's real email domain (the part after '@') — e.g.
+        Notion's site is notion.so but its mail is @makenotion.com. Tries the
+        company's OWN website first (free, reliable — an info@/sales@/contact@ in
+        the footer or contact page), then a web search; returns '' if neither is
+        confident (the caller then falls back to the website domain)."""
         company_name = (company_name or "").strip()
         if not company_name:
             return ""
@@ -389,16 +409,29 @@ class SearchProvider:
         if not aliases:
             return ""
         brand_roots = [a.lower().replace(" ", "") for a in aliases if len(a) >= 3]
+
+        # 1) The company's own website — free and not rate-limited.
+        site_dom = self._site_email_domain(website_domain, brand_roots)
+        if site_dom:
+            return site_dom
+
+        # 2) Otherwise search the web for the email format.
         counts: dict[str, int] = {}
         for q in (f'"{company_name}" email format', f"{aliases[0]} email address"):
             for r in self._search_resilient(q, max_results=6):
                 text = f"{r.get('title', '')} {r.get('body', '')}"
                 for m in _EMAIL_RE.finditer(text):
                     dom = m.group(1).lower().strip(".")
-                    if (dom in _GENERIC_EMAIL_DOMAINS or dom in _AGGREGATOR_DOMAINS
-                            or "." not in dom):
+                    if not _is_corp_mail_domain(dom):
                         continue
                     counts[dom] = counts.get(dom, 0) + 1
+        return self._pick_email_domain(counts, brand_roots)
+
+    @staticmethod
+    def _pick_email_domain(counts: dict[str, int], brand_roots: list[str]) -> str:
+        """Choose the best corporate mail domain from a {domain: hits} tally:
+        prefer one that references the brand ("makenotion.com" for Notion), else
+        a domain seen more than once. Ambiguous single hits -> '' (fall back)."""
         if not counts:
             return ""
 
@@ -406,13 +439,40 @@ class SearchProvider:
             root = dom.split(".")[0]
             return any(root in b or b in root for b in brand_roots)
 
-        # Prefer a brand-matching domain ("makenotion.com" for Notion); else a
-        # domain seen more than once. Single ambiguous hits are ignored (return
-        # '' → fall back to the website domain).
         top, n = sorted(counts.items(), key=lambda kv: (is_brandy(kv[0]), kv[1]), reverse=True)[0]
-        if is_brandy(top) or n >= 2:
-            return top
-        return ""
+        return top if (is_brandy(top) or n >= 2) else ""
+
+    def _site_email_domain(self, website_domain: str, brand_roots: list[str]) -> str:
+        """Fetch the company's own website (home + contact/about pages) and pull a
+        corporate mail domain from any address it publishes (often an
+        info@/sales@/contact@ in the footer). Free; returns '' on any failure."""
+        root = (website_domain or "").strip().lower()
+        for pre in ("https://", "http://", "www."):
+            if root.startswith(pre):
+                root = root[len(pre):]
+        root = root.split("/")[0].rstrip("/")
+        if not root or "." not in root:
+            return ""
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; ReachlyBot/1.0)"}
+        counts: dict[str, int] = {}
+        for path in ("", "contact", "contact-us", "about"):
+            try:
+                resp = httpx.get(f"https://{root}/{path}", timeout=7,
+                                 follow_redirects=True, headers=headers)
+                if resp.status_code != 200 or not resp.text:
+                    continue
+                emails = re.findall(r"mailto:([^\"'?>\s]+)", resp.text, re.IGNORECASE)
+                emails += [m.group(0) for m in _EMAIL_RE.finditer(resp.text)]
+                for e in emails:
+                    dom = e.split("@")[-1].lower().strip(".")
+                    if not _is_corp_mail_domain(dom):
+                        continue
+                    counts[dom] = counts.get(dom, 0) + 1
+            except Exception:
+                continue
+            if counts:
+                break  # found addresses on this page; stop fetching
+        return self._pick_email_domain(counts, brand_roots)
 
     # ----------------------------------------------------- domain liveness
     @staticmethod
