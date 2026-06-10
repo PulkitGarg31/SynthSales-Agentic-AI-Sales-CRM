@@ -62,7 +62,8 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
 Non-obvious orchestration rules you must respect when editing agents:
 - **`email_guess_verification` is one merged agent** — it guesses likely addresses then verifies them
   in a single pass (`guess_emails()` runs inside `verification_agent.run()`). It stores an address only
-  on a ZeroBounce-confirmed `Verified`; `email_guess`/`verification` are no longer separate keys.
+  on a paid-provider-confirmed `Verified` (Verifalia or ZeroBounce); `email_guess`/`verification` are
+  no longer separate keys.
 - **`_walk_for_contactable()`** is the contact-finding fallback the user explicitly asked for: walk
   ranked companies, run the employee finder, and if a Qualified company yields *no real LinkedIn
   contacts*, demote it `Qualified → Reviewed` and promote the next-best company into the top-N slot.
@@ -73,6 +74,11 @@ Non-obvious orchestration rules you must respect when editing agents:
 - Agents never fabricate. The employee finder returns **real** `site:linkedin.com/in/` profiles or
   **zero contacts** — do not reintroduce hardcoded name lists. Enrichment detects parked/dead domains
   and writes honest low-confidence summaries rather than hallucinating a profile.
+- **Finder search is escalating + role-gated** — `find_linkedin_profiles` runs precise
+  `site:linkedin.com/in/` queries, then simpler high-recall queries (`<brand> head of sales`), then a
+  founder/CEO fallback across all aliases, reading SERP titles only (never opening LinkedIn), and keeps
+  only roles passing a deterministic commercial-role gate (`_is_commercial_role`). Users can also add
+  contacts manually via `POST /api/companies/{id}/contacts`.
 - **`reply_classifier` is the inbound half of engagement** — it is NOT part of
   `run_campaign_pipeline` and is excluded from `RUNNABLE_KEYS` (like `meeting`). It runs via
   `POST /api/conversations/sync` (on demand) and a second scheduler job (`INBOUND_POLL_MINUTES`,

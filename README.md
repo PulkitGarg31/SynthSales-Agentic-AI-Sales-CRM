@@ -635,3 +635,29 @@ half of engagement: read prospect replies, classify intent, and act. Reuses the 
 - Four idempotent statements in `main.py::lifespan` (still no Alembic): `messages.external_id`
   (`VARCHAR`, **indexed**), `messages.intent`, `threads.provider_thread_id`, `users.gmail_read_token`
   (`TEXT`).
+
+### 2026-06-08 (contact search enhancement — Step 06)
+
+Implemented `.claude/specs/06-contact-search-enhancement.md` (plan in `.claude/plans/`). Improves the
+employee finder's recall + precision on the free DuckDuckGo path; no new dependencies. Also restored
+**Verifalia** as a paid verification provider (preferred when configured — more credits — with
+ZeroBounce as fallback).
+
+#### Escalating, role-gated finder (`providers/search.py`, `agents/employee_finder.py`)
+- `find_linkedin_profiles` now runs an **escalating query set** — precise `site:linkedin.com/in/`,
+  then simpler high-recall queries (`<brand> head of sales`, `<brand> sales`), then a founder/CEO
+  fallback — across the legal name, brand, and domain-root aliases, stopping once enough candidates
+  are found (with retry/backoff for throttling). It reads **SERP titles/snippets only** via the new
+  `_parse_linkedin_title`; it never opens a LinkedIn page.
+- A deterministic **commercial-role gate** (`_is_commercial_role`) drops non-sales titles (Marketing
+  Manager, Investment Analyst, BD/Partnerships/Channel, engineering, product, finance, analysts)
+  **before and independent of** the AI ranker, which now falls back to the role-gated list instead of
+  raw search results. The dead `_role_is_unusable` was removed.
+
+#### Manual add-contact (`api/routers/companies.py`, `web/.../CompanyDetail.tsx`)
+- `POST /api/companies/{id}/contacts` (owner-scoped, `ContactCreate`) + an "Add contact" form on the
+  company detail page, so a company the search can't crack is never a dead end.
+
+#### Verified
+- 42/42 deterministic logic tests + `npm run build`; **live DuckDuckGo check on HubSpot returned 6
+  real sales contacts (CRO/GTM/President/CEO), zero junk**; add-contact route smoke (201 / blank→422).
