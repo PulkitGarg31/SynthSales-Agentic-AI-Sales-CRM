@@ -145,7 +145,7 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
             level="warning",
         )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    if not secrets.compare_digest(user.otp_code, payload.code):
+    if not secrets.compare_digest(user.otp_code.encode(), payload.code.encode()):
         user.otp_attempts += 1
         db.commit()
         if user.otp_attempts >= MAX_OTP_ATTEMPTS:
@@ -248,7 +248,7 @@ def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
             level="warning",
         )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    if not secrets.compare_digest(user.otp_code, payload.code):
+    if not secrets.compare_digest(user.otp_code.encode(), payload.code.encode()):
         user.otp_attempts += 1
         db.commit()
         if user.otp_attempts >= MAX_OTP_ATTEMPTS:
