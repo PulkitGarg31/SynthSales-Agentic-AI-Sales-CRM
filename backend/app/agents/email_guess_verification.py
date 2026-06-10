@@ -5,7 +5,9 @@ name + domain patterns and then verifies each guess. It stores the first guess
 the provider confirms **Verified** (a real mailbox). On a **catch-all** server —
 one that accepts every address, so no specific mailbox can be confirmed — it
 keeps the top guess marked **Risky** rather than burning a paid credit on every
-pattern for the same answer; if nothing is usable it stores no address.
+pattern for the same answer. If a company would otherwise get nothing, the top
+contact still gets a best-guess address (Risky, low confidence) so it stays
+contactable.
 
 When **Hunter.io** is configured, ONE lookup per company first resolves the top
 contact's real email and the company's mail domain (its small free tier is spent
@@ -141,6 +143,22 @@ class EmailGuessVerificationAgent(Agent):
                 continue
             if self._resolve(contact, candidates, db, owner_id):
                 domain_is_catch_all = True
+
+        # Floor — guarantee at least one contactable lead per company. If nothing
+        # above produced an address (Hunter had no data AND the paid verifier is
+        # unavailable / out of credits), store the top contact's most-likely
+        # pattern as a best-guess so the company isn't a dead end.
+        if contacts and not any((c.email or "").strip() for c in contacts):
+            top = contacts[0]
+            top.email = guess_emails(top.name, domain)[0]
+            top.verification = "Risky"
+            top.confidence = 30
+            self.log(
+                db, owner_id,
+                f"No address could be verified for {company.name}; stored a best-guess for "
+                f"{top.name} ({top.email}) so it stays contactable.",
+            )
+
         # rollup status
         verified = sum(1 for c in company.contacts if c.verification == "Verified")
         with_email = sum(1 for c in company.contacts if (c.email or "").strip())
