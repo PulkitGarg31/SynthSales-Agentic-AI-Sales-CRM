@@ -106,6 +106,27 @@ def _employer_matches(title_employer: str, target_lower: str) -> bool:
     return a in b or b in a
 
 
+def _has_employer_evidence(title: str, body: str, title_employer: str, aliases: list[str]) -> bool:
+    """True if an alias appears as the candidate's EMPLOYER — the parsed
+    "Role at/- Company" employer, or with a LinkedIn employer marker
+    ("at"/"@"/"·" <Company>) — not merely as a stray word. Prevents common-word
+    company names (Segment, Square, Notion, …) from matching unrelated sales
+    profiles (a "West Segment" sales territory, or "market segment" in a snippet)."""
+    if title_employer and any(_employer_matches(title_employer, a.lower()) for a in aliases):
+        return True
+    text = f"{title} {body}"
+    for a in aliases:
+        esc = re.escape(a)
+        if (
+            re.search(rf"\bat\s+{esc}\b", text, re.IGNORECASE)
+            or re.search(rf"@\s*{esc}\b", text, re.IGNORECASE)
+            or re.search(rf"·\s*{esc}\b", text, re.IGNORECASE)
+            or re.search(rf"\b{esc}\s*·", text, re.IGNORECASE)
+        ):
+            return True
+    return False
+
+
 def _company_aliases(name: str, domain: str = "") -> list[str]:
     """Generate likely LinkedIn-display variations of a company name.
 
@@ -320,9 +341,11 @@ class SearchProvider:
                 name, role, title_employer = _parse_linkedin_title(title, body)
                 if not name or len(name) > 120 or len(role) > 200:
                     continue
-                if title_employer and not any(
-                    _employer_matches(title_employer, a.lower()) for a in aliases
-                ):
+                # Require the company to appear as the EMPLOYER (parsed employer,
+                # or "at"/"@"/"·" <Company>) — not just a stray word. Stops
+                # common-word names (Segment, Square) from matching unrelated
+                # sales profiles ("VP of Sales, West Segment").
+                if not _has_employer_evidence(title, body, title_employer, aliases):
                     continue
                 if any(_is_former_employee(role, body, a.lower()) for a in aliases):
                     continue
