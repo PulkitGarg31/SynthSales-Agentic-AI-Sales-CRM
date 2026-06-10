@@ -39,6 +39,16 @@ Only §1 blocks the new frontend; everything else is here so it can be acted on 
 
 ## 4 · Functional gaps (post-rebuild candidates)
 
+- [ ] **OTP channel sharing** — signup verification and password reset share `users.otp_code` with no
+      provenance tag, so a reset-issued code also passes `POST /verify-otp` (flipping `is_verified` and,
+      for `ADMIN_EMAILS` addresses, triggering the admin auto-grant via the forgot-password path) and a
+      signup code works at `reset-password`. Inbox control is proven either way, but tag the codes
+      (e.g. `R`/`V` prefix + widen `otp_code` to String(8) + idempotent ALTER) if the flows ever diverge.
+- [ ] **`email_sent` is a soft enumeration oracle** on `POST /forgot-password` when real SMTP is
+      configured (known email → true, unknown → false). Register already leaks existence, so no new
+      info today — but in production consider always returning `email_sent: true` outside development.
+- [ ] **OTP validation ladder duplicated** between `verify_otp` and `reset_password` (it already drifted
+      once on lockout logging). On a third OTP consumer, extract a shared `_consume_otp(user, code)` helper.
 - [ ] No **profile update** endpoint — name/email are immutable; only `outbound_enabled` is PATCHable.
       Settings → Profile stays read-only until this exists.
 - [ ] No **pagination** on list endpoints (companies/contacts/emails/conversations/notifications) — only

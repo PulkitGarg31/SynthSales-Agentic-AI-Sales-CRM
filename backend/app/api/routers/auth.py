@@ -145,7 +145,7 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
             level="warning",
         )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    if user.otp_code != payload.code:
+    if not secrets.compare_digest(user.otp_code, payload.code):
         user.otp_attempts += 1
         db.commit()
         if user.otp_attempts >= MAX_OTP_ATTEMPTS:
@@ -242,11 +242,21 @@ def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
     if user.otp_expires_at and user.otp_expires_at < utcnow():
         raise HTTPException(status_code=400, detail="Code expired. Request a new code.")
     if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+        add_log(
+            db, user.id, "User",
+            f"Password-reset locked for {user.email} (too many attempts).",
+            level="warning",
+        )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    if user.otp_code != payload.code:
+    if not secrets.compare_digest(user.otp_code, payload.code):
         user.otp_attempts += 1
         db.commit()
         if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+            add_log(
+                db, user.id, "User",
+                f"Password-reset locked for {user.email} (too many attempts).",
+                level="warning",
+            )
             raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
         raise HTTPException(status_code=400, detail="Invalid code")
     user.hashed_password = hash_password(payload.new_password)
