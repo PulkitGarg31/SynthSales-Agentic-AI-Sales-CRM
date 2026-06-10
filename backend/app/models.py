@@ -123,6 +123,10 @@ class Company(Base):
     )
     name: Mapped[str] = mapped_column(String(200))
     domain: Mapped[str] = mapped_column(String(200), default="")
+    # Optional explicit mail-domain override (the part after '@'), for companies
+    # whose email domain differs from the website (e.g. notion.so → makenotion.com)
+    # and can't be auto-discovered. When set, the guess-verify agent uses it.
+    mail_domain: Mapped[str] = mapped_column(String(200), default="")
     industry: Mapped[str] = mapped_column(String(120), default="")
     size: Mapped[str] = mapped_column(String(40), default="")
     location: Mapped[str] = mapped_column(String(120), default="")

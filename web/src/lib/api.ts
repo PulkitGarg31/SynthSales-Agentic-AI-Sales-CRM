@@ -184,6 +184,11 @@ export const api = {
       method: "PATCH",
       body: { status },
     }),
+  setMailDomain: (id: number, mail_domain: string) =>
+    request<CompanyDetail>(`/api/companies/${id}/mail-domain`, {
+      method: "PATCH",
+      body: { mail_domain },
+    }),
   enrichCompany: (id: number) =>
     request<CompanyDetail>(`/api/companies/${id}/enrich`, { method: "POST" }),
   findContacts: (id: number) =>

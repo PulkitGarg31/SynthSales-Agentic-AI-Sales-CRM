@@ -71,6 +71,7 @@ export interface Company {
   campaign_id: number;
   name: string;
   domain: string;
+  mail_domain: string;
   industry: string;
   size: string;
   location: string;

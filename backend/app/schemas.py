@@ -192,6 +192,7 @@ class CompanyOut(ORMModel):
     campaign_id: int
     name: str
     domain: str
+    mail_domain: str = ""
     industry: str
     size: str
     location: str
@@ -220,6 +221,10 @@ class CompanyDetailOut(CompanyOut):
 
 class CompanyStatusUpdate(BaseModel):
     status: str  # Approved | Excluded | ...
+
+
+class CompanyMailDomainUpdate(BaseModel):
+    mail_domain: str = ""
 
 
 # ---------- Email drafts ----------

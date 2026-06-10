@@ -6,7 +6,7 @@ import { Icon } from "@/components/icons";
 import { api, ApiError } from "@/lib/api";
 import type { CompanyDetail as Company, VerificationStatus } from "@/lib/api-types";
 
-type Action = "approve" | "exclude" | "research" | "contacts" | "add-contact";
+type Action = "approve" | "exclude" | "research" | "contacts" | "add-contact" | "mail-domain";
 
 const verifTone: Record<VerificationStatus, "ok" | "warn" | "danger" | "neutral"> = {
   Verified: "ok",
@@ -26,6 +26,7 @@ export function CompanyDetail({
   const [toast, setToast] = useState<{ msg: string; tone: "ok" | "warn" | "danger" } | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: "", role: "", email: "" });
+  const [mailDomain, setMailDomain] = useState(company.mail_domain ?? "");
   const busy = busyAction !== null;
 
   function flash(msg: string, tone: "ok" | "warn" | "danger" = "ok") {
@@ -227,6 +228,37 @@ export function CompanyDetail({
                 value={company.contacts_found === 0 ? 0 : (company.contacts_verified / company.contacts_found) * 100}
                 className="mb-4"
               />
+              <div className="mb-4 rounded-xl border border-line p-3">
+                <label className="mb-1 block text-xs font-semibold text-ink-700">
+                  Mail domain{" "}
+                  <span className="font-normal text-ink-300">(if different from the website)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    className="form-input h-9 flex-1 text-sm"
+                    placeholder={company.domain || "e.g. makenotion.com"}
+                    value={mailDomain}
+                    onChange={(e) => setMailDomain(e.target.value)}
+                  />
+                  <Button
+                    variant="secondary"
+                    className="text-sm"
+                    disabled={busy || mailDomain.trim() === (company.mail_domain ?? "")}
+                    onClick={() =>
+                      act(
+                        "mail-domain",
+                        () => api.setMailDomain(company.id, mailDomain.trim()),
+                        "Mail domain saved — re-run contacts to use it",
+                      )
+                    }
+                  >
+                    {busyAction === "mail-domain" ? "Saving…" : "Save"}
+                  </Button>
+                </div>
+                <p className="mt-1 text-[11px] text-ink-300">
+                  Used to find &amp; verify emails (e.g. Notion → makenotion.com).
+                </p>
+              </div>
               {company.contacts.length === 0 ? (
                 <div>
                   <p className="text-sm text-ink-500">No contacts discovered yet.</p>

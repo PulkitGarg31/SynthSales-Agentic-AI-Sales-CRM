@@ -7,7 +7,13 @@ from app.agents.email_guess_verification import email_guess_verification_agent
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models import Company, Contact, User
-from app.schemas import CompanyDetailOut, CompanyStatusUpdate, ContactCreate, ContactOut
+from app.schemas import (
+    CompanyDetailOut,
+    CompanyMailDomainUpdate,
+    CompanyStatusUpdate,
+    ContactCreate,
+    ContactOut,
+)
 from app.services.events import add_log
 from app.services.serializers import company_out
 
@@ -42,6 +48,27 @@ def set_status(
     c = _owned(db, user, company_id)
     c.status = payload.status
     db.commit()
+    return get_company(company_id, db, user)
+
+
+@router.patch("/{company_id}/mail-domain", response_model=CompanyDetailOut)
+def set_mail_domain(
+    company_id: int,
+    payload: CompanyMailDomainUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Set an explicit mail domain (the part after '@') for a company whose email
+    domain differs from its website (e.g. makenotion.com vs notion.so). The
+    guess-verify agent then uses it for Hunter + pattern guessing."""
+    c = _owned(db, user, company_id)
+    md = (payload.mail_domain or "").strip().lower().lstrip("@")
+    for pre in ("https://", "http://", "www."):
+        if md.startswith(pre):
+            md = md[len(pre):]
+    c.mail_domain = md.split("/")[0].strip()
+    db.commit()
+    add_log(db, user.id, "Campaign", f"Set mail domain '{c.mail_domain or '(cleared)'}' for {c.name}.")
     return get_company(company_id, db, user)
 
 

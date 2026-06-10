@@ -99,13 +99,16 @@ class EmailGuessVerificationAgent(Agent):
             db.commit()
         contacts = list(company.contacts)
 
-        # 1) The company's REAL mail domain — reuse it from an already-confirmed
-        #    contact if we have one (no need to re-discover); otherwise scrape the
-        #    site / search the web (e.g. notion.so site but @makenotion.com mail),
-        #    falling back to the website domain. Hunter needs the actual mail ending.
-        real_domain = next(
-            (c.email.split("@")[-1].lower() for c in contacts if self._confirmed(c)), ""
-        )
+        # 1) The company's REAL mail domain, in priority order: an explicit
+        #    user-set override (for cases like notion.so → makenotion.com that
+        #    can't be auto-discovered), then an already-confirmed contact's domain,
+        #    then discovery (site/web), then the website domain. Hunter needs the
+        #    actual mail ending.
+        real_domain = (getattr(company, "mail_domain", "") or "").strip().lower()
+        if not real_domain:
+            real_domain = next(
+                (c.email.split("@")[-1].lower() for c in contacts if self._confirmed(c)), ""
+            )
         if not real_domain:
             real_domain = search.find_email_domain(company.name, company.domain)
             if real_domain and real_domain != (company.domain or "").lower():

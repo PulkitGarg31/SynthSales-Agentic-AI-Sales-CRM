@@ -55,6 +55,12 @@ async def lifespan(app: FastAPI):
                 "domain_status VARCHAR(20) NOT NULL DEFAULT 'unknown'"
             )
         )
+        conn.execute(
+            text(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "mail_domain VARCHAR(200) NOT NULL DEFAULT ''"
+            )
+        )
         # 5–8 bullet research profile (user-facing) + per-metric confidence
         # (backend-only, feeds scoring). JSON maps to JSONB on Postgres.
         conn.execute(
