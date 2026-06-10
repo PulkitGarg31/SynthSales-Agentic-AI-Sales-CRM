@@ -96,35 +96,40 @@ class EmailGuessVerificationAgent(Agent):
             db.commit()
         contacts = list(company.contacts)
 
-        # 1) Hunter.io (used sparingly — ONE lookup per company): resolve the top
-        #    contact's real email AND learn the company's actual mail domain.
-        domain = ""
+        # 1) Resolve the company's REAL mail domain FIRST — scrape its own site /
+        #    search the web (e.g. Notion's site is notion.so but its mail is
+        #    @makenotion.com), falling back to the website domain. Hunter needs the
+        #    actual mail ending or it finds nothing.
+        real_domain = search.find_email_domain(company.name, company.domain)
+        domain = real_domain or company.domain or f"{company.name.lower().replace(' ', '')}.com"
+        if real_domain and real_domain != (company.domain or "").lower():
+            self.log(
+                db, owner_id,
+                f"Email domain for {company.name}: {real_domain} — site is {company.domain or 'n/a'}.",
+            )
+
+        # 2) Hunter.io (ONE lookup per company): resolve the top contact's real
+        #    email. Pass the discovered mail domain when we have one; otherwise let
+        #    Hunter resolve it from the company name (better than the website
+        #    domain, which is often NOT the mail domain — e.g. notion.so).
         hunter_done = None
         if hunter.available and contacts:
             top = contacts[0]
             fn, ln = _parts(top.name)
-            hit = hunter.find_email(fn, ln, domain=company.domain, company=company.name)
+            hit = hunter.find_email(fn, ln, domain=real_domain, company=company.name)
             if hit:
                 top.email = hit["email"]
                 top.verification = hit["verdict"]
                 top.confidence = hit["score"]
                 hunter_done = top
-                domain = hit["email"].split("@", 1)[1].lower()
+                # Hunter's returned email domain is authoritative — adopt it for
+                # guessing the remaining contacts.
+                hdom = hit["email"].split("@", 1)[1].lower()
+                if hdom:
+                    domain = hdom
                 self.log(
                     db, owner_id,
-                    f"Hunter.io: {top.name} → {hit['email']} ({hit['verdict']}); "
-                    f"company mail domain '{domain}'.",
-                )
-
-        # 2) Find the company's mail domain if Hunter didn't (e.g. Notion's site
-        #    is notion.so but its mail is @makenotion.com); else the website domain.
-        if not domain:
-            real_domain = search.find_email_domain(company.name, company.domain)
-            domain = real_domain or company.domain or f"{company.name.lower().replace(' ', '')}.com"
-            if real_domain and real_domain != (company.domain or "").lower():
-                self.log(
-                    db, owner_id,
-                    f"Email domain for {company.name}: {real_domain} (web) — site is {company.domain or 'n/a'}.",
+                    f"Hunter.io: {top.name} → {hit['email']} ({hit['verdict']}).",
                 )
 
         # 3) Remaining contacts: guess + verify via the paid layer (Verifalia/
