@@ -93,10 +93,11 @@ to drive the per-user `agent_configs` status the UI reads.
   Configure with `AI_PROVIDERS=gemini,groq,openrouter`. With no key, `complete()` returns `""` and
   callers fall back to deterministic heuristics.
 - **`verification.py`** — 2 layers. Free layer (always on): syntax → role-account → disposable
-  blocklist → **MX DNS lookup**. Paid layer (survivors only): **ZeroBounce**. No SMTP probing
-  (reputation-safe). Verdicts rank Verified > Risky > Unknown > Invalid. **The merged guess-verify
-  agent stores an address only on a ZeroBounce `Verified`, so ZeroBounce is required to produce a
-  contactable email — with no key, contacts stay `Unknown`/blank and outreach drafts nothing.**
+  blocklist → **MX DNS lookup**. Paid layer (survivors only): **Verifalia** (preferred when
+  configured — more credits) or **ZeroBounce**. No SMTP probing (reputation-safe). Verdicts rank
+  Verified > Risky > Unknown > Invalid. **The merged guess-verify agent stores an address only on a
+  paid-provider `Verified`, so a paid key (Verifalia or ZeroBounce) is required to produce a
+  contactable email — with none, contacts stay `Unknown`/blank and outreach drafts nothing.**
 - **`email.py`** — Gmail API / SMTP / **console** fallback. In console mode (default) emails are logged,
   and the signup OTP is also returned to the UI as `dev_otp` so you can verify without email setup.
 - **`calendar.py`** — per-user Google Calendar. When a user connects their calendar (Settings →

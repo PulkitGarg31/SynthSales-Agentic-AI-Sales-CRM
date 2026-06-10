@@ -38,8 +38,10 @@ class Settings(BaseSettings):
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
 
     # Email verification (paid layer — optional; the free MX/syntax layer always runs).
-    # ZeroBounce is the paid provider.
+    # Verifalia is preferred when configured (more credits); ZeroBounce is the fallback.
     zerobounce_api_key: str = ""
+    verifalia_username: str = ""
+    verifalia_password: str = ""
 
     # Email
     gmail_credentials_file: str = ""
