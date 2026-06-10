@@ -73,7 +73,10 @@ Non-obvious orchestration rules you must respect when editing agents:
   Quota = `campaign.top_n`.
 - **`force=True`** means "discard prior output and redo": it wipes stale contacts/drafts/verdicts so a
   re-run produces a clean picture instead of a stale+new mix. The full pipeline passes `force=True` to
-  the finder/guess-verify/outreach phases; bulk incremental runs default to `False`.
+  the finder/guess-verify/outreach phases; bulk incremental runs default to `False`. **Exception:** the
+  guess-verify agent **preserves already-`Verified` addresses** even on `force` (`_confirmed()`) —
+  they're confirmed and paid-for, so it never re-verifies them (no wasted credit, no blanking when the
+  verifier is out of credit) and reuses their mail domain for the company's other contacts.
 - Agents never fabricate. The employee finder returns **real** `site:linkedin.com/in/` profiles or
   **zero contacts** — do not reintroduce hardcoded name lists. Enrichment detects parked/dead domains
   and writes honest low-confidence summaries rather than hallucinating a profile.

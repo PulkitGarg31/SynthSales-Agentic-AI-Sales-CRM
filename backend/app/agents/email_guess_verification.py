@@ -85,35 +85,42 @@ class EmailGuessVerificationAgent(Agent):
         owner_id: int,
         force: bool = False,
     ) -> None:
-        # Forced re-run wipes the previously guessed email + verification
-        # state so we re-guess the address and re-call the verifier instead
-        # of trusting whatever was recorded last time.
+        # Forced re-run clears prior guesses so we re-resolve — but PRESERVES
+        # already-Verified addresses: they're confirmed and cost a paid credit to
+        # obtain, so re-verifying would only waste another (and could blank them
+        # when the verifier is out of credits).
         if force:
             for contact in company.contacts:
+                if self._confirmed(contact):
+                    continue
                 contact.email = ""
                 contact.verification = "Unknown"
                 contact.confidence = 0
             db.commit()
         contacts = list(company.contacts)
 
-        # 1) Resolve the company's REAL mail domain FIRST — scrape its own site /
-        #    search the web (e.g. Notion's site is notion.so but its mail is
-        #    @makenotion.com), falling back to the website domain. Hunter needs the
-        #    actual mail ending or it finds nothing.
-        real_domain = search.find_email_domain(company.name, company.domain)
+        # 1) The company's REAL mail domain — reuse it from an already-confirmed
+        #    contact if we have one (no need to re-discover); otherwise scrape the
+        #    site / search the web (e.g. notion.so site but @makenotion.com mail),
+        #    falling back to the website domain. Hunter needs the actual mail ending.
+        real_domain = next(
+            (c.email.split("@")[-1].lower() for c in contacts if self._confirmed(c)), ""
+        )
+        if not real_domain:
+            real_domain = search.find_email_domain(company.name, company.domain)
+            if real_domain and real_domain != (company.domain or "").lower():
+                self.log(
+                    db, owner_id,
+                    f"Email domain for {company.name}: {real_domain} — site is {company.domain or 'n/a'}.",
+                )
         domain = real_domain or company.domain or f"{company.name.lower().replace(' ', '')}.com"
-        if real_domain and real_domain != (company.domain or "").lower():
-            self.log(
-                db, owner_id,
-                f"Email domain for {company.name}: {real_domain} — site is {company.domain or 'n/a'}.",
-            )
 
         # 2) Hunter.io (ONE lookup per company): resolve the top contact's real
-        #    email. Pass the discovered mail domain when we have one; otherwise let
-        #    Hunter resolve it from the company name (better than the website
-        #    domain, which is often NOT the mail domain — e.g. notion.so).
+        #    email — unless it's ALREADY Verified (keep it, don't spend a credit).
+        #    Pass the discovered mail domain when we have one; otherwise let Hunter
+        #    resolve it from the company name (better than the website domain).
         hunter_done = None
-        if hunter.available and contacts:
+        if hunter.available and contacts and not self._confirmed(contacts[0]):
             top = contacts[0]
             fn, ln = _parts(top.name)
             hit = hunter.find_email(fn, ln, domain=real_domain, company=company.name)
@@ -136,8 +143,8 @@ class EmailGuessVerificationAgent(Agent):
         #    ZeroBounce), with the per-domain catch-all short-circuit.
         domain_is_catch_all = False
         for contact in contacts:
-            if contact is hunter_done:
-                continue
+            if contact is hunter_done or self._confirmed(contact):
+                continue  # already Verified — keep it, never re-verify (saves a credit)
             candidates = guess_emails(contact.name, domain)
             if domain_is_catch_all:
                 # Domain already shown catch-all — every probe returns the same
@@ -175,6 +182,12 @@ class EmailGuessVerificationAgent(Agent):
             f"address ({verified} confirmed, {with_email - verified} best-guess on a "
             "catch-all server).",
         )
+
+    @staticmethod
+    def _confirmed(contact: Contact) -> bool:
+        """A contact whose address is already provider-Verified — keep it as-is
+        and never re-verify (it's confirmed and re-checking just burns a credit)."""
+        return contact.verification == "Verified" and bool((contact.email or "").strip())
 
     # Confidence for a confirmed ("Verified") vs a best-guess ("Risky") address.
     _VERIFIED_CONF = 95
