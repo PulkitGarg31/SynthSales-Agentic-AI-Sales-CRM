@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Schibsted_Grotesk, Instrument_Serif, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,8 +17,12 @@ export const metadata: Metadata = {
     "Eight AI agents research companies, find decision makers, verify emails, draft outreach, and book the meeting — you approve every send.",
 };
 
+export const viewport: Viewport = { themeColor: "#f4efe6" };
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    /* Font variable classes must stay on <html> (:root) — globals.css resolves
+       var(--font-schibsted) etc. at :root; moving them to <body> breaks all three. */
     <html lang="en" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
       <body>{children}</body>
     </html>

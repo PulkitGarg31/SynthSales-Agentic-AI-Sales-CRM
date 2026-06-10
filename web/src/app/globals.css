@@ -13,11 +13,20 @@
   --color-amber: #c9962e;
   --color-rust: #b5482f;
 
+  /* Retire Tailwind's default amber-* ramp so only the brand amber exists —
+     `text-amber-600` etc. would be off-palette. */
+  --color-amber-*: initial;
+
   --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
+/* Cascade notes:
+   - `body` colors and `.display` are deliberately UN-layered: Tailwind utilities
+     cannot override them (use the `!` important suffix if you ever must).
+   - Meaning-bearing small text should use ink-soft; ink-faint (3.3:1 on cream)
+     is reserved for decorative labels like eyebrows — accepted by design. */
 body {
   background: var(--color-cream);
   color: var(--color-ink);
@@ -41,5 +50,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
