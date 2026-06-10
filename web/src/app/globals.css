@@ -10,12 +10,12 @@
   --color-terracotta: #c2552b;
   --color-band: #161209;
   --color-moss: #5a7052;
+  /* Retire Tailwind's default amber-* ramp so only the brand amber exists —
+     `text-amber-600` etc. would be off-palette. (Must precede the bare
+     --color-amber below or the wildcard reset wipes it too.) */
+  --color-amber-*: initial;
   --color-amber: #c9962e;
   --color-rust: #b5482f;
-
-  /* Retire Tailwind's default amber-* ramp so only the brand amber exists —
-     `text-amber-600` etc. would be off-palette. */
-  --color-amber-*: initial;
 
   --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
