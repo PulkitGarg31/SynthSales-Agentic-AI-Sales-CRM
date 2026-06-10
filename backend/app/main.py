@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 from app.providers.ai import ai
 from app.providers.email import email_provider
+from app.providers.hunter import hunter
 from app.providers.oauth import oauth_provider
 from app.providers.search import search
 from app.providers.verification import verification
@@ -230,6 +231,7 @@ def health():
             "search": search.available,
             # Free syntax/MX verification always runs; paid layer is optional.
             "email_verification": verification.paid_mode or "free (syntax+MX)",
+            "email_finder": "hunter" if hunter.available else "off",
             "email_mode": email_provider.mode,
             "google_oauth": oauth_provider.available,
         },

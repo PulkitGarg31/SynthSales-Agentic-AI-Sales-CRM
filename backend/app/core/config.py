@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     zerobounce_api_key: str = ""
     verifalia_username: str = ""
     verifalia_password: str = ""
+    # Hunter.io email finder — one lookup per company resolves the top contact +
+    # the company's real mail domain (free tier is small, so it's used sparingly).
+    hunter_api_key: str = ""
 
     # Email
     gmail_credentials_file: str = ""

@@ -64,7 +64,9 @@ Non-obvious orchestration rules you must respect when editing agents:
   in a single pass (`guess_emails()` runs inside `verification_agent.run()`). It stores a confirmed
   `Verified` address, or — on a **catch-all** server that can't confirm a specific mailbox — the top
   guess marked `Risky` (one credit per catch-all domain, not one per pattern, via `verifier.classify`
-  + a per-domain short-circuit); `email_guess`/`verification` are no longer separate keys.
+  + a per-domain short-circuit). When `HUNTER_API_KEY` is set it first does ONE Hunter.io lookup per
+  company (the top contact's real email + the company's actual mail domain), then resolves the rest
+  via guess+verify; `email_guess`/`verification` are no longer separate keys.
 - **`_walk_for_contactable()`** is the contact-finding fallback the user explicitly asked for: walk
   ranked companies, run the employee finder, and if a Qualified company yields *no real LinkedIn
   contacts*, demote it `Qualified → Reviewed` and promote the next-best company into the top-N slot.
@@ -107,6 +109,11 @@ to drive the per-user `agent_configs` status the UI reads.
   it stops probing at the first hit and flags a domain catch-all once, so a paid key produces
   contactable emails without burning a credit per pattern. With no paid key, contacts stay
   `Unknown`/blank and outreach drafts nothing.**
+- **`hunter.py`** — optional Hunter.io email finder (`HUNTER_API_KEY`). The guess-verify agent calls it
+  **once per company** to resolve the top contact's real email + the company's actual mail domain
+  (authoritative, unlike the DuckDuckGo `find_email_domain` fallback); the other contacts reuse that
+  domain via the paid verify path. Used sparingly (Hunter's free tier is small); absent → the agent
+  falls back to web domain-discovery + guessing. `/health` reports `email_finder: hunter|off`.
 - **`email.py`** — Gmail API / SMTP / **console** fallback. In console mode (default) emails are logged,
   and the signup OTP is also returned to the UI as `dev_otp` so you can verify without email setup.
 - **`calendar.py`** — per-user Google Calendar. When a user connects their calendar (Settings →
