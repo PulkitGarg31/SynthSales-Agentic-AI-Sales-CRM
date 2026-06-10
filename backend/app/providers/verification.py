@@ -89,12 +89,16 @@ class VerificationProvider:
             return "zerobounce"
         return None
 
-    def verify(self, email: str) -> str:
+    def classify(self, email: str) -> tuple[str, bool]:
+        """Returns (verdict, is_catch_all). `is_catch_all` is True only when the
+        paid provider reports the mail server accepts *every* address — so a
+        specific mailbox can never be individually confirmed (the best any
+        verifier can return for such a server is "Risky")."""
         # ---- Layer 1: free local checks ----
         local = self._local(email)
         if local in ("Invalid", "Risky"):
             # Definitive enough — don't spend a paid credit confirming it.
-            return local
+            return local, False
 
         # ---- Layer 2: paid confirmation of survivors ----
         mode = self.paid_mode
@@ -105,7 +109,11 @@ class VerificationProvider:
 
         # No paid provider configured: syntax + MX look fine, but we can't
         # confirm the actual mailbox exists.
-        return "Unknown"
+        return "Unknown", False
+
+    def verify(self, email: str) -> str:
+        """Verdict only (back-compat wrapper around classify())."""
+        return self.classify(email)[0]
 
     # ----------------------------------------------------------------- local
     def _local(self, email: str) -> str:
@@ -156,7 +164,7 @@ class VerificationProvider:
             return None
 
     # ------------------------------------------------------------- zerobounce
-    def _zerobounce(self, email: str) -> str:
+    def _zerobounce(self, email: str) -> tuple[str, bool]:
         try:
             with httpx.Client(timeout=30) as client:
                 resp = client.get(
@@ -169,15 +177,15 @@ class VerificationProvider:
                 )
                 if resp.status_code != 200:
                     logger.warning("ZeroBounce HTTP %s: %s", resp.status_code, resp.text)
-                    return "Unknown"
+                    return "Unknown", False
                 status = (resp.json().get("status") or "unknown").lower()
-                return _ZB_MAP.get(status, "Unknown")
+                return _ZB_MAP.get(status, "Unknown"), status == "catch-all"
         except Exception as exc:  # pragma: no cover
             logger.warning("ZeroBounce verify failed for %s: %s", email, exc)
-            return "Unknown"
+            return "Unknown", False
 
     # -------------------------------------------------------------- verifalia
-    def _verifalia(self, email: str) -> str:
+    def _verifalia(self, email: str) -> tuple[str, bool]:
         auth = (settings.verifalia_username, settings.verifalia_password)
         try:
             with httpx.Client(timeout=30, auth=auth) as client:
@@ -188,7 +196,7 @@ class VerificationProvider:
                 )
                 if resp.status_code not in (200, 202):
                     logger.warning("Verifalia HTTP %s: %s", resp.status_code, resp.text)
-                    return "Unknown"
+                    return "Unknown", False
                 data = resp.json()
                 job_id = data.get("overview", {}).get("id")
                 status = data.get("overview", {}).get("status")
@@ -204,11 +212,16 @@ class VerificationProvider:
 
                 entries = data.get("entries", {}).get("data", [])
                 if entries:
-                    classification = entries[0].get("classification", "Unknown")
-                    return _VF_MAP.get(classification, "Unknown")
+                    e = entries[0]
+                    classification = e.get("classification", "Unknown")
+                    # ServerIsCatchAll → the server accepts every address, so no
+                    # specific mailbox can be confirmed (verdict will be "Risky").
+                    catch_all = (e.get("status") == "ServerIsCatchAll"
+                                 or bool(e.get("isCatchAll")))
+                    return _VF_MAP.get(classification, "Unknown"), catch_all
         except Exception as exc:  # pragma: no cover
             logger.warning("Verifalia verify failed for %s: %s", email, exc)
-        return "Unknown"
+        return "Unknown", False
 
 
 verification = VerificationProvider()

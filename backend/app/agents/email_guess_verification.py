@@ -1,11 +1,13 @@
 """Email Guessing & Verification agent (pipeline stage 4).
 
 A single agent that, per contact, guesses the most-likely mailbox from
-name + domain patterns and then verifies each guess. It stores an address
-**only** when ZeroBounce confirms it deliverable ("Verified") and stops at that
-first hit; if no guess is confirmed it stores no address. The guess patterns
-live in `guess_emails()` below (a plain helper); verification is delegated to
-`providers/verification.py` (free syntax/MX layer → ZeroBounce).
+name + domain patterns and then verifies each guess. It stores the first guess
+the provider confirms **Verified** (a real mailbox). On a **catch-all** server —
+one that accepts every address, so no specific mailbox can be confirmed — it
+keeps the top guess marked **Risky** rather than burning a paid credit on every
+pattern for the same answer; if nothing is usable it stores no address. The
+guess patterns live in `guess_emails()` below (a plain helper); verification is
+delegated to `providers/verification.py` (free syntax/MX → Verifalia/ZeroBounce).
 
 This module replaces the former split `email_guess.py` + `verification.py`
 agents — guessing always ran inside the verification agent, so they are now one.
@@ -94,43 +96,64 @@ class EmailGuessVerificationAgent(Agent):
                 db, owner_id,
                 f"Email domain for {company.name}: {real_domain} (web) — site is {company.domain or 'n/a'}.",
             )
+        domain_is_catch_all = False
         for contact in company.contacts:
             candidates = guess_emails(contact.name, domain)
-            self._resolve(contact, candidates, db, owner_id)
+            if domain_is_catch_all:
+                # Domain already shown catch-all — every probe returns the same
+                # "Risky", so don't spend more credits; keep the top guess.
+                contact.email = candidates[0]
+                contact.verification = "Risky"
+                contact.confidence = 50
+                continue
+            if self._resolve(contact, candidates, db, owner_id):
+                domain_is_catch_all = True
         # rollup status
         verified = sum(1 for c in company.contacts if c.verification == "Verified")
+        with_email = sum(1 for c in company.contacts if (c.email or "").strip())
         db.commit()
         self.log(
             db,
             owner_id,
-            f"Verified {verified}/{len(company.contacts)} contacts at {company.name}.",
+            f"{with_email}/{len(company.contacts)} contacts at {company.name} have an "
+            f"address ({verified} confirmed, {with_email - verified} best-guess on a "
+            "catch-all server).",
         )
 
-    # Confidence for a ZeroBounce-confirmed address, decayed by pattern index.
+    # Confidence for a confirmed ("Verified") vs a best-guess ("Risky") address.
     _VERIFIED_CONF = 95
+    _RISKY_CONF = 55
 
     def _resolve(
         self, contact: Contact, candidates: list[str], db: Session, owner_id: int
-    ) -> None:
-        # Guess in priority order; each guess passes through the free local layer
-        # and then ZeroBounce (inside verifier.verify). Store the address ONLY on
-        # a ZeroBounce-confirmed "Verified" and stop — no further guessing. If no
-        # guess is confirmed deliverable, store NO address (an honest "no confirmed
-        # address" rather than a speculative Risky/Unknown guess).
-        #
-        # NB: with no ZeroBounce key the free layer never returns "Verified", so
-        # nothing is stored — ZeroBounce is required to produce a contactable
-        # address (deliberate; see spec 03 / the Step-03 plan).
+    ) -> bool:
+        # Guess in priority order; each guess passes the free local layer and then
+        # the paid provider (inside verifier.classify). Store on the first:
+        #   • "Verified" — a confirmed mailbox (best), then stop; or
+        #   • "Risky"   — a catch-all / anti-probe server that ACCEPTS mail but
+        #                 can't confirm the exact mailbox, so every pattern reads
+        #                 the same "Risky". Keep this top guess and stop — probing
+        #                 the rest just burns paid credits for the same answer.
+        # "Invalid"/"Unknown" patterns are skipped. If nothing is usable, store no
+        # address. Returns True when the server looked catch-all, so the caller can
+        # skip paid probes for the other contacts at the same domain.
         for i, email in enumerate(candidates):
-            if verifier.verify(email) == "Verified":
+            verdict, catch_all = verifier.classify(email)
+            if verdict == "Verified":
                 contact.email = email
                 contact.verification = "Verified"
                 contact.confidence = max(self._VERIFIED_CONF - i * 3, 5)
-                return
+                return False
+            if verdict == "Risky":
+                contact.email = email
+                contact.verification = "Risky"
+                contact.confidence = max(self._RISKY_CONF - i * 3, 5)
+                return catch_all
 
         contact.email = ""
         contact.verification = "Unknown"
         contact.confidence = 0
+        return False
 
 
 email_guess_verification_agent = EmailGuessVerificationAgent()

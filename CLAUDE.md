@@ -61,9 +61,10 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
 
 Non-obvious orchestration rules you must respect when editing agents:
 - **`email_guess_verification` is one merged agent** — it guesses likely addresses then verifies them
-  in a single pass (`guess_emails()` runs inside `verification_agent.run()`). It stores an address only
-  on a paid-provider-confirmed `Verified` (Verifalia or ZeroBounce); `email_guess`/`verification` are
-  no longer separate keys.
+  in a single pass (`guess_emails()` runs inside `verification_agent.run()`). It stores a confirmed
+  `Verified` address, or — on a **catch-all** server that can't confirm a specific mailbox — the top
+  guess marked `Risky` (one credit per catch-all domain, not one per pattern, via `verifier.classify`
+  + a per-domain short-circuit); `email_guess`/`verification` are no longer separate keys.
 - **`_walk_for_contactable()`** is the contact-finding fallback the user explicitly asked for: walk
   ranked companies, run the employee finder, and if a Qualified company yields *no real LinkedIn
   contacts*, demote it `Qualified → Reviewed` and promote the next-best company into the top-N slot.
@@ -101,9 +102,11 @@ to drive the per-user `agent_configs` status the UI reads.
 - **`verification.py`** — 2 layers. Free layer (always on): syntax → role-account → disposable
   blocklist → **MX DNS lookup**. Paid layer (survivors only): **Verifalia** (preferred when
   configured — more credits) or **ZeroBounce**. No SMTP probing (reputation-safe). Verdicts rank
-  Verified > Risky > Unknown > Invalid. **The merged guess-verify agent stores an address only on a
-  paid-provider `Verified`, so a paid key (Verifalia or ZeroBounce) is required to produce a
-  contactable email — with none, contacts stay `Unknown`/blank and outreach drafts nothing.**
+  Verified > Risky > Unknown > Invalid. **The merged guess-verify agent stores an address on a
+  paid-provider `Verified` (confirmed mailbox) or, on a catch-all server, the best guess as `Risky`;
+  it stops probing at the first hit and flags a domain catch-all once, so a paid key produces
+  contactable emails without burning a credit per pattern. With no paid key, contacts stay
+  `Unknown`/blank and outreach drafts nothing.**
 - **`email.py`** — Gmail API / SMTP / **console** fallback. In console mode (default) emails are logged,
   and the signup OTP is also returned to the UI as `dev_otp` so you can verify without email setup.
 - **`calendar.py`** — per-user Google Calendar. When a user connects their calendar (Settings →
@@ -134,8 +137,9 @@ status fields the UI depends on:
   not selected) | `Excluded`/`Approved`/`Contacted` (user-set, preserved across re-runs).
 - `Company.domain_status`: `live|parked|dead|unknown`; `enrichment_confidence` (0–100) caps scoring so
   a parked/dead-domain company can't display as "Strong".
-- `Contact.verification`: `Verified|Risky|Unknown|Invalid` (the merged guess-verify agent now persists
-  only `Verified` with an address, else `Unknown` with no address). `EmailDraft.state`, `Thread.stage`.
+- `Contact.verification`: `Verified|Risky|Unknown|Invalid` (the merged guess-verify agent persists
+  `Verified` (confirmed) or `Risky` (best-guess on a catch-all server) with an address, else `Unknown`
+  with no address). `EmailDraft.state`, `Thread.stage`.
   `Contact.do_not_contact` is set by `reply_classifier` on a high-confidence not-interested reply (and
   cleared by the human reopen control); `Message.intent` holds the classified reply intent.
 
