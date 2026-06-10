@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.base import Agent
 from app.models import Company, Contact
+from app.providers.search import search
 from app.providers.verification import verification as verifier
 
 
@@ -83,7 +84,16 @@ class EmailGuessVerificationAgent(Agent):
                 contact.verification = "Unknown"
                 contact.confidence = 0
             db.commit()
-        domain = company.domain or f"{company.name.lower().replace(' ', '')}.com"
+        # Find the company's REAL email domain first (e.g. Notion's site is
+        # notion.so but its mail is @makenotion.com); fall back to the website
+        # domain when the web search turns up nothing.
+        real_domain = search.find_email_domain(company.name, company.domain)
+        domain = real_domain or company.domain or f"{company.name.lower().replace(' ', '')}.com"
+        if real_domain and real_domain != (company.domain or "").lower():
+            self.log(
+                db, owner_id,
+                f"Email domain for {company.name}: {real_domain} (web) — site is {company.domain or 'n/a'}.",
+            )
         for contact in company.contacts:
             candidates = guess_emails(contact.name, domain)
             self._resolve(contact, candidates, db, owner_id)

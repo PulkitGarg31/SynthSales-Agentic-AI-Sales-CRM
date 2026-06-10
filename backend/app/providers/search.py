@@ -261,6 +261,23 @@ def _profile_queries(aliases: list[str]) -> list[str]:
     return out
 
 
+# Free mailbox providers and data-aggregator domains that must NOT be mistaken
+# for a company's own corporate mail domain.
+_GENERIC_EMAIL_DOMAINS = {
+    "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "hotmail.com",
+    "outlook.com", "live.com", "msn.com", "icloud.com", "me.com", "aol.com",
+    "proton.me", "protonmail.com", "gmx.com", "mail.com", "zoho.com", "yandex.com",
+}
+_AGGREGATOR_DOMAINS = {
+    "rocketreach.co", "email-format.com", "leadiq.com", "zoominfo.com", "apollo.io",
+    "signalhire.com", "contactout.com", "hunter.io", "lusha.com", "kaspr.io",
+    "snov.io", "clearbit.com", "linkedin.com", "facebook.com", "twitter.com",
+    "x.com", "instagram.com", "youtube.com", "wikipedia.org", "crunchbase.com",
+    "glassdoor.com", "indeed.com", "example.com", "sentry.io", "wixpress.com",
+}
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})")
+
+
 class SearchProvider:
     @property
     def available(self) -> bool:
@@ -358,6 +375,44 @@ class SearchProvider:
                     "snippet": body[:400],
                 }
         return list(seen.values())
+
+    def find_email_domain(self, company_name: str, website_domain: str = "") -> str:
+        """Search the web for the company's real email domain (the part after
+        '@') — e.g. Notion's site is notion.so but its mail is @makenotion.com.
+        Returns the most likely corporate mail domain, or '' if none can be
+        confidently found (the caller then falls back to the website domain).
+        Reads search snippets only; free."""
+        company_name = (company_name or "").strip()
+        if not company_name:
+            return ""
+        aliases = _company_aliases(company_name, website_domain)
+        if not aliases:
+            return ""
+        brand_roots = [a.lower().replace(" ", "") for a in aliases if len(a) >= 3]
+        counts: dict[str, int] = {}
+        for q in (f'"{company_name}" email format', f"{aliases[0]} email address"):
+            for r in self._search_resilient(q, max_results=6):
+                text = f"{r.get('title', '')} {r.get('body', '')}"
+                for m in _EMAIL_RE.finditer(text):
+                    dom = m.group(1).lower().strip(".")
+                    if (dom in _GENERIC_EMAIL_DOMAINS or dom in _AGGREGATOR_DOMAINS
+                            or "." not in dom):
+                        continue
+                    counts[dom] = counts.get(dom, 0) + 1
+        if not counts:
+            return ""
+
+        def is_brandy(dom: str) -> bool:
+            root = dom.split(".")[0]
+            return any(root in b or b in root for b in brand_roots)
+
+        # Prefer a brand-matching domain ("makenotion.com" for Notion); else a
+        # domain seen more than once. Single ambiguous hits are ignored (return
+        # '' → fall back to the website domain).
+        top, n = sorted(counts.items(), key=lambda kv: (is_brandy(kv[0]), kv[1]), reverse=True)[0]
+        if is_brandy(top) or n >= 2:
+            return top
+        return ""
 
     # ----------------------------------------------------- domain liveness
     @staticmethod
