@@ -37,13 +37,10 @@ class EmployeeFinderAgent(Agent):
         # slate instead of returning the stale data the user already rejected.
         if company.contacts and not force:
             return company.contacts
-        if force and company.contacts:
-            for stale in list(company.contacts):
-                db.delete(stale)
-            db.commit()
-            db.refresh(company)
 
-        # 1. Search the web for real LinkedIn profiles employed at this company.
+        # 1. Search the web FIRST — before touching existing contacts — so a
+        #    transient search failure / rate-limit can't destroy good data on a
+        #    forced re-run.
         profiles: list[dict] = []
         try:
             profiles = search.find_linkedin_profiles(
@@ -61,10 +58,30 @@ class EmployeeFinderAgent(Agent):
         if ai.available and profiles:
             profiles = self._rank_with_ai(company, profiles, count)
 
+        picks = profiles[:count]
+
+        # A forced re-run that found nothing is almost always a transient public-
+        # search rate-limit (DuckDuckGo throttling), not "this company has no one".
+        # Keep the existing contacts instead of wiping them to zero.
+        if force and company.contacts and not picks:
+            self.log(
+                db, owner_id,
+                f"Re-search for {company.name} returned no profiles (public search may be "
+                f"rate-limited) — kept the existing {len(company.contacts)} contact(s).",
+            )
+            return company.contacts
+
+        # Forced re-run WITH fresh results: clear the old contacts first.
+        if force and company.contacts:
+            for stale in list(company.contacts):
+                db.delete(stale)
+            db.commit()
+            db.refresh(company)
+
         # 3. Save up to `count` real contacts. NO heuristic fallback — if search
         #    found nothing, we leave the contacts list empty rather than invent.
         created: list[Contact] = []
-        for p in profiles[:count]:
+        for p in picks:
             contact = Contact(
                 company_id=company.id,
                 name=p["name"],
