@@ -63,6 +63,7 @@ class UserOut(ORMModel):
     name: str
     email: EmailStr
     is_verified: bool
+    is_admin: bool = False
     outbound_enabled: bool = False
     calendar_connected: bool = False
     mailbox_connected: bool = False
