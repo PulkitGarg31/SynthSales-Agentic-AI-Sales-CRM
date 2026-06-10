@@ -22,9 +22,11 @@ from app.core.config import settings
 from app.providers.email import email_provider
 from app.providers.oauth import oauth_provider
 from app.schemas import (
+    ForgotPasswordIn,
     LoginIn,
     RegisterIn,
     RegisterOut,
+    ResetPasswordIn,
     Token,
     UserOut,
     UserUpdate,
@@ -43,6 +45,9 @@ _RL_WINDOW = 600  # seconds (10 minutes)
 THROTTLE_MSG = "Too many sign-up attempts. Please wait a few minutes and try again."
 RESEND_THROTTLE_MSG = (
     "Too many code requests. Please wait a few minutes before requesting another code."
+)
+RESET_THROTTLE_MSG = (
+    "Too many reset requests. Please wait a few minutes before trying again."
 )
 OTP_LOCKED_MSG = "Too many incorrect codes. Request a new code to continue."
 
@@ -196,6 +201,60 @@ def resend_otp(
         "email_sent": delivered,
         "dev_otp": _dev_otp(otp, delivered),
     }
+
+
+@router.post("/forgot-password")
+def forgot_password(
+    payload: ForgotPasswordIn, request: Request, db: Session = Depends(get_db)
+):
+    ip = _client_ip(request)
+    # Throttle before the lookup; always return 200 so the endpoint can't be
+    # used to enumerate accounts.
+    if not limiter.check(f"reset:ip:{ip}", 5, _RL_WINDOW) or not limiter.check(
+        f"reset:email:{payload.email.lower()}", 3, _RL_WINDOW
+    ):
+        add_log(
+            db, None, "User",
+            f"Password-reset throttled for {payload.email} from {ip}.",
+            level="warning",
+        )
+        raise HTTPException(status_code=429, detail=RESET_THROTTLE_MSG)
+    user = db.query(User).filter(User.email == payload.email).first()
+    generic = {"detail": "If that account exists, a reset code was sent."}
+    if not user:
+        return {**generic, "email_sent": False, "dev_otp": None}
+    otp = _new_otp()
+    user.otp_code = otp
+    user.otp_expires_at = utcnow() + timedelta(minutes=15)
+    user.otp_attempts = 0
+    db.commit()
+    delivered = _send_otp(user.email, otp)
+    add_log(db, user.id, "User", f"Password-reset code issued for {user.email}.")
+    return {**generic, "email_sent": delivered, "dev_otp": _dev_otp(otp, delivered)}
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    # Mirror verify_otp's anti-enumeration + lockout behavior exactly.
+    if not user or not user.otp_code:
+        raise HTTPException(status_code=400, detail="Invalid code")
+    if user.otp_expires_at and user.otp_expires_at < utcnow():
+        raise HTTPException(status_code=400, detail="Code expired. Request a new code.")
+    if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+        raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
+    if user.otp_code != payload.code:
+        user.otp_attempts += 1
+        db.commit()
+        if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+            raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
+        raise HTTPException(status_code=400, detail="Invalid code")
+    user.hashed_password = hash_password(payload.new_password)
+    user.otp_code = None
+    user.otp_attempts = 0
+    db.commit()
+    add_log(db, user.id, "User", f"Password reset for {user.email}.")
+    return {"detail": "Password updated. You can sign in now."}
 
 
 @router.post("/login", response_model=Token)
