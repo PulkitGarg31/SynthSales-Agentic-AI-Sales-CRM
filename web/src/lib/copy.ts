@@ -12,7 +12,7 @@ export const HERO = {
   eyebrow: "AI-powered B2B outreach",
   headline: { pre: "Outreach that ", em: "researches itself", post: "." },
   sub:
-    "Drop in a list of companies. Eight agents do the reading, the finding, and the writing. You take the replies.",
+    "Struggling with sales? The fix is just one click away. Eight agents handle the rest.",
   primaryCta: { label: "Get started", href: "/signup" },
   secondaryCta: { label: "How it works", href: "/#how" },
 } as const;
