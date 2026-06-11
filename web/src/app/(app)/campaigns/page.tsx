@@ -20,7 +20,7 @@ import { SkeletonRows } from "@/components/ui/Skeleton";
 
 // ---- helpers ---------------------------------------------------------------
 
-const STATUS_FILTERS = ["All", "Draft", "Running", "Paused", "Completed"].map((s) => ({
+const STATUS_FILTERS = ["All", "Draft", "Running", "Paused", "Completed", "Failed"].map((s) => ({
   value: s,
   label: s,
 }));
@@ -65,8 +65,17 @@ function RowMenu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenuFor(null);
     };
+    // The menu's fixed position is measured at open time — scrolling/resizing
+    // would detach it from its anchor, so just close it.
+    const onMove = () => setMenuFor(null);
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
   }, [open, setMenuFor]);
 
   // Only the transition that makes sense for the current status; Draft,
@@ -78,13 +87,20 @@ function RowMenu({
     <>
       <button
         ref={btnRef}
+        disabled={busy}
         onClick={() => {
           if (open) {
             setMenuFor(null);
             return;
           }
           const r = btnRef.current?.getBoundingClientRect();
-          if (r) setPos({ top: r.bottom + 4, right: Math.max(window.innerWidth - r.right, 8) });
+          if (r) {
+            setPos({
+              // Clamp so bottom rows don't push the menu below the fold.
+              top: Math.min(r.bottom + 4, window.innerHeight - 176),
+              right: Math.max(window.innerWidth - r.right, 8),
+            });
+          }
           setMenuFor(campaign.id);
         }}
         aria-label={`Actions for ${campaign.name}`}
@@ -154,7 +170,12 @@ function CampaignRow({
   const router = useRouter();
   return (
     <tr
-      onClick={() => router.push(`/campaigns/${campaign.id}`)}
+      onClick={(e) => {
+        // Respect open-in-new-tab intent and in-progress text selection.
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+        if (window.getSelection()?.toString()) return;
+        router.push(`/campaigns/${campaign.id}`);
+      }}
       className="cursor-pointer transition-colors hover:bg-cream/60"
     >
       <td className="px-5 py-3">
