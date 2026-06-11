@@ -148,6 +148,9 @@ export const api = {
     }),
   authProviders: () =>
     request<AuthProviders>("/api/auth/providers", { auth: false }),
+  // Public marketing-site contact form (throttled per IP server-side).
+  contactUs: (data: { name: string; email: string; message: string }) =>
+    request<{ detail: string }>("/api/contact", { method: "POST", auth: false, body: data }),
   me: () => request<User>("/api/auth/me"),
   setOutbound: (enabled: boolean) =>
     request<User>("/api/auth/me", {

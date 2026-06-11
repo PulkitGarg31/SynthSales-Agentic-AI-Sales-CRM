@@ -1,24 +1,14 @@
 import type { Metadata } from "next";
-import { LifeBuoy, Mail, Plus } from "lucide-react";
+import { Mail, Plus } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { ContactForm } from "@/components/marketing/ContactForm";
 import { FAQ } from "@/lib/copy";
 
 export const metadata: Metadata = { title: "Contact" };
 
-const CHANNELS = [
-  {
-    icon: Mail,
-    title: "Say hello",
-    line: "Questions about the product, partnerships, or anything else. We read everything.",
-    email: "hello@sellari.ai",
-  },
-  {
-    icon: LifeBuoy,
-    title: "Get support",
-    line: "Already running campaigns and something looks off? Write in with your account email.",
-    email: "support@sellari.ai",
-  },
-] as const;
+// One real inbox: the form below delivers here, and the card offers it
+// directly for people who prefer their own mail client.
+const CONTACT_EMAIL = "brodomyjob@gmail.com";
 
 export default function ContactPage() {
   return (
@@ -30,25 +20,26 @@ export default function ContactPage() {
             Talk to a <em>human</em>.
           </h1>
           <p className="text-base leading-relaxed text-ink-soft md:text-lg">
-            No ticket portal, no chatbot maze. Pick an inbox and a person will reply.
+            No ticket portal, no chatbot maze. Send a message and a person will reply.
           </p>
         </div>
-        <div className="mt-12 grid gap-6 sm:grid-cols-2">
-          {CHANNELS.map((channel) => (
-            <div key={channel.email} className="rounded-2xl border border-line bg-paper p-6">
-              <channel.icon aria-hidden className="size-5 text-terracotta" strokeWidth={1.75} />
-              <h2 className="mt-4 text-base font-semibold tracking-tight text-ink">
-                {channel.title}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-soft">{channel.line}</p>
-              <a
-                href={`mailto:${channel.email}`}
-                className="mt-4 inline-block text-sm font-medium text-ink underline decoration-line underline-offset-4 transition hover:decoration-terracotta"
-              >
-                {channel.email}
-              </a>
-            </div>
-          ))}
+
+        <div className="mt-12 rounded-2xl border border-line bg-paper p-6 md:p-8">
+          <ContactForm />
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-paper px-6 py-5">
+          <Mail aria-hidden className="size-5 shrink-0 text-terracotta" strokeWidth={1.75} />
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Prefer your own mail client? Questions, partnerships, support: write to{" "}
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="font-medium text-ink underline decoration-line underline-offset-4 transition hover:decoration-terracotta"
+            >
+              {CONTACT_EMAIL}
+            </a>
+            . We read everything.
+          </p>
         </div>
       </section>
 

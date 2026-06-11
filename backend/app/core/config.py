@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     app_name: str = "Reachly API"
     environment: str = "development"
     cors_origins: str = "http://localhost:3000"
+    # Where the public contact form delivers (marketing site "contact us").
+    contact_inbox: str = "brodomyjob@gmail.com"
 
     # Security
     secret_key: str = "dev-secret-change-me"
