@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 type Kind = "success" | "error";
 type ToastItem = { id: number; message: string; kind: Kind };
@@ -31,8 +31,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // Stable context value: consumers must not re-render on every toast change.
+  const value = useMemo(() => ({ toast }), [toast]);
+
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2" aria-live="polite">
         {items.map((t) => (

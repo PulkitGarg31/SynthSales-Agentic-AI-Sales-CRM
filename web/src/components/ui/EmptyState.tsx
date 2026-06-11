@@ -4,13 +4,17 @@ export function EmptyState({
   title,
   line,
   action,
+  className = "",
 }: {
   title: string;
   line: string;
   action?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-paper px-6 py-12 text-center">
+    <div
+      className={`flex flex-col items-center gap-3 rounded-2xl border border-line bg-paper px-6 py-12 text-center ${className}`}
+    >
       <Image
         src="/brand/emblem.png"
         alt=""
