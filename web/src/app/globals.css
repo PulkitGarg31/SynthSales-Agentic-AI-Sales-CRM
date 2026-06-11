@@ -35,23 +35,33 @@
 .dark {
   color-scheme: dark;
   --color-cream: #141312;
-  --color-paper: #1d1b19;
+  --color-paper: #201d1a;
   --color-ink: #f4efe6;
   --color-ink-soft: #c7c0b2;
   --color-ink-faint: #8a8273;
-  --color-line: #33302b;
+  --color-line: #383429;
   --color-terracotta: #e1764a;
-  --color-band: #0c0b0a;
+  /* Band INVERTS in dark mode: the light theme's drama is dark islands on
+     cream, so the dark theme's drama is cream islands on charcoal. Without
+     this the landing collapses into one flat black sheet. */
+  --color-band: #f0ead9;
   --color-moss: #93b285;
   --color-amber: #e3b258;
   --color-amber-deep: #eac17a;
   --color-rust: #e8705a;
 }
 
-/* Band sections are dark in BOTH themes - the text-cream inside them must stay
-   light, so re-point the cream var within any bg-band surface. */
+/* Inside an (inverted, now light) band surface, the "light text on band"
+   tokens flip back to their light-theme values so contrast holds. */
 .dark .bg-band {
-  --color-cream: #f4efe6;
+  --color-cream: #211e19;
+  --color-ink: #211e19;
+  --color-ink-soft: #4a453c;
+  --color-ink-faint: #8a8273;
+  --color-terracotta: #c2552b;
+  --color-moss: #5a7052;
+  --color-rust: #b5482f;
+  --color-line: #ddd5c4;
 }
 
 /* Overlay scrims must stay dark scrims; with ink flipped light, bg-ink/40
