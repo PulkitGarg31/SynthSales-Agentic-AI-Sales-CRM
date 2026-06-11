@@ -12,7 +12,7 @@ export const HERO = {
   eyebrow: "AI-powered B2B outreach",
   headline: { pre: "Outreach that ", em: "researches itself", post: "." },
   sub:
-    "Struggling with sales? The fix is just one click away. Sellari AI reads every prospect, finds the real decision makers, verifies their emails, and drafts outreach worth replying to. You just take the replies.",
+    "Struggling with sales? The fix is just one click away. Sellari AI studies your market, finds the people who can actually say yes, and reaches out with emails that feel hand-written. All that's left for you is the conversation.",
   primaryCta: { label: "Get started", href: "/signup" },
   secondaryCta: { label: "How it works", href: "/#how" },
 } as const;
