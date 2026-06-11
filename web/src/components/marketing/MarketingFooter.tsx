@@ -21,12 +21,17 @@ export function MarketingFooter() {
               <ul className="space-y-2.5">
                 {column.links.map((link) => (
                   <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-ink-soft transition hover:text-ink"
-                    >
-                      {link.label}
-                    </Link>
+                    {link.href === "#" ? (
+                      // No real target yet — plain text, not a keyboard stop to nowhere.
+                      <span className="text-sm text-ink-faint">{link.label}</span>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="text-sm text-ink-soft transition hover:text-ink"
+                      >
+                        {link.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

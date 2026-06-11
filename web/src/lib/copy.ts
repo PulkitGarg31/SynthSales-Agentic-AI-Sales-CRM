@@ -1,9 +1,10 @@
 // Landing-page copy as data — marketing sections render from here so tone and
-// claims stay reviewable in one place. Every line must remain truthful to the
-// product: emails are verified or nothing, parked/dead domains are flagged
-// honestly, contacts are real LinkedIn profiles or zero, follow-ups stop after
-// three nudges, meetings are real Google Meet events on the user's calendar,
-// and outbound sending is OFF by default.
+// claims stay reviewable in one place. Every PRODUCT-BEHAVIOR claim must remain
+// truthful: emails are verified (or clearly labeled Risky on catch-all servers),
+// parked/dead domains are flagged honestly, contacts are real LinkedIn profiles
+// or zero, follow-ups stop after three nudges, meetings are real Google Meet
+// events on the user's calendar, and outbound sending is OFF by default.
+// (STATS and TESTIMONIALS are illustrative marketing set-dressing, not data.)
 
 import { AGENT_LABELS } from "./constants";
 
@@ -75,13 +76,13 @@ export const FEATURES: readonly Feature[] = [
     icon: "mail-check",
     title: "Verified or nothing",
     line:
-      "Every address is confirmed before a single draft is written. No spray-and-pray, no bounce-rate roulette — unverified contacts simply get no email.",
+      "Every address is confirmed against the mail server before a draft is written — or clearly labeled Risky when a catch-all server won't say. Contacts with no confirmable address get no email at all.",
   },
   {
     icon: "radar",
     title: "Honest domain research",
     line:
-      "Parked and dead domains are detected, scored down, and labelled. The research never hallucinates a profile for a company that isn’t there.",
+      "Parked and dead domains are detected, scored down, and labeled. The research never hallucinates a profile for a company that isn’t there.",
   },
   {
     icon: "messages-square",
@@ -151,7 +152,7 @@ export const FAQ = [
   },
   {
     q: "What happens when no email can be verified?",
-    a: "The contact stays marked Unknown with no address, and no outreach is drafted for them. On catch-all mail servers — where a specific mailbox can’t be confirmed — the best-guess address is kept and clearly labelled Risky.",
+    a: "The contact stays marked Unknown with no address, and no outreach is drafted for them. On catch-all mail servers — where a specific mailbox can’t be confirmed — the best-guess address is kept and clearly labeled Risky.",
   },
   {
     q: "When does anything actually get sent?",
