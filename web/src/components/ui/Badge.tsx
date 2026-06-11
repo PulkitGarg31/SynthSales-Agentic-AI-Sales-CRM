@@ -1,11 +1,14 @@
 import type { Tone } from "@/lib/constants";
 
+// Badge text is meaning-bearing status copy, so every tone must clear readable
+// contrast at text-xs: amber uses the darker amber-deep companion token, and
+// faint uses ink-soft (ink-faint is reserved for decorative labels).
 const tones: Record<Tone, string> = {
   moss: "bg-moss/10 text-moss",
-  amber: "bg-amber/10 text-amber",
+  amber: "bg-amber/10 text-amber-deep",
   rust: "bg-rust/10 text-rust",
   ink: "bg-ink/8 text-ink-soft",
-  faint: "bg-ink/5 text-ink-faint",
+  faint: "bg-ink/5 text-ink-soft",
   terracotta: "bg-terracotta/10 text-terracotta",
 };
 

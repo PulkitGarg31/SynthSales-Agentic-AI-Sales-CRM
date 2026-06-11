@@ -13,16 +13,17 @@ export function Tabs({
   items: TabItem[];
   className?: string;
 }) {
+  // Deliberately NOT role="tablist"/"tab": these are filter pills with no tab
+  // panels or arrow-key navigation, so the ARIA tabs pattern would over-promise.
   return (
-    <div role="tablist" className={`flex flex-wrap items-center gap-1 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-1 ${className}`}>
       {items.map((item) => {
         const active = item.value === value;
         return (
           <button
             key={item.value}
             type="button"
-            role="tab"
-            aria-selected={active}
+            aria-pressed={active}
             onClick={() => onChange(item.value)}
             className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
               active ? "bg-ink text-cream" : "text-ink-soft hover:text-ink"

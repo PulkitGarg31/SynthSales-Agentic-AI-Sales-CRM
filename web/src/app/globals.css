@@ -15,6 +15,9 @@
      --color-amber below or the wildcard reset wipes it too.) */
   --color-amber-*: initial;
   --color-amber: #c9962e;
+  /* Darker companion for amber TEXT on light washes (badges) — bare amber is
+     only ~2.4:1 on paper. Defined after the wildcard reset so it survives. */
+  --color-amber-deep: #8f6a1d;
   --color-rust: #b5482f;
 
   --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
