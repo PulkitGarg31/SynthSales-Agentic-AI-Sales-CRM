@@ -4,12 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"Agentic CRM" (internal name **Reachly**) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then an 8-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
+"Agentic CRM" (product name **Sellari AI**, formerly Reachly) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then an 8-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
 drafts personalized outreach → tracks replies till they are ready for a meetings or reject the deal -> Fix meeting if they are ready -> Send a Google Meet link -> reads inbound replies & classifies intent. 
 Two independent apps in one repo:
 
-- `backend/` — FastAPI + PostgreSQL (SQLAlchemy 2.0). Internal name "Reachly API".
-- `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). Talks to the backend over REST + WebSocket.
+- `backend/` — FastAPI + PostgreSQL (SQLAlchemy 2.0). Internals still carry the old name ("Reachly API",
+  container `reachly_postgres`) — kept deliberately; see `BACKEND-GAPS.md` §3 before renaming anything.
+- `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). All user-facing branding is **Sellari AI**;
+  no "reachly" string may appear in `web/src`. Talks to the backend over REST + WebSocket.
 
 **`README.md` is a running context log** — it is updated after each substantial task with what changed and why; keep that
 convention when you finish meaningful work.
@@ -184,18 +186,32 @@ Routers in `backend/app/api/routers/`, all prefixed `/api/<name>`. Auth is JWT (
 get_current_user`); cross-tenant `/api/admin/*` routes require `require_admin` (a user is admin if
 `is_admin` is set, auto-granted at startup/verification for emails in `ADMIN_EMAILS`).
 
-Frontend wiring (`web/src/lib/`): `api.ts` is the typed client (token in `localStorage["reachly_token"]`,
-401 auto-redirects to `/login`), `api-types.ts` mirrors backend schemas, `hooks.ts::useApi` is the
-fetch hook. `components/AuthProvider.tsx` wraps the `(app)` route group and guards routes. App pages run
-on live API data (no mock imports); shared UI constants live in `lib/constants.ts`.
+Auth additions (2026-06-11): `POST /api/auth/forgot-password` (throttled, anti-enumeration generic
+response) and `POST /api/auth/reset-password` (OTP ladder mirroring verify-otp) power the real
+password-reset flow; `GET /api/notifications` takes `limit` (default 50, max 500).
+
+Frontend wiring (`web/src/lib/`): `api.ts` is the typed client (token in `localStorage["sellari_token"]`,
+authenticated 401s auto-redirect to `/login`), `api-types.ts` mirrors backend schemas, `hooks.ts` has
+`useApi` (fetch) + `useAction` (keyed mutations with toasts). `components/AuthProvider.tsx` wraps the
+`(app)` route group and guards routes (`useAuth() → {me, refresh, signOut}`). App pages run on live API
+data; canonical status→tone maps + `AGENT_LABELS` live in `lib/constants.ts` (exhaustive via `satisfies`).
+Route groups: `(marketing)` (landing/about/contact), `(auth)` (login/signup/forgot-password/
+oauth-callback), `(app)` (dashboard, campaigns [+new, +/[id] pipeline page], research [+/[id]],
+contacts, outreach, conversations, meetings, agents, integrations, notifications, activity, settings,
+admin). Billing was dropped in the 2026-06 rebuild; Integrations/Activity/Admin are new.
 
 ## Frontend gotcha — Next.js 16 is not the Next.js you know
 
 Per `web/AGENTS.md`: this is Next.js 16, which has breaking changes vs. older versions in your training
 data (APIs, conventions, file structure). **Read the relevant guide under `web/node_modules/next/dist/docs/`
-before writing frontend code**, and heed deprecation notices. Routes use the App Router with `(app)` and
-`(auth)` route groups. The design system lives in Tailwind v4 `@theme` tokens in `src/app/globals.css`
-(deep teal/navy, yellow brand accent, peach surfaces, condensed display headings).
+before writing frontend code**, and heed deprecation notices. Routes use the App Router with
+`(marketing)`, `(auth)` and `(app)` route groups. The design system lives in Tailwind v4 `@theme`
+tokens in `src/app/globals.css`, styled after the `UI.webp` reference at the repo root: warm cream
+editorial minimalism — cream/paper surfaces, ink text, hairline `line` borders, terracotta accent,
+dark `band` sections, `moss/amber(+amber-deep)/rust` status colors, Schibsted Grotesk + Instrument
+Serif italic display pairing (`.display` + `.display em`), numbered eyebrows. `ink-faint` is for
+decorative labels only (meaning-bearing small text uses `ink-soft`); the Tailwind `amber-*` ramp is
+retired (bare `amber` + `amber-deep` only).
 
 ## Environment notes
 

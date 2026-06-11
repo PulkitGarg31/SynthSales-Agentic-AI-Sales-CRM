@@ -661,3 +661,55 @@ ZeroBounce as fallback).
 #### Verified
 - 42/42 deterministic logic tests + `npm run build`; **live DuckDuckGo check on HubSpot returned 6
   real sales contacts (CRO/GTM/President/CEO), zero junk**; add-contact route smoke (201 / blank→422).
+
+### 2026-06-11 (Sellari AI — full frontend rebuild)
+
+Implemented `.claude/specs/07-sellari-frontend-rebuild.md` (27-task plan in `.claude/plans/`).
+The product is renamed **Sellari AI** (frontend-visible; backend internals keep the Reachly
+names per `BACKEND-GAPS.md` §3). The entire `web/src` UI was demolished and rebuilt clean-slate
+on the same stack (Next.js 16 + React 19 + Tailwind v4), styled after the `UI.webp` reference:
+warm cream editorial minimalism — ink-on-cream, Schibsted Grotesk + Instrument Serif italic
+display pairing, hairline borders, numbered eyebrows, dark band sections, giant footer wordmark.
+
+#### Backend additions (Tasks 1–2 + review fixes)
+- `UserOut.is_admin` exposed; **password-reset flow**: `POST /api/auth/forgot-password`
+  (throttled, anti-enumeration generic response) + `POST /api/auth/reset-password`
+  (OTP ladder mirroring verify-otp, `compare_digest` byte-hardened).
+- `GET /api/notifications` gained `limit` (default 50, max 500).
+
+#### Frontend (Tasks 3–25)
+- **Brand**: emblem prepped via sharp (transparent 742×894), favicon set, `Wordmark`,
+  token sheet in `globals.css` (`cream/paper/ink/ink-soft/ink-faint/line/terracotta/band/
+  moss/amber/amber-deep/rust`), fonts via next/font.
+- **Data layer**: api-types audited against `schemas.py`; admin/sync/stage/reset endpoints typed;
+  token key renamed `reachly_token` → **`sellari_token`**; canonical tone maps in `constants.ts`
+  (exhaustive via `satisfies`).
+- **Primitives**: Button/Badge/Card/Field/Tabs/Chips + Modal/ConfirmModal (focus + scroll lock,
+  busy-gated dismiss)/Toast/Skeleton/EmptyState/ErrorCard/StatNumeral.
+- **Infra**: `useAction` mutation hook (keyed busy, overlap guard), reconnecting WS client
+  (listener isolation, dead-token stop), network-tolerant AuthProvider with retry.
+- **Shell**: grouped sidebar (admin gated), topbar with outbound chip + live notification bell.
+- **Screens (21 routes)**: marketing landing/about/contact + emblem 404; auth (login w/
+  verify-now flow, signup with live password policy, real forgot-password, OAuth callback);
+  dashboard (stats/funnel/live activity); campaigns list + 4-step wizard (CSV validation,
+  orphan-retry) + pipeline page (3s polling, run-all confirm, live WS logs); research list +
+  company detail (score factors, signals, contacts, mail-domain); contacts (tri-state approval,
+  opt-out confirm); outreach (letter preview, gated send w/ inline 403, double-send lock);
+  conversations (inbox, AI suggestion, stage override, reopen-clears-opt-out, book-meeting w/
+  inline 422); meetings; agents (enable confirm, run follow-ups); integrations health board;
+  notifications center; live activity stream (pause/buffer); settings (kill-switch with
+  enable-confirm, Google connections + callback handling); admin (user trees, campaign
+  inspector w/ metric_confidence debug, typed-phrase deletes).
+- **Dropped**: Billing (decided 2026-06-09). **Added vs old app**: Integrations, Activity, Admin.
+
+#### Process + verification
+- Subagent-driven: every task implemented by a fresh agent, then spec-compliance + code-quality
+  reviewed; review fixes landed per task (e.g. modal focus management, backdrop-blur containing-
+  block bug, OTP tail preservation, WS 1008 handling, CSV stale-read guard).
+- ✅ `npm run build` (24 routes, typecheck clean) + `npm run lint` (zero errors) at every step.
+- ✅ Zero "reachly" strings in `web/src`; all 22 routes serve HTTP 200 (404 for unknown) on dev.
+- ✅ Live API smoke vs the running backend: login → me → dashboard → campaigns → pipeline
+  (8 agents, keys match `AGENT_LABELS`) → companies/contacts/drafts/threads/meetings/agents/
+  notifications/logs — all contracts hold; counts cross-checked against `.\db.ps1 health`.
+- New backend gaps recorded in `BACKEND-GAPS.md` (reply endpoint never emails; admin user
+  delete orphans meetings).
