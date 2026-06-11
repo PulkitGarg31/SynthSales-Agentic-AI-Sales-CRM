@@ -1,5 +1,16 @@
 // Canonical status→tone and label mappings shared across the Sellari UI.
 // `Tone` keys match the Badge component's tone variants.
+// Maps are declared `Record<string, Tone>` so admin views can index with plain
+// strings, while `satisfies` keeps each map exhaustive over its backend union.
+
+import type {
+  CampaignStatus,
+  EmailState,
+  Intent,
+  MatchLevel,
+  ThreadStage,
+  VerificationStatus,
+} from "./api-types";
 
 export type Tone = "moss" | "amber" | "rust" | "ink" | "faint" | "terracotta";
 
@@ -8,28 +19,29 @@ export const VERIFICATION_TONE: Record<string, Tone> = {
   Risky: "amber",
   Unknown: "faint",
   Invalid: "rust",
-};
+} satisfies Record<VerificationStatus, Tone>;
 
 export const DOMAIN_TONE: Record<string, Tone> = {
   live: "moss",
   parked: "amber",
   dead: "rust",
   unknown: "faint",
-};
+} satisfies Record<"live" | "parked" | "dead" | "unknown", Tone>;
 
 export const MATCH_TONE: Record<string, Tone> = {
   Strong: "moss",
   Good: "ink",
   Moderate: "amber",
   Weak: "rust",
-};
+} satisfies Record<MatchLevel, Tone>;
 
 export const CAMPAIGN_TONE: Record<string, Tone> = {
   Draft: "faint",
   Running: "moss",
   Paused: "amber",
   Completed: "ink",
-};
+  Failed: "rust",
+} satisfies Record<CampaignStatus, Tone>;
 
 export const STAGE_TONE: Record<string, Tone> = {
   Contacted: "faint",
@@ -38,7 +50,7 @@ export const STAGE_TONE: Record<string, Tone> = {
   Meeting: "terracotta",
   Closed: "ink",
   Stalled: "rust",
-};
+} satisfies Record<ThreadStage, Tone>;
 
 export const INTENT_TONE: Record<string, Tone> = {
   interested: "moss",
@@ -47,12 +59,14 @@ export const INTENT_TONE: Record<string, Tone> = {
   question: "amber",
   out_of_office: "faint",
   other: "faint",
-};
+} satisfies Record<Intent, Tone>;
 
 export const DRAFT_TONE: Record<string, Tone> = {
   Queued: "faint",
   Sent: "moss",
-};
+  Delivered: "moss",
+  Failed: "rust",
+} satisfies Record<EmailState, Tone>;
 
 export const AGENT_STATUS_TONE: Record<string, Tone> = {
   Idle: "faint",

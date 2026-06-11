@@ -83,7 +83,9 @@ async function request<T>(path: string, opts: FetchOpts = {}): Promise<T> {
     body: payload,
   });
 
-  if (res.status === 401 && typeof window !== "undefined") {
+  // Only an *authenticated* 401 means an expired session; a 401 from e.g.
+  // a failed login is bad credentials and must not clear or redirect.
+  if (res.status === 401 && auth && typeof window !== "undefined") {
     clearToken();
     if (!window.location.pathname.startsWith("/login")) {
       window.location.href = "/login";
