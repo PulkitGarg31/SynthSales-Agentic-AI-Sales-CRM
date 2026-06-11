@@ -59,3 +59,18 @@ export function navItemFor(pathname: string): NavItem | null {
   }
   return null;
 }
+
+// Routes the shell links to that deliberately have no sidebar entry.
+const EXTRA_EYEBROWS: Record<string, string> = {
+  "/notifications": "Notifications",
+};
+
+/** Topbar eyebrow for the current pathname — NAV items first, then extras. */
+export function eyebrowFor(pathname: string): string | null {
+  const item = navItemFor(pathname);
+  if (item) return item.eyebrow;
+  for (const [href, eyebrow] of Object.entries(EXTRA_EYEBROWS)) {
+    if (isNavActive(pathname, href)) return eyebrow;
+  }
+  return null;
+}

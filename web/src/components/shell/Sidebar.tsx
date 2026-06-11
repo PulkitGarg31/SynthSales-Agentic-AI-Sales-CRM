@@ -66,14 +66,19 @@ function NavColumn({ onNavigate }: { onNavigate?: () => void }) {
  * slide-over sheet controlled by `open`/`onClose` (hamburger lives in Topbar).
  */
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // Escape closes the mobile sheet.
+  // While the mobile sheet is open: Escape closes, page behind doesn't scroll.
   useEffect(() => {
     if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [open, onClose]);
 
   return (

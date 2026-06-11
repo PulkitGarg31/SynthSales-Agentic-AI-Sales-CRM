@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -12,13 +12,14 @@ router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 @router.get("", response_model=list[NotificationOut])
 def list_notifications(
     unread_only: bool = False,
+    limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     q = db.query(Notification).filter(Notification.owner_id == user.id)
     if unread_only:
         q = q.filter(Notification.read.is_(False))
-    return q.order_by(Notification.created_at.desc()).all()
+    return q.order_by(Notification.created_at.desc()).limit(limit).all()
 
 
 @router.post("/read-all")

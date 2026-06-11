@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/shell/Sidebar";
@@ -13,6 +14,14 @@ import { Topbar } from "@/components/shell/Topbar";
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Close the mobile sheet on any route change (covers back/forward too).
+  const pathname = usePathname();
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (pathname !== prevPath) {
+    setPrevPath(pathname);
+    setMenuOpen(false);
+  }
 
   return (
     <ToastProvider>

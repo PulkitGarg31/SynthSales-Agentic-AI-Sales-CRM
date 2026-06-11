@@ -7,14 +7,18 @@ import { LogOut, Menu, Settings, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Eyebrow } from "@/components/ui/Eyebrow";
-import { navItemFor } from "@/lib/nav";
+import { eyebrowFor } from "@/lib/nav";
 import { Bell } from "./Bell";
 
 function OutboundChip() {
   const { me } = useAuth();
   if (me.outbound_enabled) return <Badge tone="moss">Sending live</Badge>;
   return (
-    <Link href="/settings?tab=sending" aria-label="Sending paused — open sending settings">
+    <Link
+      href="/settings?tab=sending"
+      aria-label="Sending paused — open sending settings"
+      className="transition-opacity hover:opacity-75"
+    >
       <Badge tone="amber">Sending paused</Badge>
     </Link>
   );
@@ -31,6 +35,15 @@ function initialsOf(name: string): string {
 function UserMenu() {
   const { me, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+
+  // The shell persists across navigation — close on route change so a menu
+  // opened on one page can't linger over the next.
+  const pathname = usePathname();
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (pathname !== prevPath) {
+    setPrevPath(pathname);
+    setOpen(false);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +62,7 @@ function UserMenu() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Account menu"
+        aria-haspopup="menu"
         aria-expanded={open}
         className="flex h-8 w-8 items-center justify-center rounded-full bg-band text-xs font-semibold text-cream"
       >
@@ -96,10 +110,13 @@ function UserMenu() {
 /** Top strip: hamburger (mobile), current page eyebrow, outbound chip + bell + user. */
 export function Topbar({ onMenu }: { onMenu: () => void }) {
   const pathname = usePathname();
-  const item = navItemFor(pathname);
+  const eyebrow = eyebrowFor(pathname);
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-cream/90 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+    // No backdrop-blur here: a backdrop-filter turns the header into a
+    // containing block for fixed descendants, which would shrink the
+    // dropdowns' full-viewport click-outside overlays to the header strip.
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-cream px-4 py-3 sm:px-6 lg:px-8">
       <div className="flex items-center gap-3">
         <button
           onClick={onMenu}
@@ -108,7 +125,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         >
           <Menu size={18} strokeWidth={1.75} />
         </button>
-        {item && <Eyebrow>{item.eyebrow}</Eyebrow>}
+        {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
       </div>
       <div className="flex items-center gap-3">
         <OutboundChip />

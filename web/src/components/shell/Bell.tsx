@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Bell as BellIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
@@ -19,6 +20,14 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 export function Bell() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+
+  // Close on route change — the shell persists across navigation.
+  const pathname = usePathname();
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (pathname !== prevPath) {
+    setPrevPath(pathname);
+    setOpen(false);
+  }
   // One fetch feeds both numbers: unread count = filter, dropdown = newest 5.
   const { data, reload } = useApi(() => api.notifications(), []);
 
@@ -51,6 +60,7 @@ export function Bell() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
+        aria-haspopup="menu"
         aria-expanded={open}
         className="relative rounded-lg p-2 text-ink-soft transition-colors hover:bg-paper hover:text-ink"
       >
