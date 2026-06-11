@@ -83,10 +83,13 @@ export function ConfirmModal({
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // A stale typed phrase must not pre-unlock the next open.
-  useEffect(() => {
+  // A stale typed phrase must not pre-unlock the next open. Adjust-during-render
+  // (the React-docs pattern) instead of an effect: no extra commit, lint-clean.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) setTyped("");
-  }, [open]);
+  }
 
   const blocked = !!typedPhrase && typed !== typedPhrase;
   // Escape/overlay/Cancel must not dismiss mid-flight — the action completes

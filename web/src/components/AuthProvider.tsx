@@ -5,12 +5,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { api, clearToken, getToken } from "@/lib/api";
+import { api, ApiError, clearToken, getToken } from "@/lib/api";
 import type { User } from "@/lib/api-types";
 import { wsDisconnect } from "@/lib/ws";
 
@@ -39,19 +40,27 @@ export function useAuth(): AuthCtx {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [me, setMe] = useState<User | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const refresh = useCallback(async () => {
+  // Named function expression so the retry can self-reference without TDZ.
+  const refresh = useCallback(async function refresh(): Promise<void> {
     if (!getToken()) {
       router.replace("/login");
       return;
     }
     try {
       setMe(await api.me());
-    } catch {
-      // An authenticated 401 already cleared the token and redirected inside
-      // api.ts; this covers network failures and other error statuses.
-      clearToken();
-      router.replace("/login");
+    } catch (e) {
+      // Only a real HTTP rejection invalidates the session (401 already cleared
+      // the token and redirected inside api.ts; this covers 403/500). A network
+      // failure — e.g. uvicorn --reload mid-restart — must NOT destroy a valid
+      // token: keep any stale `me` and retry shortly.
+      if (e instanceof ApiError) {
+        clearToken();
+        router.replace("/login");
+      } else {
+        retryTimer.current = setTimeout(() => void refresh(), 3000);
+      }
     }
   }, [router]);
 
@@ -66,6 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // setState happens only inside the promise callback (refresh awaits /me),
     // never synchronously in the effect body.
     queueMicrotask(() => void refresh());
+    return () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
   }, [refresh]);
 
   if (!me) {

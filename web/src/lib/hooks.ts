@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "./api";
 import { useToast } from "@/components/ui/Toast";
 
@@ -53,27 +53,34 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []): ApiState<
 export function useAction() {
   const [busy, setBusy] = useState<string | null>(null);
   const { toast } = useToast();
+  // Sequence guard: when runs overlap, only the LATEST one may clear `busy`,
+  // so an earlier run's finally can't re-enable a button still in flight.
+  const seq = useRef(0);
 
-  async function run<T>(
-    key: string,
-    fn: () => Promise<T>,
-    opts?: { success?: string | ((r: T) => string); onDone?: (r: T) => void },
-  ): Promise<T | null> {
-    setBusy(key);
-    try {
-      const r = await fn();
-      if (opts?.success) {
-        toast(typeof opts.success === "function" ? opts.success(r) : opts.success, "success");
+  const run = useCallback(
+    async function run<T>(
+      key: string,
+      fn: () => Promise<T>,
+      opts?: { success?: string | ((r: T) => string); onDone?: (r: T) => void },
+    ): Promise<T | null> {
+      const id = ++seq.current;
+      setBusy(key);
+      try {
+        const r = await fn();
+        if (opts?.success) {
+          toast(typeof opts.success === "function" ? opts.success(r) : opts.success, "success");
+        }
+        opts?.onDone?.(r);
+        return r;
+      } catch (e) {
+        toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.", "error");
+        return null;
+      } finally {
+        if (seq.current === id) setBusy(null);
       }
-      opts?.onDone?.(r);
-      return r;
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.", "error");
-      return null;
-    } finally {
-      setBusy(null);
-    }
-  }
+    },
+    [toast],
+  );
 
   return { busy, run };
 }
