@@ -10,12 +10,12 @@
   --color-terracotta: #c2552b;
   --color-band: #161209;
   --color-moss: #5a7052;
-  /* Retire Tailwind's default amber-* ramp so only the brand amber exists —
+  /* Retire Tailwind's default amber-* ramp so only the brand amber exists -
      `text-amber-600` etc. would be off-palette. (Must precede the bare
      --color-amber below or the wildcard reset wipes it too.) */
   --color-amber-*: initial;
   --color-amber: #c9962e;
-  /* Darker companion for amber TEXT on light washes (badges) — bare amber is
+  /* Darker companion for amber TEXT on light washes (badges) - bare amber is
      only ~2.4:1 on paper. Defined after the wildcard reset so it survives. */
   --color-amber-deep: #8f6a1d;
   --color-rust: #b5482f;
@@ -29,7 +29,7 @@
    - `body` colors and `.display` are deliberately UN-layered: Tailwind utilities
      cannot override them (use the `!` important suffix if you ever must).
    - Meaning-bearing small text should use ink-soft; ink-faint (3.3:1 on cream)
-     is reserved for decorative labels like eyebrows — accepted by design. */
+     is reserved for decorative labels like eyebrows - accepted by design. */
 body {
   background: var(--color-cream);
   color: var(--color-ink);

@@ -33,7 +33,7 @@ function timeHMS(d: Date): string {
   return d.toTimeString().slice(0, 8);
 }
 
-// Live WS log frames carry no timestamp — we stamp client receive time.
+// Live WS log frames carry no timestamp - we stamp client receive time.
 interface LiveLog {
   key: string;
   time: Date;
@@ -50,7 +50,7 @@ const LEVEL_TEXT: Record<string, string> = {
 
 // ---- local components ------------------------------------------------------
 
-/** Live agent chatter from the shared WS hub — newest at top, capped at 200. */
+/** Live agent chatter from the shared WS hub - newest at top, capped at 200. */
 function LiveLogPanel() {
   const [rows, setRows] = useState<LiveLog[]>([]);
   const seq = useRef(0);
@@ -113,7 +113,7 @@ function EditCampaignModal({
   const [topN, setTopN] = useState<number>(campaign.top_n);
 
   // A campaign created before the preset list (or via API) may carry a custom
-  // tone — keep it selectable instead of silently snapping to a preset.
+  // tone - keep it selectable instead of silently snapping to a preset.
   const toneOptions = TONES.some((t) => t.value === campaign.tone)
     ? TONES
     : [{ label: campaign.tone, value: campaign.tone }, ...TONES];
@@ -249,7 +249,7 @@ function CampaignDetailInner() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Header — owns the campaign call's state */}
+      {/* Header - owns the campaign call's state */}
       {campaign.loading ? (
         <SkeletonRows n={2} />
       ) : campaign.error ? (
@@ -286,7 +286,7 @@ function CampaignDetailInner() {
         </header>
       ) : null}
 
-      {/* Timeline | live log — side by side at xl, stacked below */}
+      {/* Timeline | live log - side by side at xl, stacked below */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card title="Agent pipeline">
           {pipeline.agents === null && pipeline.error ? (
@@ -309,7 +309,7 @@ function CampaignDetailInner() {
         <LiveLogPanel />
       </div>
 
-      {/* Run-all confirm — also auto-opened by ?fresh=1 from the wizard */}
+      {/* Run-all confirm - also auto-opened by ?fresh=1 from the wizard */}
       <ConfirmModal
         open={runAllOpen}
         onClose={() => setRunAllOpen(false)}

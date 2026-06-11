@@ -2,7 +2,7 @@
 
 // Stateless toggle pills. `selected` holds the active values; `onToggle` fires
 // with the clicked value. Multi-select callers append/remove; single-select
-// callers replace the array — exclusivity is the caller's concern.
+// callers replace the array - exclusivity is the caller's concern.
 
 export type ChipOption = { value: string; label: string };
 

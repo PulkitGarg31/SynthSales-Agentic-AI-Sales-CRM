@@ -38,11 +38,11 @@ const COUNTRIES = chips([
 const SIZES = chips(["1–50", "51–200", "201–1,000", "1,000–5,000", "5,000+"]);
 
 // Short chip label → the full sentence the scoring agent sees. The old wizard
-// always sent the full set; here the user prunes — so all start selected.
+// always sent the full set; here the user prunes - so all start selected.
 const BUYING_SIGNALS: ChipOption[] = [
   ["Recent funding", "Recent funding (Series A or later) or visible revenue growth"],
   ["Headcount growth", "Headcount growth in the last 6–12 months"],
-  ["Actively hiring", "Actively hiring — especially roles adjacent to our buyer persona"],
+  ["Actively hiring", "Actively hiring, especially roles adjacent to our buyer persona"],
   ["Modernization underway", "Cloud, data, or core-systems modernization underway"],
   ["Market expansion", "Expansion into new markets, geographies, or product lines"],
   ["Uses a competitor", "Uses a competitor product or an obvious adjacent tool"],
@@ -53,7 +53,7 @@ const BUYING_SIGNALS: ChipOption[] = [
 ].map(([label, value]) => ({ label, value }));
 
 const RANKING_FACTORS: ChipOption[] = [
-  ["Product fit", "Product fit — how directly our product solves their stated pain"],
+  ["Product fit", "Product fit: how directly our product solves their stated pain"],
   ["Industry alignment", "Industry alignment with the configured target industries"],
   ["Size match", "Company size match with the configured size brackets"],
   ["Geography match", "Geography match with the configured target countries"],
@@ -61,7 +61,7 @@ const RANKING_FACTORS: ChipOption[] = [
   ["Funding events", "Recent funding or financial events"],
   ["Hiring activity", "Hiring activity in buyer or end-user roles"],
   ["Tech-stack overlap", "Tech-stack overlap with our product or its integrations"],
-  ["Buyer accessibility", "Buyer accessibility — decision makers visible on LinkedIn"],
+  ["Buyer accessibility", "Buyer accessibility: decision makers visible on LinkedIn"],
   ["Trigger recency", "Recency of relevant trigger events or news"],
 ].map(([label, value]) => ({ label, value }));
 
@@ -194,7 +194,7 @@ function StepRail({
               <span aria-hidden className="w-[13px] shrink-0" />
             )}
             <span>
-              0{i + 1} — {label}
+              0{i + 1} · {label}
             </span>
           </button>
         );
@@ -212,7 +212,7 @@ export default function NewCampaignPage() {
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(INITIAL);
   const [file, setFile] = useState<File | null>(null);
-  // Set when createCampaign succeeded but the CSV upload failed — the retry
+  // Set when createCampaign succeeded but the CSV upload failed - the retry
   // path then re-uploads to this campaign instead of creating a duplicate.
   const [orphan, setOrphan] = useState<{ id: number; name: string } | null>(null);
 
@@ -310,7 +310,7 @@ export default function NewCampaignPage() {
               <Field
                 label="Product description"
                 htmlFor="cw-desc"
-                hint="What it does and the problem it solves — one or two sentences."
+                hint="What it does and the problem it solves, in one or two sentences."
               >
                 <Textarea
                   id="cw-desc"
@@ -328,7 +328,7 @@ export default function NewCampaignPage() {
                   placeholder="Data infrastructure"
                 />
               </Field>
-              <Field label="Value proposition" htmlFor="cw-value" hint="Optional — the outcome customers get.">
+              <Field label="Value proposition" htmlFor="cw-value" hint="Optional: the outcome customers get.">
                 <Textarea
                   id="cw-value"
                   rows={2}
@@ -353,7 +353,7 @@ export default function NewCampaignPage() {
               <Field
                 label="Ideal customer profile"
                 htmlFor="cw-icp"
-                hint="The company most likely to buy — situation, size, needs. The scoring agent judges fit against this."
+                hint="The company most likely to buy: situation, size, needs. The scoring agent judges fit against this."
               >
                 <Textarea
                   id="cw-icp"
@@ -363,13 +363,13 @@ export default function NewCampaignPage() {
                   placeholder="Mid-sized 3PL firms migrating to the cloud and growing their data teams."
                 />
               </Field>
-              <Field label="Target industries" hint="Pick at least one — matching companies score higher.">
+              <Field label="Target industries" hint="Pick at least one. Matching companies score higher.">
                 <Chips options={INDUSTRIES} selected={draft.industries} onToggle={toggle("industries")} />
               </Field>
               <Field label="Company size (employees)" hint="Pick at least one bracket.">
                 <Chips options={SIZES} selected={draft.sizes} onToggle={toggle("sizes")} />
               </Field>
-              <Field label="Target countries" hint="Optional — leave empty for no geographic preference.">
+              <Field label="Target countries" hint="Optional: leave empty for no geographic preference.">
                 <Chips options={COUNTRIES} selected={draft.geographies} onToggle={toggle("geographies")} />
               </Field>
               <Field label="Buying signals" hint="Evidence that a company is ready to buy. Keep at least one.">
@@ -413,16 +413,16 @@ export default function NewCampaignPage() {
                     value={draft.personalization_level}
                     onChange={(e) => set("personalization_level", Number(e.target.value))}
                   >
-                    <option value={1}>Low — template-first</option>
+                    <option value={1}>Low: template-first</option>
                     <option value={2}>Balanced</option>
-                    <option value={3}>High — researched per contact</option>
+                    <option value={3}>High: researched per contact</option>
                   </Select>
                 </Field>
               </div>
               <Field
                 label="Email template"
                 htmlFor="cw-template"
-                hint="Optional — leave blank to let the outreach agent write each email from scratch."
+                hint="Optional: leave blank to let the outreach agent write each email from scratch."
               >
                 <Textarea
                   id="cw-template"
@@ -436,7 +436,7 @@ export default function NewCampaignPage() {
               <Field
                 label="Footer / signature"
                 htmlFor="cw-footer"
-                hint="Optional — appears at the bottom of every email."
+                hint="Optional: appears at the bottom of every email."
               >
                 <Textarea
                   id="cw-footer"
@@ -453,7 +453,7 @@ export default function NewCampaignPage() {
             <p className="mt-5 rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-ink-soft">
               <strong className="font-semibold text-ink">{orphan.name}</strong> was created, but its
               companies didn’t upload. Use “Create campaign” to retry the upload (only the file is
-              retried — settings changes here won’t apply to it), or{" "}
+              retried; settings changes here won’t apply to it), or{" "}
               <Link href={`/campaigns/${orphan.id}`} className="font-medium text-terracotta hover:underline">
                 open the campaign
               </Link>{" "}

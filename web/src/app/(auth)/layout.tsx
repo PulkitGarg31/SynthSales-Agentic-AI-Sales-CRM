@@ -4,7 +4,7 @@ import Link from "next/link";
 /**
  * Split-screen auth shell: left = cream panel with the emblem, the form, and a
  * footer link home; right (desktop only) = solid band panel with the editorial
- * quote. No AuthProvider here — these pages are for the signed-out.
+ * quote. No AuthProvider here - these pages are for the signed-out.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

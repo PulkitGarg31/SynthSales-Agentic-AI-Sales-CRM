@@ -2,7 +2,7 @@ import { Check, Circle } from "lucide-react";
 
 // Mirrors backend/app/schemas.py::_validate_password_strength EXACTLY:
 // 8–128 characters, and at least two of: lowercase, uppercase, number, symbol.
-// Keep these in sync — the hints must never pass what the backend rejects.
+// Keep these in sync - the hints must never pass what the backend rejects.
 const CLASSES = [
   { label: "lowercase", re: /[a-z]/ },
   { label: "uppercase", re: /[A-Z]/ },

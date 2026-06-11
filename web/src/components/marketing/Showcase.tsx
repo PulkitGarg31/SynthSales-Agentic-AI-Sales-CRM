@@ -1,7 +1,7 @@
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Badge } from "@/components/ui/Badge";
 
-// Three decorative faux app windows (fake-but-plausible data) — a glance at
+// Three decorative faux app windows (fake-but-plausible data) - a glance at
 // the dashboard, the company pipeline, and the inbox.
 
 function Window({ title, children }: { title: string; children: React.ReactNode }) {
@@ -35,7 +35,7 @@ export function Showcase() {
           One pipeline, <em>fully visible</em>.
         </h2>
         <p className="text-base leading-relaxed text-ink-soft">
-          Every stage writes its work down — scores, verdicts, drafts, replies — so you always know
+          Every stage writes its work down (scores, verdicts, drafts, replies), so you always know
           why a company is in your pipeline and what happens next.
         </p>
       </div>
@@ -101,7 +101,7 @@ export function Showcase() {
           <Row>
             <div className="min-w-0">
               <p className="truncate text-ink">James Whitfield</p>
-              <p className="truncate text-xs text-ink-soft">Interesting — how does pricing work?</p>
+              <p className="truncate text-xs text-ink-soft">Interesting, how does pricing work?</p>
             </div>
             <Badge tone="amber">Question</Badge>
           </Row>

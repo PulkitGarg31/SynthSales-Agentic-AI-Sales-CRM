@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The backend's 403 detail for an unverified account — shown in an amber note.
+  // The backend's 403 detail for an unverified account - shown in an amber note.
   const [unverified, setUnverified] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [devOtp, setDevOtp] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export default function LoginPage() {
         if (!cancelled && p.google) setGoogle(true);
       })
       .catch(() => {
-        /* backend unreachable — just keep the button hidden */
+        /* backend unreachable - just keep the button hidden */
       });
     return () => {
       cancelled = true;
@@ -51,7 +51,7 @@ export default function LoginPage() {
       const t = await api.login(email, password);
       setToken(t.access_token);
       router.replace("/dashboard");
-      // Stay busy through the redirect — no setBusy(false) on success.
+      // Stay busy through the redirect - no setBusy(false) on success.
     } catch (err) {
       if (err instanceof ApiError) {
         // 403 = account exists but isn't verified (status-keyed, detail displayed).
@@ -65,7 +65,7 @@ export default function LoginPage() {
   }
 
   // "Verify now": request a fresh code, then flip the page to the OTP step.
-  // Even when the resend is throttled (429) we STILL flip to the OTP step —
+  // Even when the resend is throttled (429) we STILL flip to the OTP step -
   // a recently-registered user may have a valid code in their inbox already,
   // and stranding them on the password step would lock verification needlessly.
   async function startVerify() {

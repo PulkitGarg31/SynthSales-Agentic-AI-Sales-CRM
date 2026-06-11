@@ -15,7 +15,7 @@ const CREW: readonly { key: string; duty: string }[] = [
   {
     key: "scoring",
     duty:
-      "Ranks every company against your product and ideal customer — thin evidence caps the score, so a ghost can’t look like a strong match.",
+      "Ranks every company against your product and ideal customer. Thin evidence caps the score, so a ghost can’t look like a strong match.",
   },
   {
     key: "employee_finder",
@@ -30,12 +30,12 @@ const CREW: readonly { key: string; duty: string }[] = [
   {
     key: "outreach",
     duty:
-      "Drafts a first email grounded in the research on that specific company — not boilerplate with a name swapped in.",
+      "Drafts a first email grounded in the research on that specific company, not boilerplate with a name swapped in.",
   },
   {
     key: "tracking",
     duty:
-      "Nudges quiet threads — up to three times — then marks them stalled and leaves them alone.",
+      "Nudges quiet threads up to three times, then marks them stalled and leaves them alone.",
   },
   {
     key: "meeting",
@@ -45,7 +45,7 @@ const CREW: readonly { key: string; duty: string }[] = [
   {
     key: "reply_classifier",
     duty:
-      "Reads inbound replies, classifies the intent, and opts out anyone who clearly says no — for good.",
+      "Reads inbound replies, classifies the intent, and opts out anyone who clearly says no, for good.",
   },
 ] as const;
 
@@ -58,7 +58,7 @@ const PRINCIPLES = [
   {
     title: "Degrade gracefully",
     body:
-      "Every external integration is optional. A missing key means an honest blank and a deterministic fallback — never a fake result pretending the service answered.",
+      "Every external integration is optional. A missing key means an honest blank and a deterministic fallback, never a fake result pretending the service answered.",
   },
   {
     title: "A human approves every send",
@@ -79,7 +79,7 @@ export default function AboutPage() {
         </div>
         <p className="mt-8 text-base leading-relaxed text-ink-soft md:text-lg">
           Sellari exists because most cold outreach is careless: scraped lists, guessed emails,
-          templates with a first name bolted on. We built the opposite — a pipeline of eight agents
+          templates with a first name bolted on. We built the opposite: a pipeline of eight agents
           that actually reads each company, finds the real people, confirms how to reach them, and
           writes something worth replying to. Then it stops and waits for you.
         </p>

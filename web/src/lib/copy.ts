@@ -1,4 +1,4 @@
-// Landing-page copy as data — marketing sections render from here so tone and
+// Landing-page copy as data - marketing sections render from here so tone and
 // claims stay reviewable in one place. Every PRODUCT-BEHAVIOR claim must remain
 // truthful: emails are verified (or clearly labeled Risky on catch-all servers),
 // parked/dead domains are flagged honestly, contacts are real LinkedIn profiles
@@ -12,7 +12,7 @@ export const HERO = {
   eyebrow: "AI-powered B2B outreach",
   headline: { pre: "Outreach that ", em: "researches itself", post: "." },
   sub:
-    "Upload a list of companies and a brief on what you sell. Eight agents read every prospect, find the real decision makers, verify their emails, and draft outreach worth replying to — then wait for your go-ahead.",
+    "Upload a list of companies and a brief on what you sell. Eight agents read every prospect, find the real decision makers, verify their emails, and draft outreach worth replying to. Then they wait for your go-ahead.",
   primaryCta: { label: "Get started", href: "/signup" },
   secondaryCta: { label: "How it works", href: "/#how" },
 } as const;
@@ -36,28 +36,28 @@ export const PHASES: readonly Phase[] = [
     title: "Research",
     agents: [AGENT_LABELS.enrichment, AGENT_LABELS.scoring],
     description:
-      "Every company is read, not assumed. Parked and dead domains are flagged honestly, and thin evidence caps the score — a company that barely exists can never look like a strong match.",
+      "Every company is read, not assumed. Parked and dead domains are flagged honestly, and thin evidence caps the score: a company that barely exists can never look like a strong match.",
   },
   {
     index: "02",
     title: "Find people",
     agents: [AGENT_LABELS.employee_finder, AGENT_LABELS.email_guess_verification],
     description:
-      "Real LinkedIn profiles of commercial decision makers — or zero, never invented names. Likely addresses are guessed pattern by pattern and confirmed against the mail server before anyone is contacted.",
+      "Real LinkedIn profiles of commercial decision makers, or none at all. Names are never invented. Likely addresses are guessed pattern by pattern and confirmed against the mail server before anyone is contacted.",
   },
   {
     index: "03",
     title: "Reach out",
     agents: [AGENT_LABELS.outreach, AGENT_LABELS.tracking],
     description:
-      "Drafts grounded in the research on each company, not boilerplate. Quiet threads get a nudge — up to three — then the tracker marks them stalled and stops on its own.",
+      "Drafts grounded in the research on each company, not boilerplate. Quiet threads get a nudge, up to three, then the tracker marks them stalled and stops on its own.",
   },
   {
     index: "04",
     title: "Convert",
     agents: [AGENT_LABELS.meeting, AGENT_LABELS.reply_classifier],
     description:
-      "Inbound replies are read and classified — interested, question, not interested, meeting-ready. When a prospect is ready, a real Google Meet event lands on your own calendar.",
+      "Inbound replies are read and classified: interested, question, not interested, meeting-ready. When a prospect is ready, a real Google Meet event lands on your own calendar.",
   },
 ] as const;
 
@@ -76,7 +76,7 @@ export const FEATURES: readonly Feature[] = [
     icon: "mail-check",
     title: "Verified or nothing",
     line:
-      "Every address is confirmed against the mail server before a draft is written — or clearly labeled Risky when a catch-all server won't say. Contacts with no confirmable address get no email at all.",
+      "Every address is confirmed against the mail server before a draft is written, or clearly labeled Risky when a catch-all server won't say. Contacts with no confirmable address get no email at all.",
   },
   {
     icon: "radar",
@@ -88,13 +88,13 @@ export const FEATURES: readonly Feature[] = [
     icon: "messages-square",
     title: "Replies, read for you",
     line:
-      "Inbound replies are classified by intent and the pipeline reacts — a clear ‘no’ opts the contact out automatically, so nobody gets nudged twice.",
+      "Inbound replies are classified by intent and the pipeline reacts: a clear ‘no’ opts the contact out automatically, so nobody gets nudged twice.",
   },
   {
     icon: "repeat",
     title: "Follow-ups that know when to stop",
     line:
-      "Unanswered threads get a polite nudge, up to three. Then the thread is marked stalled and left alone — there is no infinite drip.",
+      "Unanswered threads get a polite nudge, up to three. Then the thread is marked stalled and left alone. There is no infinite drip.",
   },
   {
     icon: "calendar-check",
@@ -113,7 +113,7 @@ export const FEATURES: readonly Feature[] = [
 export const HUMAN_LOOP = {
   headline: { pre: "Nothing sends ", em: "until you say so", post: "." },
   aside:
-    "The pipeline is patient. It does the reading, the finding, the drafting — and then it waits for you.",
+    "The pipeline is patient. It does the reading, the finding, the drafting. And then it waits for you.",
   body:
     "Sellari is built around a hard kill-switch: outbound email is off by default, and every send path respects it. Drafts queue for your review, follow-ups pause while sending is off, and a contact who says no is never contacted again.",
   points: [
@@ -139,7 +139,7 @@ export const TESTIMONIALS = [
   },
   {
     quote:
-      "I was skeptical about agents touching our domain reputation. Then I realized nothing sends until I approve it — that’s the reason we rolled it out.",
+      "I was skeptical about agents touching our domain reputation. Then I realized nothing sends until I approve it. That’s the reason we rolled it out.",
     name: "Priya Raghavan",
     role: "VP Sales, developer-tools company",
   },
@@ -148,11 +148,11 @@ export const TESTIMONIALS = [
 export const FAQ = [
   {
     q: "Where do the contacts come from?",
-    a: "Public LinkedIn profiles surfaced through real search results, filtered to commercial decision-making roles. If no genuine profile is found, a company yields zero contacts — names are never invented. You can also add contacts yourself.",
+    a: "Public LinkedIn profiles surfaced through real search results, filtered to commercial decision-making roles. If no genuine profile is found, a company yields zero contacts; names are never invented. You can also add contacts yourself.",
   },
   {
     q: "What happens when no email can be verified?",
-    a: "The contact stays marked Unknown with no address, and no outreach is drafted for them. On catch-all mail servers — where a specific mailbox can’t be confirmed — the best-guess address is kept and clearly labeled Risky.",
+    a: "The contact stays marked Unknown with no address, and no outreach is drafted for them. On catch-all mail servers, where a specific mailbox can’t be confirmed, the best-guess address is kept and clearly labeled Risky.",
   },
   {
     q: "When does anything actually get sent?",
@@ -160,11 +160,11 @@ export const FAQ = [
   },
   {
     q: "Can I re-run a single agent without redoing everything?",
-    a: "Yes — each stage can be re-run on its own, and downstream results are cleared so you see a clean picture instead of a stale mix. Already-verified emails are always kept: they’re confirmed, so they’re never re-verified or re-charged.",
+    a: "Yes. Each stage can be re-run on its own, and downstream results are cleared so you see a clean picture instead of a stale mix. Already-verified emails are always kept: they’re confirmed, so they’re never re-verified or re-charged.",
   },
   {
     q: "How do meetings get booked?",
-    a: "Connect your Google Calendar, and booking a meeting creates a real event with a Google Meet link on your calendar. Prefer not to connect? Supply your own link instead — Sellari never fabricates one.",
+    a: "Connect your Google Calendar, and booking a meeting creates a real event with a Google Meet link on your calendar. Prefer not to connect? Supply your own link instead; Sellari never fabricates one.",
   },
 ] as const;
 

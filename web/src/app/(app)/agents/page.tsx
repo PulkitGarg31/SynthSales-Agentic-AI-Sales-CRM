@@ -177,7 +177,7 @@ export default function AgentsPage() {
           <li>
             The follow-up tracker polls on a schedule. A thread only gets a
             follow-up after our last message has gone unanswered for the
-            configured delay — a reply always pauses the sequence.
+            configured delay. A reply always pauses the sequence.
           </li>
           <li>
             After three unanswered nudges a thread is marked Stalled and left
@@ -196,7 +196,7 @@ export default function AgentsPage() {
       </Card>
 
       {/* Disabling warns first; enabling is instant. Failure keeps the modal
-          open — useAction toasts, we re-throw. */}
+          open; useAction toasts, we re-throw. */}
       <ConfirmModal
         open={disabling !== null}
         onClose={() => setDisabling(null)}

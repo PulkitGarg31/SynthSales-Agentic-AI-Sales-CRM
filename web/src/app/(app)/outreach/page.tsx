@@ -26,7 +26,7 @@ function OutreachInner() {
   const campaigns = useApi(api.campaigns);
 
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
-  // Threads opened by sends made in THIS session, keyed by draft id — the
+  // Threads opened by sends made in THIS session, keyed by draft id - the
   // freshest possible "View thread" target for a just-sent draft.
   const [sentThreads, setSentThreads] = useState<Record<number, number>>({});
 
@@ -44,7 +44,7 @@ function OutreachInner() {
     () => (ready ? api.drafts(selectedId ?? undefined) : Promise.resolve(null)),
     [ready, selectedId],
   );
-  // Drafts carry only contact_id — join names/emails from the contacts list
+  // Drafts carry only contact_id - join names/emails from the contacts list
   // (same scope), and resolve thread links for already-Sent drafts from the
   // threads list (a thread points back at its contact).
   const contacts = useApi<Contact[] | null>(
@@ -64,7 +64,7 @@ function OutreachInner() {
 
   // Contact id → company display name (the contacts list already carries the
   // join the drafts list needs, via the threads rows' company_name; but the
-  // canonical source is the company list — threads only exist after a send).
+  // canonical source is the company list - threads only exist after a send).
   const idsKey = (selectedId !== null ? [selectedId] : all.map((c) => c.id)).join(",");
   const companyNames = useApi<Record<number, string>>(async () => {
     const ids = idsKey === "" ? [] : idsKey.split(",").map(Number);
@@ -76,7 +76,7 @@ function OutreachInner() {
 
   const threadByContact = useMemo(() => {
     const map = new Map<number, number>();
-    // Walk oldest-first so the EARLIEST thread per contact wins — that's the
+    // Walk oldest-first so the EARLIEST thread per contact wins - that's the
     // one the outreach draft opened (list comes newest-first).
     const rows = [...(threads.data ?? [])].reverse();
     for (const t of rows) if (t.contact_id != null) map.set(t.contact_id, t.id);
@@ -106,11 +106,11 @@ function OutreachInner() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Outbound kill-switch banner — pinned while sending is paused. The
+      {/* Outbound kill-switch banner - pinned while sending is paused. The
           send button stays visible; the backend 403 is surfaced inline. */}
       {!me.outbound_enabled && (
         <div className="rounded-2xl border border-amber/40 bg-amber/10 px-5 py-3 text-sm text-amber-deep">
-          Outbound sending is paused — drafts can be edited and tested, but nothing
+          Outbound sending is paused. Drafts can be edited and tested, but nothing
           reaches a prospect.{" "}
           <Link
             href="/settings?tab=sending"
@@ -202,7 +202,7 @@ function OutreachInner() {
                             <Badge tone={DRAFT_TONE[d.state]}>{d.state}</Badge>
                           </div>
                           <p className="mt-0.5 truncate text-xs text-ink-faint">
-                            {[meta.companyName, d.subject].filter(Boolean).join(" · ") || "—"}
+                            {[meta.companyName, d.subject].filter(Boolean).join(" · ") || "-"}
                           </p>
                         </button>
                       </li>

@@ -12,7 +12,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 
 /**
  * Notification bell: unread count + latest-5 dropdown. This is the shell's
- * single WS subscription — a `notification` frame fires a toast and refetches
+ * single WS subscription - a `notification` frame fires a toast and refetches
  * the list from REST (frames carry no id/read/created_at, so the count is
  * always derived from the API, never constructed from the frame). Opening the
  * dropdown marks nothing read.
@@ -21,7 +21,7 @@ export function Bell() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
-  // Close on route change — the shell persists across navigation.
+  // Close on route change - the shell persists across navigation.
   const pathname = usePathname();
   const [prevPath, setPrevPath] = useState(pathname);
   if (pathname !== prevPath) {
@@ -36,7 +36,7 @@ export function Bell() {
       wsSubscribe((e) => {
         if (e.event !== "notification") return;
         const { type, title, detail } = e.data;
-        toast(detail ? `${title} — ${detail}` : title, type === "error" ? "error" : "success");
+        toast(detail ? `${title} · ${detail}` : title, type === "error" ? "error" : "success");
         reload(); // refetch count + list; the frame has no row to merge locally
       }),
     [toast, reload],
@@ -85,7 +85,7 @@ export function Bell() {
             </div>
             {latest.length === 0 ? (
               <p className="px-4 py-3 font-serif italic text-sm text-ink-soft">
-                Nothing yet — agent activity will land here.
+                Nothing yet. Agent activity will land here.
               </p>
             ) : (
               <ul>

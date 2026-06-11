@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Always the backend's anti-enumeration generic — never reveals whether the
+  // Always the backend's anti-enumeration generic - never reveals whether the
   // account exists.
   const [note, setNote] = useState<string | null>(null);
   const [devOtp, setDevOtp] = useState<string | null>(null);

@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = { title: "Page not found" };
 
-// Root-level 404 — renders outside the (marketing)/(app) layouts, so it carries
+// Root-level 404 - renders outside the (marketing)/(app) layouts, so it carries
 // its own minimal centered cream treatment (body is already cream).
 export default function NotFound() {
   return (

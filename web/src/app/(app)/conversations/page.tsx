@@ -33,12 +33,12 @@ function ThreadRow({
   onSelect,
 }: {
   thread: Thread;
-  /** Open in the detail pane — also treated as "read" so the dot clears without a refetch. */
+  /** Open in the detail pane - also treated as "read" so the dot clears without a refetch. */
   active: boolean;
   onSelect: () => void;
 }) {
   const who =
-    [thread.company_name, thread.contact_name].filter(Boolean).join(" — ") ||
+    [thread.company_name, thread.contact_name].filter(Boolean).join(" · ") ||
     thread.email ||
     `Thread #${thread.id}`;
   return (
@@ -64,7 +64,7 @@ function ThreadRow({
           </span>
           <span className="shrink-0 text-xs text-ink-faint">{relTime(thread.last_activity)}</span>
         </div>
-        <p className="mt-0.5 truncate text-xs text-ink-faint">{thread.subject || "—"}</p>
+        <p className="mt-0.5 truncate text-xs text-ink-faint">{thread.subject || "-"}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <Badge tone={STAGE_TONE[thread.stage]}>{thread.stage}</Badge>
           {thread.last_intent && (
@@ -117,9 +117,9 @@ function ConversationsInner() {
   const syncInbox = () =>
     void run("sync", api.syncInbox, {
       onDone: (r) => {
-        // A {0,0} sync with no mailbox isn't "all caught up" — say what's missing.
+        // A {0,0} sync with no mailbox isn't "all caught up" - say what's missing.
         if (r.ingested === 0 && r.classified === 0 && !me.mailbox_connected) {
-          toast("No mailbox connected — connect Gmail in Settings → Connections.", "error");
+          toast("No mailbox connected. Connect Gmail in Settings → Connections.", "error");
           return;
         }
         toast(`${r.ingested} ingested · ${r.classified} classified`, "success");
@@ -155,7 +155,7 @@ function ConversationsInner() {
       ) : all.length === 0 ? (
         <EmptyState
           title="No conversations yet"
-          line="Threads open when an outreach email goes out — start with a campaign."
+          line="Threads open when an outreach email goes out. Start with a campaign."
           action={
             <Button onClick={() => router.push("/campaigns/new")}>Start a campaign</Button>
           }
@@ -212,7 +212,7 @@ function ConversationsInner() {
                 )}
               </Card>
 
-              {/* Detail pane — fetches by id, so a deep link to a thread outside
+              {/* Detail pane - fetches by id, so a deep link to a thread outside
                   the current campaign filter still opens (the list just won't
                   highlight it). */}
               {threadId === null ? (

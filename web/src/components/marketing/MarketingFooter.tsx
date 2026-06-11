@@ -22,7 +22,7 @@ export function MarketingFooter() {
                 {column.links.map((link) => (
                   <li key={link.label}>
                     {link.href === "#" ? (
-                      // No real target yet — plain text, not a keyboard stop to nowhere.
+                      // No real target yet - plain text, not a keyboard stop to nowhere.
                       <span className="text-sm text-ink-faint">{link.label}</span>
                     ) : (
                       <Link
@@ -43,7 +43,7 @@ export function MarketingFooter() {
           <p className="font-serif italic">Built for quiet pipelines.</p>
         </div>
       </div>
-      {/* Giant closing wordmark — pure text per the design reference, not the
+      {/* Giant closing wordmark - pure text per the design reference, not the
           Wordmark component (the emblem PNG is sized for UI chrome, not 14vw). */}
       <p aria-hidden className="display select-none overflow-hidden px-2 pb-2 pt-8 text-[14vw] leading-none">
         sellari <em>ai</em>

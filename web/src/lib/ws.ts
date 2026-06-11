@@ -50,9 +50,9 @@ function ensure() {
   ws.onclose = (ev) => {
     if (socket !== ws) return; // a newer socket already replaced this one
     socket = null;
-    if (listeners.size === 0) return; // nobody cares — stay disconnected
+    if (listeners.size === 0) return; // nobody cares - stay disconnected
     // 1008 = policy violation: the server rejected the token. Reconnecting
-    // would loop forever with the same dead JWT — wait for a fresh ensure().
+    // would loop forever with the same dead JWT - wait for a fresh ensure().
     if (ev.code === 1008) return;
     const delay = Math.min(30_000, 1000 * 2 ** attempt++); // capped exponential backoff
     reconnectTimer = setTimeout(ensure, delay);

@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 /**
  * Book a meeting on a thread. With a connected Google Calendar the backend
  * creates a real event with a Meet link; without one the user must paste a
- * link — the backend 422s otherwise, and that detail renders inline on the
+ * link - the backend 422s otherwise, and that detail renders inline on the
  * link field (the DraftEditor inline-error pattern).
  */
 export function BookMeetingModal({
@@ -22,7 +22,7 @@ export function BookMeetingModal({
   open: boolean;
   onClose: () => void;
   threadId: number;
-  /** Booking succeeded — refetch the thread (stage flips to Meeting). */
+  /** Booking succeeded - refetch the thread (stage flips to Meeting). */
   onBooked: () => void;
 }) {
   const { toast } = useToast();

@@ -14,7 +14,7 @@ export function usePipeline(campaignId: number) {
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   // Guards watch() calls that land after unmount (e.g. an action's onDone
-  // resolving post-navigation) — they must not start a leaked interval.
+  // resolving post-navigation) - they must not start a leaked interval.
   const alive = useRef(true);
 
   const load = useCallback(async (): Promise<boolean> => {
@@ -38,7 +38,7 @@ export function usePipeline(campaignId: number) {
   useEffect(() => {
     alive.current = true;
     // Deliberate (same contract as useApi): `load` only sets state after its
-    // fetch resolves — nothing here sets state synchronously in the effect.
+    // fetch resolves - nothing here sets state synchronously in the effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
       .then((running) => running && watch())

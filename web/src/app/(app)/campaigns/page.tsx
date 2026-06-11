@@ -65,7 +65,7 @@ function RowMenu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenuFor(null);
     };
-    // The menu's fixed position is measured at open time — scrolling/resizing
+    // The menu's fixed position is measured at open time - scrolling/resizing
     // would detach it from its anchor, so just close it.
     const onMove = () => setMenuFor(null);
     document.addEventListener("keydown", onKey);
@@ -245,7 +245,7 @@ export default function CampaignsPage() {
     );
   };
 
-  // Busy keys are "<action>:<id>" — the trailing ":<id>" match keeps the
+  // Busy keys are "<action>:<id>" - the trailing ":<id>" match keeps the
   // spinner on the one affected row.
   const rowBusy = (id: number) => busy !== null && busy.endsWith(`:${id}`);
 

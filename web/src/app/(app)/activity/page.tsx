@@ -18,7 +18,7 @@ import { SkeletonRows } from "@/components/ui/Skeleton";
 const MAX_ROWS = 500;
 
 // One unified row shape for fetched logs and live WS frames (frames carry no
-// timestamp — we stamp them with client receive time, the dashboard pattern).
+// timestamp - we stamp them with client receive time, the dashboard pattern).
 interface ActivityItem {
   key: string;
   time: Date;
@@ -35,7 +35,7 @@ const LEVEL_TEXT: Record<string, string> = {
   error: "text-rust",
 };
 
-/** "Jun 11 14:03:22" — derived purely from the row's own date. */
+/** "Jun 11 14:03:22" - derived purely from the row's own date. */
 function stamp(d: Date): string {
   const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return `${date} ${d.toTimeString().slice(0, 8)}`;
@@ -83,7 +83,7 @@ export default function ActivityPage() {
       wsSubscribe((e) => {
         if (e.event !== "log") return;
         // Keep the stream consistent with the fetched filter: when a category
-        // chip is active, drop non-matching frames (case-insensitive — fetched
+        // chip is active, drop non-matching frames (case-insensitive - fetched
         // categories are TitleCase, frames echo whatever the backend logged).
         if (
           category !== "All" &&
@@ -99,7 +99,7 @@ export default function ActivityPage() {
         };
         if (paused) {
           bufferRef.current.push(row);
-          // Cap the buffer like the rendered list — only the newest 500 could
+          // Cap the buffer like the rendered list - only the newest 500 could
           // survive the flush anyway, so don't hoard older frames in memory.
           if (bufferRef.current.length > MAX_ROWS) bufferRef.current.shift();
           setBuffered(bufferRef.current.length);
@@ -129,7 +129,7 @@ export default function ActivityPage() {
   const pickCategory = (value: string) => {
     if (value === category) return;
     setCategory(value);
-    // Live + buffered rows belong to the previous filter — drop them.
+    // Live + buffered rows belong to the previous filter - drop them.
     setLive([]);
     bufferRef.current = [];
     setBuffered(0);

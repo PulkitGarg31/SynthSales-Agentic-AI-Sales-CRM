@@ -135,7 +135,7 @@ function SettingsInner() {
   // ---- tab ↔ URL (one-directional, like the campaign filter chips) ----------
   const rawTab = search.get("tab");
   // A fresh OAuth redirect (?calendar=… / ?mailbox=…) carries no tab param but
-  // belongs on Connections — infer it so the right tab shows before the URL is
+  // belongs on Connections - infer it so the right tab shows before the URL is
   // cleaned up below.
   const cbParam = search.get("calendar") ?? search.get("mailbox");
   const tab: Tab = (TAB_VALUES as readonly string[]).includes(rawTab ?? "")
@@ -162,8 +162,8 @@ function SettingsInner() {
       toast("You declined the Google consent screen.", "error");
     } else {
       // state (expired/forged state, missing code, unknown user) or exchange
-      // (no refresh token from Google) — both mean "start the flow over".
-      toast("Connection failed — try again.", "error");
+      // (no refresh token from Google) - both mean "start the flow over".
+      toast("Connection failed. Try again.", "error");
     }
     router.replace("/settings?tab=connections");
   }, [search, refresh, router, toast]);
@@ -182,7 +182,7 @@ function SettingsInner() {
       {
         success: enabled
           ? "Real sending is on"
-          : "Sending paused — nothing reaches a prospect",
+          : "Sending paused: nothing reaches a prospect",
       },
     );
 
@@ -257,7 +257,7 @@ function SettingsInner() {
                 busy={busy === "outbound"}
                 label="Real email sending"
                 onToggle={() =>
-                  // Pausing is the safe direction — instant. Enabling warns first.
+                  // Pausing is the safe direction - instant. Enabling warns first.
                   me.outbound_enabled
                     ? void setOutbound(false)
                     : setConfirmEnable(true)
@@ -273,7 +273,7 @@ function SettingsInner() {
               </Badge>
               <span>
                 {emailMode === "console"
-                  ? "The email provider is in console mode — messages are only logged on the backend, so nothing is delivered even while sending is on."
+                  ? "The email provider is in console mode: messages are only logged on the backend, so nothing is delivered even while sending is on."
                   : emailMode === "gmail"
                     ? "Outbound mail is delivered through the Gmail API."
                     : "Outbound mail is delivered through SMTP."}
@@ -321,7 +321,7 @@ function SettingsInner() {
           </Card>
         ))}
 
-      {/* Enabling real sending is the dangerous direction — confirm first.
+      {/* Enabling real sending is the dangerous direction - confirm first.
           Failure keeps the modal open (useAction toasts, we re-throw). */}
       <ConfirmModal
         open={confirmEnable}
@@ -329,7 +329,7 @@ function SettingsInner() {
         title="Turn on real sending?"
         body={
           <p>
-            Emails will actually reach prospects — outreach sends, automatic
+            Emails will actually reach prospects: outreach sends, automatic
             follow-ups, and meeting invites all go out for real. You can pause
             again at any time.
           </p>

@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/Field";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { BookMeetingModal } from "./BookMeetingModal";
 
-/** Absolute timestamp for message headers — mono, compact. */
+/** Absolute timestamp for message headers - mono, compact. */
 function stamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     month: "short",
@@ -61,14 +61,14 @@ export function ThreadView({
   onChanged,
 }: {
   threadId: number;
-  /** A mutation changed list-visible fields (stage, last_activity) — refetch the inbox. */
+  /** A mutation changed list-visible fields (stage, last_activity) - refetch the inbox. */
   onChanged: () => void;
 }) {
   const { toast } = useToast();
   const { busy, run } = useAction();
 
   const detail = useApi(() => api.thread(threadId), [threadId]);
-  // ThreadDetail doesn't carry do_not_contact — join it from the campaign's
+  // ThreadDetail doesn't carry do_not_contact - join it from the campaign's
   // contacts list (the same rows the contacts page reads).
   const campaignId = detail.data?.campaign_id ?? null;
   const contacts = useApi<Contact[] | null>(
@@ -117,7 +117,7 @@ export function ThreadView({
     await run(
       "reopen",
       () => api.overrideStage(threadId, { stage: "Contacted", clear_do_not_contact: true }),
-      { success: "Thread reopened — outreach can resume.", onDone: refetch },
+      { success: "Thread reopened. Outreach can resume.", onDone: refetch },
     );
   };
 
@@ -154,7 +154,7 @@ export function ThreadView({
           <div className="min-w-0">
             <h2 className="display text-xl">{t.contact_name || "Unknown contact"}</h2>
             <p className="mt-0.5 text-sm text-ink-soft">
-              {[t.role, t.company_name].filter(Boolean).join(" · ") || "—"}
+              {[t.role, t.company_name].filter(Boolean).join(" · ") || "-"}
             </p>
             {t.email && <p className="mt-0.5 font-mono text-xs text-ink-faint">{t.email}</p>}
           </div>
@@ -230,7 +230,7 @@ export function ThreadView({
 
         {optedOut && (
           <div className="mt-3 rounded-xl border border-rust/40 bg-rust/10 px-4 py-2.5 text-sm text-rust">
-            This contact opted out — every send path (replies, follow-ups, invites) is
+            This contact opted out. Every send path (replies, follow-ups, invites) is
             suppressed. Reopening the thread clears the do-not-contact flag.
           </div>
         )}

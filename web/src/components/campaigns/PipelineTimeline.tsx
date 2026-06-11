@@ -18,15 +18,15 @@ const DOT: Record<string, string> = {
 };
 
 // Stages the backend marks non-runnable fire on their own triggers, not a
-// button — say which trigger.
+// button - say which trigger.
 const NON_RUNNABLE_NOTE: Record<string, string> = {
   meeting: "Fires when you book a meeting from a conversation.",
   reply_classifier: "Runs when your inbox syncs.",
 };
 
-/** "2h ago"-style relative time; "—" when the agent has never run. */
+/** "2h ago"-style relative time; "-" when the agent has never run. */
 function relTime(iso?: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
@@ -43,7 +43,7 @@ function AgentRow({
   onRerun,
 }: {
   agent: PipelineAgent;
-  /** Last row in the rail — no connecting line below its dot. */
+  /** Last row in the rail - no connecting line below its dot. */
   last: boolean;
   busy: string | null;
   onRun: (agent: PipelineAgent) => void;
@@ -52,7 +52,7 @@ function AgentRow({
   const label = AGENT_LABELS[agent.key] ?? agent.name;
   const running = agent.status === "Running";
   // Lock this row's controls while ITS run is in flight (or the agent is
-  // already Running) — other rows stay usable.
+  // already Running) - other rows stay usable.
   const locked = running || (busy !== null && busy.endsWith(`:${agent.key}`));
   const pct =
     agent.total > 0
@@ -126,7 +126,7 @@ export function PipelineTimeline({
 }: {
   campaignId: number;
   agents: PipelineAgent[];
-  /** Called after a run is accepted — refresh the pipeline and start polling. */
+  /** Called after a run is accepted - refresh the pipeline and start polling. */
   onStarted: () => void;
 }) {
   const { busy, run } = useAction();

@@ -92,7 +92,7 @@ export function ConfirmModal({
   }
 
   const blocked = !!typedPhrase && typed !== typedPhrase;
-  // Escape/overlay/Cancel must not dismiss mid-flight — the action completes
+  // Escape/overlay/Cancel must not dismiss mid-flight - the action completes
   // anyway, and a vanished dialog would read as "cancelled".
   const close = () => {
     if (!busy) onClose();

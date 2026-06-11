@@ -44,13 +44,13 @@ const ICON_TONE: Record<Tone, string> = {
   terracotta: "text-terracotta",
 };
 
-/** Honest per-outcome copy for the Re-research toast — keyed off the FRESH response. */
+/** Honest per-outcome copy for the Re-research toast - keyed off the FRESH response. */
 function enrichToast(r: CompanyDetailData): string {
   if (r.domain_status === "dead")
-    return "Re-research complete — site still unreachable, no new signals.";
+    return "Re-research complete. Site still unreachable, no new signals.";
   if (r.domain_status === "parked")
-    return "Re-research complete — the site still appears parked.";
-  return `Re-research complete — confidence ${r.enrichment_confidence}/100.`;
+    return "Re-research complete. The site still appears parked.";
+  return `Re-research complete. Confidence ${r.enrichment_confidence}/100.`;
 }
 
 // ---- local components ------------------------------------------------------
@@ -84,7 +84,7 @@ function ContactRow({ contact, onSaved }: { contact: Contact; onSaved: () => voi
   const { busy, run } = useAction();
 
   // Tri-state approval: clicking the active state again clears back to null
-  // (undecided); clicking the other side flips it. No success toast — the row
+  // (undecided); clicking the other side flips it. No success toast - the row
   // repaints, and a toast per click would be noise. Errors still surface.
   const setApproval = (key: string, next: boolean | null) =>
     void run(key, () => api.updateContact(contact.id, { approved: next }), {
@@ -111,10 +111,10 @@ function ContactRow({ contact, onSaved }: { contact: Contact; onSaved: () => voi
             </a>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-ink-faint">{contact.role || "—"}</p>
+        <p className="mt-0.5 text-xs text-ink-faint">{contact.role || "-"}</p>
       </td>
       <td className="px-5 py-3 font-mono text-xs text-ink-soft">
-        {contact.email || "—"}
+        {contact.email || "-"}
       </td>
       <td className="px-5 py-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -273,7 +273,7 @@ function MailDomainField({
     <Field
       label="Mail domain"
       htmlFor="mail-domain"
-      hint="Where this company's inboxes actually live — e.g. acme-corp.com. Used by the email verifier."
+      hint="Where this company's inboxes actually live, e.g. acme-corp.com. Used by the email verifier."
     >
       <div className="flex gap-2">
         <Input
@@ -360,10 +360,10 @@ export function CompanyDetail({ id }: { id: number }) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Domain-health banner — only when research could not see a real site */}
+      {/* Domain-health banner - only when research could not see a real site */}
       {c.domain_status === "parked" && (
         <div className="rounded-2xl border border-amber/40 bg-amber/10 px-5 py-3 text-sm text-amber-deep">
-          This domain serves a parked page — verify manually before outreach.
+          This domain serves a parked page. Verify manually before outreach.
         </div>
       )}
       {c.domain_status === "dead" && (
@@ -401,7 +401,7 @@ export function CompanyDetail({ id }: { id: number }) {
           </div>
         </div>
 
-        {/* Actions — per-button busy; the others lock while one is in flight */}
+        {/* Actions - per-button busy; the others lock while one is in flight */}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="secondary"
@@ -438,7 +438,7 @@ export function CompanyDetail({ id }: { id: number }) {
               setStatus(
                 "exclude",
                 excluded ? "Reviewed" : "Excluded",
-                excluded ? "Exclusion cleared — back to Reviewed" : "Company excluded",
+                excluded ? "Exclusion cleared, back to Reviewed" : "Company excluded",
               )
             }
           >
@@ -452,7 +452,7 @@ export function CompanyDetail({ id }: { id: number }) {
               setStatus(
                 "approve",
                 approved ? "Reviewed" : "Approved",
-                approved ? "Approval cleared — back to Reviewed" : "Company approved",
+                approved ? "Approval cleared, back to Reviewed" : "Company approved",
               )
             }
           >

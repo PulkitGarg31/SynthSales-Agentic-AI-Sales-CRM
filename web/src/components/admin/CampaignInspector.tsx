@@ -52,7 +52,7 @@ export function CampaignInspector({
 }: {
   campaignId: number;
   onClose: () => void;
-  /** Called after a successful delete — close the drawer and refetch the list. */
+  /** Called after a successful delete - close the drawer and refetch the list. */
   onDeleted: () => void;
 }) {
   const detail = useApi(() => api.adminCampaignDetail(campaignId), [campaignId]);
@@ -105,7 +105,7 @@ export function CampaignInspector({
                 <article key={co.id} className="rounded-xl border border-line p-4">
                   <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                     <span className="font-mono text-xs tabular-nums text-ink-faint">
-                      {co.rank ? `#${co.rank}` : "—"}
+                      {co.rank ? `#${co.rank}` : "-"}
                     </span>
                     <span className="min-w-0 font-medium text-ink">{co.name}</span>
                     <span className="font-mono text-xs tabular-nums text-ink-soft">

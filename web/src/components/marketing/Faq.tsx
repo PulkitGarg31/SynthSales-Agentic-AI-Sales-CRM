@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { FAQ } from "@/lib/copy";
 
-// Native <details>/<summary> accordion — no client JS needed.
+// Native <details>/<summary> accordion - no client JS needed.
 export function Faq() {
   return (
     <section className="border-t border-line">

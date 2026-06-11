@@ -25,7 +25,7 @@ const MEETING_TONE: Record<string, Tone> = {
   "No-show": "amber",
 };
 
-/** "Mar 4, 2026 · 14:30" — absolute, 24h. */
+/** "Mar 4, 2026 · 14:30" - absolute, 24h. */
 function absTime(iso: string): string {
   const d = new Date(iso);
   const date = d.toLocaleDateString("en-US", {
@@ -54,7 +54,7 @@ function relTime(iso: string): string {
 
 /**
  * Upcoming = status Upcoming AND still in the future, soonest first. Past is
- * everything else, latest first — including overdue still-"Upcoming" meetings,
+ * everything else, latest first - including overdue still-"Upcoming" meetings,
  * which keep their "Mark completed" button so they can be closed out. One
  * `now` boundary so a meeting can't land in both lists.
  */
@@ -101,7 +101,7 @@ function MeetingCard({ meeting, onSaved }: { meeting: Meeting; onSaved: () => vo
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium text-ink">
-            {meeting.company || "—"}
+            {meeting.company || "-"}
             {meeting.contact && (
               <span className="text-ink-soft"> · {meeting.contact}</span>
             )}
@@ -193,7 +193,7 @@ export default function MeetingsPage() {
       ) : all.length === 0 ? (
         <EmptyState
           title="Nothing scheduled"
-          line="No meetings on the books — yet."
+          line="No meetings on the books. Yet."
           action={
             <Button onClick={() => router.push("/conversations")}>
               Open conversations

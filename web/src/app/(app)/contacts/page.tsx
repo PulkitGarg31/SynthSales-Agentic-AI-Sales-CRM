@@ -39,7 +39,7 @@ function ContactRow({
 
   // Tri-state approval (same semantics as the company-detail contact table):
   // clicking the active state clears back to null (undecided), clicking the
-  // other side flips it. Silent on success — the row repaints.
+  // other side flips it. Silent on success - the row repaints.
   const setApproval = (key: string, next: boolean | null) =>
     void run(key, () => api.updateContact(contact.id, { approved: next }), {
       onDone: onSaved,
@@ -73,7 +73,7 @@ function ContactRow({
             </a>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-ink-faint">{contact.role || "—"}</p>
+        <p className="mt-0.5 text-xs text-ink-faint">{contact.role || "-"}</p>
       </td>
       <td className="px-5 py-3">
         <Link
@@ -84,7 +84,7 @@ function ContactRow({
         </Link>
       </td>
       <td className="px-5 py-3 font-mono text-xs text-ink-soft">
-        {contact.email || "—"}
+        {contact.email || "-"}
       </td>
       <td className="px-5 py-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -180,7 +180,7 @@ function ContactsInner() {
     [ready, selectedId],
   );
 
-  // The contacts list carries only company_id — resolve names from the company
+  // The contacts list carries only company_id - resolve names from the company
   // lists (one fetch when scoped, parallel fetches across campaigns for "All").
   const idsKey = (selectedId !== null ? [selectedId] : all.map((c) => c.id)).join(",");
   const companyNames = useApi<Record<number, string>>(async () => {
@@ -193,7 +193,7 @@ function ContactsInner() {
 
   const rows = contacts.data ?? [];
   // Stale-while-reload: only the very first fetch gets a skeleton; later
-  // reloads (chip switch, toggle saves) repaint in place — no table flash.
+  // reloads (chip switch, toggle saves) repaint in place - no table flash.
   const initialLoad = contacts.loading && contacts.data === null;
 
   return (
@@ -293,14 +293,14 @@ function ContactsInner() {
       )}
 
       {/* Page-level (a modal can't live inside <tbody>); one instance serves
-          every row. Failure keeps it open — useAction toasts, we re-throw. */}
+          every row. Failure keeps it open; useAction toasts, we re-throw. */}
       <ConfirmModal
         open={optOutTarget !== null}
         onClose={() => setOptOutTarget(null)}
         title={`Stop contacting ${optOutTarget?.name ?? "this contact"}?`}
         body={
           <p>
-            Every send path will skip them — outreach drafts, follow-ups and
+            Every send path will skip them: outreach drafts, follow-ups and
             meeting invites.
           </p>
         }

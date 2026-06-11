@@ -2,7 +2,7 @@
 
 // Controlled CSV dropzone: the parent owns the File; CsvDrop validates,
 // parses a preview, and reports accepted files via onFile (null on remove or
-// rejection). Parsing is plain JS — quoted cells with commas and doubled
+// rejection). Parsing is plain JS - quoted cells with commas and doubled
 // quotes ("") are handled, but a newline INSIDE a quoted cell is treated as a
 // row break (good enough for company lists; the backend's csv module is the
 // source of truth on upload).
@@ -76,7 +76,7 @@ function parseCsv(text: string): Preview | { error: string } {
         "No company-name column found. The header row needs a “company_name”, “company” or “name” column.",
     };
   }
-  if (lines.length === 1) return { error: "That file only has a header row — no companies." };
+  if (lines.length === 1) return { error: "That file only has a header row, no companies." };
 
   return {
     headers,
@@ -106,7 +106,7 @@ export function CsvDrop({
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Sequence token: two quick drops race their async reads — only the latest wins.
+  // Sequence token: two quick drops race their async reads - only the latest wins.
   const readSeq = useRef(0);
 
   // The wizard unmounts this component on step navigation; when it remounts
@@ -137,7 +137,7 @@ export function CsvDrop({
       return;
     }
     if (f.size > MAX_BYTES) {
-      reject("That file is over 20 MB — split it into smaller lists.");
+      reject("That file is over 20 MB. Split it into smaller lists.");
       return;
     }
     let text: string;

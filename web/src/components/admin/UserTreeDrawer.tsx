@@ -15,7 +15,7 @@ import { CAMPAIGN_TONE, COMPANY_TONE, VERIFICATION_TONE } from "@/lib/constants"
  * Right-edge drawer for the admin drill-downs. Mount-only (render it
  * conditionally); same overlay contract as Modal: Escape closes, backdrop
  * mousedown closes, body scroll locks, focus moves into the panel and back to
- * the trigger on close. Renders inline (no portal) — ancestors must never gain
+ * the trigger on close. Renders inline (no portal) - ancestors must never gain
  * transform/filter. Pass a STABLE `onClose` (useCallback) or the focus/scroll
  * effect re-runs on every parent render.
  */
@@ -27,7 +27,7 @@ export function Drawer({
 }: {
   onClose: () => void;
   title: string;
-  /** max-w-2xl instead of max-w-xl — for dense inspector payloads. */
+  /** max-w-2xl instead of max-w-xl - for dense inspector payloads. */
   wide?: boolean;
   children: React.ReactNode;
 }) {
@@ -157,7 +157,7 @@ export function UserTreeDrawer({ userId, onClose }: { userId: number; onClose: (
                               className="shrink-0 text-ink-faint transition-transform group-open/co:rotate-90"
                             />
                             <span className="w-8 shrink-0 font-mono text-xs tabular-nums text-ink-faint">
-                              {co.rank ? `#${co.rank}` : "—"}
+                              {co.rank ? `#${co.rank}` : "-"}
                             </span>
                             <span className="min-w-0 flex-1 truncate text-ink">{co.name}</span>
                             <span className="shrink-0 font-mono text-xs tabular-nums text-ink-soft">

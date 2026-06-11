@@ -16,7 +16,7 @@ import type { User } from "@/lib/api-types";
 import { wsDisconnect } from "@/lib/ws";
 
 interface AuthCtx {
-  /** The signed-in user — non-null everywhere inside the provider. */
+  /** The signed-in user - non-null everywhere inside the provider. */
   me: User;
   /** Re-fetch /me (e.g. after toggling outbound or connecting an integration). */
   refresh: () => Promise<void>;
@@ -35,7 +35,7 @@ export function useAuth(): AuthCtx {
 /**
  * Wraps the authenticated (app) route group: loads the current user, redirects
  * to /login when there is no (valid) token, and renders a brand splash until
- * the user is known — protected content never flashes unauthenticated.
+ * the user is known - protected content never flashes unauthenticated.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       // Only a real HTTP rejection invalidates the session (401 already cleared
       // the token and redirected inside api.ts; this covers 403/500). A network
-      // failure — e.g. uvicorn --reload mid-restart — must NOT destroy a valid
+      // failure - e.g. uvicorn --reload mid-restart - must NOT destroy a valid
       // token: keep any stale `me` and retry shortly.
       if (e instanceof ApiError) {
         clearToken();

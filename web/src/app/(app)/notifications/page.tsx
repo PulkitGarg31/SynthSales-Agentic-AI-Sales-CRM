@@ -64,7 +64,7 @@ function NotificationRow({
       <button
         type="button"
         onClick={onRead}
-        // Read rows are inert — clicking them is a harmless no-op.
+        // Read rows are inert - clicking them is a harmless no-op.
         className={`flex w-full items-start gap-3 px-5 py-3.5 text-left transition-colors ${
           read ? "cursor-default" : "bg-paper hover:bg-paper/60"
         }`}
@@ -104,7 +104,7 @@ export default function NotificationsPage() {
   // A later refetch returns them as read anyway, so the set never goes stale.
   const [readIds, setReadIds] = useState<ReadonlySet<number>>(new Set());
 
-  // Notification frames carry no id/read/created_at — refetch the list instead
+  // Notification frames carry no id/read/created_at - refetch the list instead
   // of constructing rows from the frame (the Bell pattern).
   useEffect(
     () =>
@@ -171,7 +171,7 @@ export default function NotificationsPage() {
       ) : all.length === 0 ? (
         <EmptyState
           title="Nothing yet"
-          line="Agent activity — replies, meetings, verifications — lands here."
+          line="Agent activity (replies, meetings, verifications) lands here."
         />
       ) : (
         <>

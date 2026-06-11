@@ -45,7 +45,7 @@ export function clearToken() {
 }
 
 // Full-page entry point for the Google OAuth flow. It's a browser navigation
-// (the backend 302s to Google), not a fetch — so it's a URL, not an api method.
+// (the backend 302s to Google), not a fetch - so it's a URL, not an api method.
 export const googleStartUrl = () => `${API_URL}/api/auth/google/start`;
 
 export class ApiError extends Error {

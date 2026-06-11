@@ -1,6 +1,6 @@
 import { STATS } from "@/lib/copy";
 
-// Full-bleed dark band — cream serif numerals on band ink, per the reference.
+// Full-bleed dark band - cream serif numerals on band ink, per the reference.
 // (No desert photo asset exists; flat bg-band is the sanctioned fallback.)
 export function StatBand() {
   return (

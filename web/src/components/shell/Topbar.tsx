@@ -16,7 +16,7 @@ function OutboundChip() {
   return (
     <Link
       href="/settings?tab=sending"
-      aria-label="Sending paused — open sending settings"
+      aria-label="Sending paused, open sending settings"
       className="transition-opacity hover:opacity-75"
     >
       <Badge tone="amber">Sending paused</Badge>
@@ -36,7 +36,7 @@ function UserMenu() {
   const { me, signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
-  // The shell persists across navigation — close on route change so a menu
+  // The shell persists across navigation - close on route change so a menu
   // opened on one page can't linger over the next.
   const pathname = usePathname();
   const [prevPath, setPrevPath] = useState(pathname);

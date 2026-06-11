@@ -22,7 +22,7 @@ const SITE_LABEL: Record<Company["domain_status"], string> = {
   live: "Site live",
   parked: "Site parked",
   dead: "Site unreachable",
-  unknown: "—",
+  unknown: "-",
 };
 
 // ---- local components ------------------------------------------------------
@@ -40,11 +40,11 @@ function CompanyRow({ company }: { company: Company }) {
       className="cursor-pointer transition-colors hover:bg-cream/60"
     >
       <td className="px-5 py-3 text-right tabular-nums text-ink-soft">
-        {company.rank > 0 ? company.rank : "—"}
+        {company.rank > 0 ? company.rank : "-"}
       </td>
       <td className="px-5 py-3">
         <p className="font-medium text-ink">{company.name}</p>
-        <p className="mt-0.5 font-mono text-xs text-ink-faint">{company.domain || "—"}</p>
+        <p className="mt-0.5 font-mono text-xs text-ink-faint">{company.domain || "-"}</p>
       </td>
       <td className="px-5 py-3 text-right">
         <span className="font-serif text-2xl leading-none">{company.ai_score}</span>
@@ -76,14 +76,14 @@ function ResearchInner() {
   const campaigns = useApi(api.campaigns);
 
   // Selection is DERIVED, never written back to the URL except on a chip
-  // click — that keeps the chips↔URL sync one-directional (no replace loops).
+  // click - that keeps the chips↔URL sync one-directional (no replace loops).
   // An invalid/absent ?campaign falls back to the first (newest) campaign.
   const all = campaigns.data ?? [];
   const param = Number(search.get("campaign"));
   const selected = all.find((c) => c.id === param) ?? all[0] ?? null;
   const selectedId = selected?.id ?? null;
 
-  // Companies are kept in backend order (rank ASC, then name — the ranked
+  // Companies are kept in backend order (rank ASC, then name - the ranked
   // research order). While no campaign is selectable yet, resolve empty.
   const companies = useApi<Company[]>(
     () => (selectedId === null ? Promise.resolve([]) : api.campaignCompanies(selectedId)),

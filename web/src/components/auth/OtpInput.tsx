@@ -34,7 +34,7 @@ export function OtpInput({
   // the tail so retyping one wrong digit mid-code doesn't wipe the rest.
   const handleInput = (i: number, raw: string) => {
     const digits = raw.replace(/\D/g, "");
-    if (!digits) return; // non-digit input — controlled re-render restores the box
+    if (!digits) return; // non-digit input - controlled re-render restores the box
     const next = (value.slice(0, i) + digits + value.slice(i + digits.length)).slice(0, LEN);
     apply(next, i + digits.length);
   };
@@ -96,7 +96,7 @@ export function DevOtpNote({ code, onFill }: { code: string; onFill?: () => void
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-ink px-4 py-3 text-cream">
       <p className="text-xs">
-        Console mode — your code:{" "}
+        Console mode. Your code:{" "}
         <span className="font-mono text-sm tracking-widest">{code}</span>
       </p>
       {onFill && (

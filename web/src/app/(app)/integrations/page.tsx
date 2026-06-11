@@ -77,7 +77,7 @@ export default function IntegrationsPage() {
       <header>
         <h1 className="display text-3xl sm:text-4xl">Integrations</h1>
         <p className="mt-2 font-serif italic text-ink-soft">
-          What the backend can reach right now — everything degrades gracefully.
+          What the backend can reach right now. Everything degrades gracefully.
         </p>
       </header>
 
@@ -95,8 +95,8 @@ export default function IntegrationsPage() {
             tone={integ.ai ? "moss" : "faint"}
             line={
               integ.ai
-                ? "The LLM chain is live — research, scoring and drafting run at full depth."
-                : "Agents fall back to deterministic heuristics — research gets shallower."
+                ? "The LLM chain is live: research, scoring and drafting run at full depth."
+                : "Agents fall back to deterministic heuristics, so research gets shallower."
             }
           />
           <StatusCard
@@ -107,7 +107,7 @@ export default function IntegrationsPage() {
             line={
               integ.search
                 ? "DuckDuckGo search powers enrichment, domain checks and the people finder."
-                : "No web search — enrichment and the people finder can't reach the web."
+                : "No web search: enrichment and the people finder can't reach the web."
             }
           />
           <StatusCard
@@ -129,7 +129,7 @@ export default function IntegrationsPage() {
             line={
               integ.email_finder === "hunter"
                 ? "Hunter.io resolves one real address per company; the rest reuse its mail domain."
-                : "No Hunter.io key — the agent falls back to web domain-discovery and pattern guessing."
+                : "No Hunter.io key: the agent falls back to web domain-discovery and pattern guessing."
             }
           />
           <StatusCard
@@ -139,7 +139,7 @@ export default function IntegrationsPage() {
             tone={integ.email_mode === "console" ? "amber" : "moss"}
             line={
               integ.email_mode === "console"
-                ? "Emails are logged to the backend console — nothing is delivered."
+                ? "Emails are logged to the backend console. Nothing is delivered."
                 : integ.email_mode === "gmail"
                   ? "Outbound mail is delivered through the Gmail API."
                   : "Outbound mail is delivered through SMTP."
@@ -153,7 +153,7 @@ export default function IntegrationsPage() {
             line={
               integ.google_oauth
                 ? "Google sign-in and per-user Calendar / Gmail connections are available."
-                : "Not configured — Google sign-in, Calendar and mailbox connections are unavailable."
+                : "Not configured: Google sign-in, Calendar and mailbox connections are unavailable."
             }
           />
         </div>
@@ -170,7 +170,7 @@ export default function IntegrationsPage() {
             line={
               me.calendar_connected
                 ? "Booked meetings create real Calendar events with Google Meet links."
-                : "Not connected — bookings need a manually supplied meeting link."
+                : "Not connected: bookings need a manually supplied meeting link."
             }
             manageHref="/settings?tab=connections"
           />
@@ -182,7 +182,7 @@ export default function IntegrationsPage() {
             line={
               me.mailbox_connected
                 ? "The reply reader syncs your inbox and classifies inbound replies."
-                : "Not connected — inbound replies aren't ingested or classified."
+                : "Not connected: inbound replies aren't ingested or classified."
             }
             manageHref="/settings?tab=connections"
           />

@@ -89,7 +89,7 @@ export default function SignupPage() {
           <p className="mt-2 text-sm text-ink-soft">
             {emailSent
               ? `We sent a code to ${email}.`
-              : `Email delivery is off — use the code below to verify ${email}.`}
+              : `Email delivery is off. Use the code below to verify ${email}.`}
           </p>
         </div>
         {devOtp && <DevOtpNote code={devOtp} onFill={() => onCodeChange(devOtp)} />}

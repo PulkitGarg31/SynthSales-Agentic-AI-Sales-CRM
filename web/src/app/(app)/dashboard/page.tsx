@@ -46,7 +46,7 @@ function meetingWhen(iso: string): string {
 }
 
 // One unified row shape for fetched logs and live WS frames (which carry no
-// timestamp — we stamp them with client receive time).
+// timestamp - we stamp them with client receive time).
 interface ActivityItem {
   key: string;
   time: Date;
@@ -61,7 +61,7 @@ const LEVEL_DOT: Record<string, string> = {
   error: "bg-rust",
 };
 
-// Cream→terracotta progression by stage index — on-palette opacity steps only.
+// Cream→terracotta progression by stage index - on-palette opacity steps only.
 const FUNNEL_TONES = [
   "bg-ink/10",
   "bg-ink/25",
@@ -217,7 +217,7 @@ export default function DashboardPage() {
         />
       ) : (
         <>
-          {/* Stats + funnel — own the dashboard call's state */}
+          {/* Stats + funnel - own the dashboard call's state */}
           {dash.loading ? (
             <SkeletonRows n={3} />
           ) : dash.error ? (
@@ -248,7 +248,7 @@ export default function DashboardPage() {
             </>
           ) : null}
 
-          {/* Two columns: activity | upcoming meetings — each independent */}
+          {/* Two columns: activity | upcoming meetings - each independent */}
           <div className="grid gap-6 lg:grid-cols-2">
             <Card title="Activity" flush>
               <div className="mt-3 pb-2">

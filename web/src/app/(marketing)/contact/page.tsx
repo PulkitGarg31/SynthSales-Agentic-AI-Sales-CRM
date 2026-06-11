@@ -9,7 +9,7 @@ const CHANNELS = [
   {
     icon: Mail,
     title: "Say hello",
-    line: "Questions about the product, partnerships, or anything else — we read everything.",
+    line: "Questions about the product, partnerships, or anything else. We read everything.",
     email: "hello@sellari.ai",
   },
   {

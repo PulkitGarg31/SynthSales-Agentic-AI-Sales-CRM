@@ -34,7 +34,7 @@ function rowClickGuarded(e: React.MouseEvent, open: () => void) {
 }
 
 function Dash() {
-  return <span className="text-ink-faint">—</span>;
+  return <span className="text-ink-faint">-</span>;
 }
 
 // ---- users tab ---------------------------------------------------------------

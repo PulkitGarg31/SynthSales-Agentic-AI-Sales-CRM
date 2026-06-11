@@ -79,7 +79,7 @@ export function DraftEditor({
   threadId: number | null;
   /** Refetch the drafts list (subject/state may have changed). */
   onSaved: () => void;
-  /** A send succeeded — the response is the freshly-opened thread. */
+  /** A send succeeded - the response is the freshly-opened thread. */
   onSent: (thread: ThreadDetail) => void;
 }) {
   const { busy, run } = useAction();
@@ -105,7 +105,7 @@ export function DraftEditor({
           <div className="flex items-center gap-2.5">
             <Badge tone={DRAFT_TONE[draft.state]}>{draft.state}</Badge>
             <p className="text-sm text-ink-soft">
-              This email went out — the draft is closed for edits.
+              This email went out. The draft is closed for edits.
             </p>
           </div>
           <Link
@@ -155,7 +155,7 @@ export function DraftEditor({
     setSending(true);
     setSendError(null);
     try {
-      // The backend sends the STORED draft — persist edits first so the
+      // The backend sends the STORED draft - persist edits first so the
       // letter previewed here is the letter that actually goes out.
       if (dirty) await api.updateDraft(draft.id, { subject, body, footer });
       const thread = await api.sendFromDraft(draft.id);

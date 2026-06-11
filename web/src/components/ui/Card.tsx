@@ -7,7 +7,7 @@ export function Card({
 }: {
   title?: React.ReactNode;
   action?: React.ReactNode;
-  /** Omit the default padding — for edge-to-edge content like tables. */
+  /** Omit the default padding - for edge-to-edge content like tables. */
   flush?: boolean;
   className?: string;
   children: React.ReactNode;
