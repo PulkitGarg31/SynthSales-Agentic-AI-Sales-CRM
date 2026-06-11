@@ -25,6 +25,46 @@
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
+/* Class-based dark variant: the boot script in layout.tsx sets .dark on <html>
+   before paint; the ThemeToggle flips it. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark palette: the same warm editorial language, lights out. Every utility
+   reads these vars, so components need no dark: classes of their own. */
+.dark {
+  color-scheme: dark;
+  --color-cream: #16130f;
+  --color-paper: #1e1a15;
+  --color-ink: #ece5d6;
+  --color-ink-soft: #b3aa97;
+  --color-ink-faint: #7d7466;
+  --color-line: #2e2922;
+  --color-terracotta: #d4683c;
+  --color-band: #0d0b08;
+  --color-moss: #8aa67e;
+  --color-amber: #d9a847;
+  --color-amber-deep: #e2b765;
+  --color-rust: #e06a52;
+}
+
+/* Band sections are dark in BOTH themes - the text-cream inside them must stay
+   light, so re-point the cream var within any bg-band surface. */
+.dark .bg-band {
+  --color-cream: #f4efe6;
+}
+
+/* Overlay scrims must stay dark scrims; with ink flipped light, bg-ink/40
+   would read as a milky veil. */
+.dark .bg-ink\/40 {
+  background-color: rgb(0 0 0 / 0.65);
+}
+
+/* The engraved emblem PNG is cut for light backgrounds: flip its lightness,
+   then rotate hue back so the terracotta core stays terracotta. */
+.dark img[src*="emblem"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 /* Cascade notes:
    - `body` colors and `.display` are deliberately UN-layered: Tailwind utilities
      cannot override them (use the `!` important suffix if you ever must).

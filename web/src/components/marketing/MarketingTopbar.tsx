@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Wordmark } from "@/components/brand/Wordmark";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const NAV = [
   { label: "Product", href: "/#features" },
@@ -28,6 +29,7 @@ export function MarketingTopbar() {
           ))}
         </nav>
         <div className="flex items-center gap-1.5">
+          <ThemeToggle />
           <Link
             href="/login"
             className="rounded-full px-4 py-2 text-sm font-medium text-ink-soft transition hover:text-ink"

@@ -7,6 +7,7 @@ import { LogOut, Menu, Settings, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { eyebrowFor } from "@/lib/nav";
 import { Bell } from "./Bell";
 
@@ -129,6 +130,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       </div>
       <div className="flex items-center gap-3">
         <OutboundChip />
+        <ThemeToggle />
         <Bell />
         <UserMenu />
       </div>
