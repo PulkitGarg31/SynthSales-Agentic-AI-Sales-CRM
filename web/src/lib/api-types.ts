@@ -39,6 +39,7 @@ export interface User {
   name: string;
   email: string;
   is_verified: boolean;
+  is_admin: boolean;
   outbound_enabled: boolean;
   calendar_connected: boolean;
   mailbox_connected: boolean;
@@ -244,4 +245,160 @@ export interface ResendResponse {
 
 export interface AuthProviders {
   google: boolean;
+}
+
+export interface ForgotPasswordResponse {
+  detail: string;
+  email_sent: boolean;
+  dev_otp?: string | null;
+}
+
+// ---- conversations sync ----
+
+export interface SyncResult {
+  ingested: number;
+  classified: number;
+}
+
+// ---- system health ----
+
+export interface HealthOut {
+  status: string;
+  app: string;
+  integrations: {
+    ai: boolean;
+    search: boolean;
+    email_verification: string;
+    email_finder: string;
+    email_mode: string;
+    google_oauth: boolean;
+  };
+}
+
+// ---- admin (cross-tenant) ----
+
+export interface AdminUserRow {
+  id: number;
+  name: string;
+  email: string;
+  is_verified: boolean;
+  outbound_enabled: boolean;
+  is_admin: boolean;
+  campaigns: number;
+  companies: number;
+  contacts: number;
+}
+
+export interface AdminCampaignRow {
+  id: number;
+  owner_id: number;
+  name: string;
+  status: string;
+  top_n: number;
+  companies: number;
+  contacts: number;
+  drafts: number;
+}
+
+// Shape of GET /api/admin/users/{id} (admin.py::get_user_tree).
+export interface AdminUserTreeContact {
+  id: number;
+  name: string;
+  role: string;
+  email: string;
+  verification: string;
+  approved: boolean | null;
+}
+
+export interface AdminUserTreeCompany {
+  id: number;
+  name: string;
+  rank: number;
+  ai_score: number;
+  status: string;
+  domain_status: string;
+  contacts: AdminUserTreeContact[];
+}
+
+export interface AdminUserTreeCampaign {
+  id: number;
+  name: string;
+  status: string;
+  top_n: number;
+  companies: AdminUserTreeCompany[];
+}
+
+export interface AdminUserTree {
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    is_verified: boolean;
+    outbound_enabled: boolean;
+    is_admin: boolean;
+  };
+  campaigns: AdminUserTreeCampaign[];
+}
+
+// Shape of GET /api/admin/campaigns/{id} (admin.py::get_campaign_tree).
+export interface AdminCampaignDetailDraft {
+  id: number;
+  subject: string;
+  state: string;
+}
+
+export interface AdminCampaignDetailContact {
+  id: number;
+  name: string;
+  role: string;
+  email: string;
+  linkedin: string | null;
+  verification: string;
+  confidence: number;
+  approved: boolean | null;
+  drafts: AdminCampaignDetailDraft[];
+}
+
+export interface AdminCampaignDetailCompany {
+  id: number;
+  name: string;
+  domain: string;
+  industry: string;
+  size: string;
+  location: string;
+  rank: number;
+  ai_score: number;
+  match_level: string;
+  status: string;
+  enrichment_confidence: number;
+  metric_confidence: number;
+  domain_status: string;
+  research_summary: string;
+  research_points: string[];
+  match_explanation: string;
+  score_factors: ScoreFactor[];
+  recent_funding: string | null;
+  recent_news: string | null;
+  active_hiring: boolean;
+  contacts: AdminCampaignDetailContact[];
+}
+
+export interface AdminCampaignDetail {
+  campaign: {
+    id: number;
+    owner_id: number;
+    owner_email: string | null;
+    name: string;
+    product: string;
+    status: string;
+    tone: string;
+    top_n: number;
+    icp: string;
+    industry_pref: string;
+    geography: string;
+    company_size: string;
+    business_requirements: string;
+    ranking_criteria: string;
+  };
+  companies: AdminCampaignDetailCompany[];
 }

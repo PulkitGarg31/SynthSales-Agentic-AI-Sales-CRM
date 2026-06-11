@@ -1,4 +1,8 @@
 import type {
+  AdminCampaignDetail,
+  AdminCampaignRow,
+  AdminUserRow,
+  AdminUserTree,
   Agent,
   AppNotification,
   AuthProviders,
@@ -9,11 +13,14 @@ import type {
   ContactCreate,
   Dashboard,
   EmailDraft,
+  ForgotPasswordResponse,
+  HealthOut,
   LogEntry,
   Meeting,
   PipelineAgent,
   RegisterResponse,
   ResendResponse,
+  SyncResult,
   Thread,
   ThreadDetail,
   Token,
@@ -23,7 +30,7 @@ import type {
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-const TOKEN_KEY = "reachly_token";
+const TOKEN_KEY = "sellari_token";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -123,6 +130,18 @@ export const api = {
       method: "POST",
       auth: false,
       body: { email, password },
+    }),
+  forgotPassword: (email: string) =>
+    request<ForgotPasswordResponse>("/api/auth/forgot-password", {
+      method: "POST",
+      auth: false,
+      body: { email },
+    }),
+  resetPassword: (email: string, code: string, new_password: string) =>
+    request<{ detail: string }>("/api/auth/reset-password", {
+      method: "POST",
+      auth: false,
+      body: { email, code, new_password },
     }),
   authProviders: () =>
     request<AuthProviders>("/api/auth/providers", { auth: false }),
@@ -248,11 +267,8 @@ export const api = {
       body: data,
     }),
   syncInbox: () =>
-    request<{ ingested: number; classified: number }>(
-      "/api/conversations/sync",
-      { method: "POST" }
-    ),
-  overrideThreadStage: (
+    request<SyncResult>("/api/conversations/sync", { method: "POST" }),
+  overrideStage: (
     threadId: number,
     data: { stage?: string; clear_do_not_contact?: boolean }
   ) =>
@@ -291,4 +307,24 @@ export const api = {
     request<LogEntry[]>(
       `/api/logs${category && category !== "All" ? `?category=${category}` : ""}`
     ),
+
+  // ---- system ----
+  health: () => request<HealthOut>("/health", { auth: false }),
+
+  // ---- admin (cross-tenant; requires is_admin) ----
+  adminUsers: () => request<AdminUserRow[]>("/api/admin/users"),
+  adminUserTree: (id: number) =>
+    request<AdminUserTree>(`/api/admin/users/${id}`),
+  adminDeleteUser: (id: number) =>
+    request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
+  adminSetAdmin: (id: number, value: boolean) =>
+    request<AdminUserRow>(`/api/admin/users/${id}/admin`, {
+      method: "POST",
+      body: { value },
+    }),
+  adminCampaigns: () => request<AdminCampaignRow[]>("/api/admin/campaigns"),
+  adminCampaignDetail: (id: number) =>
+    request<AdminCampaignDetail>(`/api/admin/campaigns/${id}`),
+  adminDeleteCampaign: (id: number) =>
+    request<void>(`/api/admin/campaigns/${id}`, { method: "DELETE" }),
 };
