@@ -110,7 +110,9 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         className={`size-1.5 shrink-0 self-center rounded-full ${LEVEL_DOT[item.level] ?? "bg-ink/20"}`}
       />
       <span className="font-mono text-xs text-ink-faint">{timeHMS(item.time)}</span>
-      <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">{item.message}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-ink-soft" title={item.message}>
+        {item.message}
+      </span>
       <Badge>{item.category}</Badge>
     </li>
   );
@@ -184,10 +186,10 @@ export default function DashboardPage() {
   const [now] = useState(() => Date.now());
   const upcoming = (meetings.data ?? [])
     .filter((m) => new Date(m.scheduled_at).getTime() >= now)
-    .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
     .slice(0, 5);
 
-  const firstName = me.name.split(" ")[0] || me.name;
+  const firstName = me.name.trim().split(/\s+/)[0] || "there";
   const firstRun = dash.data !== null && dash.data.companies_uploaded === 0;
 
   return (
@@ -198,7 +200,8 @@ export default function DashboardPage() {
           {greetingForHour(new Date().getHours())}, {firstName}.
         </h1>
         <p className="mt-2 font-serif text-lg italic text-ink-soft">
-          {warmingLine(dash.data?.replies_received)}
+          {/* The Welcome EmptyState below already says "nothing yet" on first run. */}
+          {firstRun ? "Let’s get you set up." : warmingLine(dash.data?.replies_received)}
         </p>
       </header>
 
