@@ -51,7 +51,7 @@ class MeetingAgent(Agent):
             result = calendar_provider.create_meet_event(
                 owner,
                 summary=f"{(campaign.product if campaign else '') or 'Intro'} — {company_name}",
-                description=notes or "Booked via Reachly.",
+                description=notes or "Booked via Sellari AI.",
                 start=scheduled_at,
                 end=end_at,
                 attendee_email=contact.email if contact else None,
@@ -99,7 +99,7 @@ class MeetingAgent(Agent):
             Message(
                 thread_id=thread.id,
                 direction="us",
-                author="Reachly",
+                author="Sellari",
                 body=confirm,
                 is_follow_up=True,
             )

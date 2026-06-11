@@ -104,7 +104,7 @@ class TrackingAgent(Agent):
         msg = Message(
             thread_id=thread.id,
             direction="us",
-            author="Reachly (auto)",
+            author="Sellari (auto)",
             body=body,
             is_follow_up=True,
         )

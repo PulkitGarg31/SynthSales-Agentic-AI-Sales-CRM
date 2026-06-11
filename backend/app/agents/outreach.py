@@ -30,7 +30,7 @@ class OutreachAgent(Agent):
             db.commit()
 
         subject, body = self._generate(contact, company, campaign)
-        footer = campaign.footer or "Best regards,\nThe Reachly Team"
+        footer = campaign.footer or "Best regards,\nThe Sellari Team"
         draft = EmailDraft(
             contact_id=contact.id,
             subject=subject,

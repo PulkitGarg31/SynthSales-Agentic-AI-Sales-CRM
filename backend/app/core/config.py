@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
-    smtp_from: str = "Reachly <no-reply@reachly.example>"
+    smtp_from: str = "Sellari AI <no-reply@sellari.example>"
 
     # Google OAuth (sign-in / sign-up). Optional: leave the id/secret blank to
     # disable — the "Continue with Google" button hides and the OAuth routes

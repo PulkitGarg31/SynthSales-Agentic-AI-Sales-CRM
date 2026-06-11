@@ -68,9 +68,9 @@ def _send_otp(email: str, otp: str) -> bool:
     # Put the code + time in the subject so Gmail doesn't thread/collapse
     # multiple OTP emails — you can always see which one is newest.
     stamp = datetime.now(timezone.utc).astimezone().strftime("%H:%M")
-    subject = f"Reachly code {otp} (sent {stamp})"
+    subject = f"Sellari AI code {otp} (sent {stamp})"
     body = (
-        f"Welcome to Reachly!\n\n"
+        f"Welcome to Sellari AI!\n\n"
         f"Your verification code is: {otp}\n\n"
         f"Sent at {stamp}. It expires in 15 minutes and replaces any earlier code.\n"
         f"If you didn't request this, ignore this email."
