@@ -64,6 +64,7 @@ export default function SignupPage() {
   }
 
   async function resend() {
+    setBusy(true); // in-flight guard: a double-click must not burn the 3-per-10-min budget
     setError(null);
     try {
       const r = await api.resendOtp(email);
@@ -73,6 +74,8 @@ export default function SignupPage() {
     } catch (err) {
       // 429 throttle details surface verbatim.
       setError(err instanceof ApiError ? err.message : NETWORK_MSG);
+    } finally {
+      setBusy(false);
     }
   }
 

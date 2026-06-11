@@ -122,7 +122,14 @@ export default function ForgotPasswordPage() {
             Reset password
           </Button>
         </form>
-        <Button variant="ghost" disabled={busy} onClick={() => setStep("email")}>
+        <Button
+          variant="ghost"
+          disabled={busy}
+          onClick={() => {
+            setError(null); // a stale "Invalid code" must not read as an email error
+            setStep("email");
+          }}
+        >
           &larr; Use a different email
         </Button>
       </div>

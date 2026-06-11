@@ -65,19 +65,23 @@ export default function LoginPage() {
   }
 
   // "Verify now": request a fresh code, then flip the page to the OTP step.
+  // Even when the resend is throttled (429) we STILL flip to the OTP step —
+  // a recently-registered user may have a valid code in their inbox already,
+  // and stranding them on the password step would lock verification needlessly.
   async function startVerify() {
     setBusy(true);
     setError(null);
     try {
       const r = await api.resendOtp(email);
       setDevOtp(r.dev_otp ?? null);
-      setSentNote(r.email_sent ? `We sent a code to ${email}.` : r.detail);
-      setCode("");
-      setStep("verify");
+      setSentNote(r.email_sent ? `We sent a code to ${email}.` : `A new code was generated for ${email}.`);
       cooldown.start();
     } catch (err) {
+      setSentNote(`Enter the code we previously sent to ${email}.`);
       setError(err instanceof ApiError ? err.message : NETWORK_MSG);
     } finally {
+      setCode("");
+      setStep("verify");
       setBusy(false);
     }
   }
@@ -102,15 +106,18 @@ export default function LoginPage() {
   }
 
   async function resend() {
+    setBusy(true); // in-flight guard: a double-click must not burn the 3-per-10-min budget
     setError(null);
     try {
       const r = await api.resendOtp(email);
       setDevOtp(r.dev_otp ?? null);
-      setSentNote(r.email_sent ? `We sent a new code to ${email}.` : r.detail);
+      setSentNote(r.email_sent ? `We sent a new code to ${email}.` : `A new code was generated for ${email}.`);
       cooldown.start();
     } catch (err) {
       // 429 throttle details surface verbatim.
       setError(err instanceof ApiError ? err.message : NETWORK_MSG);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -140,7 +147,14 @@ export default function LoginPage() {
             {cooldown.active ? `Resend in ${cooldown.remaining}s` : "Resend code"}
           </Button>
         </div>
-        <Button variant="ghost" disabled={busy} onClick={() => setStep("login")}>
+        <Button
+          variant="ghost"
+          disabled={busy}
+          onClick={() => {
+            setError(null); // a stale "Invalid code" must not read as a password error
+            setStep("login");
+          }}
+        >
           &larr; Back to sign in
         </Button>
       </div>

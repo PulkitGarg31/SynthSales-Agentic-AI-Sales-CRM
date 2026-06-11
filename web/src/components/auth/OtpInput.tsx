@@ -30,12 +30,13 @@ export function OtpInput({
   };
 
   // Covers single keystrokes, multi-digit autofill ("one-time-code"), and any
-  // paste the onPaste handler didn't intercept: insert at box i, keep digits.
+  // paste the onPaste handler didn't intercept: overwrite at box i, PRESERVING
+  // the tail so retyping one wrong digit mid-code doesn't wipe the rest.
   const handleInput = (i: number, raw: string) => {
     const digits = raw.replace(/\D/g, "");
     if (!digits) return; // non-digit input — controlled re-render restores the box
-    const next = (value.slice(0, i) + digits).slice(0, LEN);
-    apply(next, next.length);
+    const next = (value.slice(0, i) + digits + value.slice(i + digits.length)).slice(0, LEN);
+    apply(next, i + digits.length);
   };
 
   const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -59,8 +60,8 @@ export function OtpInput({
     e.preventDefault();
     const digits = e.clipboardData.getData("text").replace(/\D/g, "");
     if (!digits) return;
-    const next = (value.slice(0, i) + digits).slice(0, LEN);
-    apply(next, next.length);
+    const next = (value.slice(0, i) + digits + value.slice(i + digits.length)).slice(0, LEN);
+    apply(next, i + digits.length);
   };
 
   return (
