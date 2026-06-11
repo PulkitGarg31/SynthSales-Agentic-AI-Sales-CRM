@@ -65,6 +65,10 @@ Only §1 blocks the new frontend; everything else is here so it can be acted on 
       the Task 21 frontend build — the UI defensively handles a 403 that is currently unreachable.)
 - [ ] **Admin nested-tree endpoints return raw dicts** (no `response_model`) — frontend types for them are
       hand-maintained; schema drift won't be caught by anything.
+- [ ] **`DELETE /api/admin/users/{id}` orphans Meetings** — campaigns/companies/contacts/drafts/threads
+      cascade, but Meeting rows survive with a dangling owner. The admin UI's confirm copy says
+      "…and meeting it owns" (per spec); either cascade meetings too or adjust the copy. (Found during
+      the Task 25 frontend build.)
 
 ## 5 · Production-hardening checklist (pre-deploy)
 
