@@ -7,12 +7,13 @@
 // row break (good enough for company lists; the backend's csv module is the
 // source of truth on upload).
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, FileSpreadsheet, UploadCloud, X } from "lucide-react";
 
 const NAME_COLUMNS = ["company_name", "company", "name"]; // mirrors the backend's `pick`
 const PREVIEW_ROWS = 5;
 const PREVIEW_COLS = 5;
+const MAX_BYTES = 20 * 1024 * 1024; // full-file parse runs on the main thread
 
 const SAMPLE_CSV = [
   "company_name,domain,industry,country",
@@ -105,8 +106,23 @@ export function CsvDrop({
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Sequence token: two quick drops race their async reads — only the latest wins.
+  const readSeq = useRef(0);
+
+  // The wizard unmounts this component on step navigation; when it remounts
+  // with a parent-owned file (jump back to step 1), rebuild the preview.
+  useEffect(() => {
+    if (!file || preview) return;
+    const token = ++readSeq.current;
+    void file.text().then((text) => {
+      if (readSeq.current !== token) return;
+      const parsed = parseCsv(text);
+      if (!("error" in parsed)) setPreview(parsed);
+    });
+  }, [file, preview]);
 
   async function accept(f: File) {
+    const token = ++readSeq.current;
     const reject = (msg: string) => {
       setError(msg);
       setPreview(null);
@@ -120,13 +136,18 @@ export function CsvDrop({
       reject("That file is empty.");
       return;
     }
+    if (f.size > MAX_BYTES) {
+      reject("That file is over 20 MB — split it into smaller lists.");
+      return;
+    }
     let text: string;
     try {
       text = await f.text();
     } catch {
-      reject("Couldn’t read that file. Try again.");
+      if (readSeq.current === token) reject("Couldn’t read that file. Try again.");
       return;
     }
+    if (readSeq.current !== token) return; // a newer drop superseded this read
     const parsed = parseCsv(text);
     if ("error" in parsed) {
       reject(parsed.error);
@@ -218,7 +239,7 @@ export function CsvDrop({
           const f = e.dataTransfer.files?.[0];
           if (f) void accept(f);
         }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors focus-within:ring-2 focus-within:ring-ink/60 ${
           dragOver ? "border-terracotta bg-terracotta/5" : "border-line bg-cream/40 hover:border-ink/40"
         }`}
       >
@@ -236,6 +257,9 @@ export function CsvDrop({
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
+            // Clear synchronously so re-selecting the same (now fixed) file
+            // after a rejection still fires onChange. The File ref stays valid.
+            e.target.value = "";
             if (f) void accept(f);
           }}
         />

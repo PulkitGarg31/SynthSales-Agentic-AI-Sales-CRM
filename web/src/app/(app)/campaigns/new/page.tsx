@@ -160,9 +160,12 @@ const STEPS = ["Upload", "Product", "Targeting", "Outreach"];
 function StepRail({
   step,
   onJump,
+  locked = false,
 }: {
   step: number;
   onJump: (i: number) => void;
+  /** Disable jump-back while the create/upload is in flight. */
+  locked?: boolean;
 }) {
   return (
     <nav aria-label="Wizard steps" className="flex flex-row gap-4 lg:flex-col lg:gap-5">
@@ -172,8 +175,8 @@ function StepRail({
           <button
             key={label}
             type="button"
-            disabled={state === "future"}
-            onClick={() => state === "done" && onJump(i)}
+            disabled={state === "future" || locked}
+            onClick={() => state === "done" && !locked && onJump(i)}
             aria-current={state === "current" ? "step" : undefined}
             className={`flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${
               state === "done"
@@ -271,7 +274,7 @@ export default function NewCampaignPage() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[180px_1fr] lg:gap-10">
-        <StepRail step={step} onJump={setStep} />
+        <StepRail step={step} onJump={setStep} locked={busy !== null} />
 
         <Card className="p-6">
           {step === 0 && (
@@ -449,7 +452,8 @@ export default function NewCampaignPage() {
           {orphan && (
             <p className="mt-5 rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-ink-soft">
               <strong className="font-semibold text-ink">{orphan.name}</strong> was created, but its
-              companies didn’t upload. Use “Create campaign” to retry the upload, or{" "}
+              companies didn’t upload. Use “Create campaign” to retry the upload (only the file is
+              retried — settings changes here won’t apply to it), or{" "}
               <Link href={`/campaigns/${orphan.id}`} className="font-medium text-terracotta hover:underline">
                 open the campaign
               </Link>{" "}
