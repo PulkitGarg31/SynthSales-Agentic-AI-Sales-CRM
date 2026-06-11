@@ -5,6 +5,7 @@
 
 import type {
   CampaignStatus,
+  CompanyStatus,
   EmailState,
   Intent,
   MatchLevel,
@@ -34,6 +35,15 @@ export const MATCH_TONE: Record<string, Tone> = {
   Moderate: "amber",
   Weak: "rust",
 } satisfies Record<MatchLevel, Tone>;
+
+export const COMPANY_TONE: Record<string, Tone> = {
+  Researching: "faint",
+  Reviewed: "ink",
+  Qualified: "moss",
+  Approved: "terracotta",
+  Excluded: "rust",
+  Contacted: "moss",
+} satisfies Record<CompanyStatus, Tone>;
 
 export const CAMPAIGN_TONE: Record<string, Tone> = {
   Draft: "faint",
