@@ -46,6 +46,27 @@ export interface User {
   created_at: string;
 }
 
+/** Mirrors backend schemas.CampaignCreate (= CampaignBase) exactly. */
+export interface CampaignCreate {
+  name: string;
+  product: string;
+  tone: string;
+  top_n: number;
+  product_description: string;
+  value_proposition: string;
+  industry: string;
+  differentiators: string;
+  icp: string;
+  industry_pref: string;
+  geography: string;
+  company_size: string;
+  business_requirements: string;
+  ranking_criteria: string;
+  email_template: string;
+  footer: string;
+  personalization_level: number;
+}
+
 export interface Campaign {
   id: number;
   name: string;

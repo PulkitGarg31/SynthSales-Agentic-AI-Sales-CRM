@@ -7,6 +7,7 @@ import type {
   AppNotification,
   AuthProviders,
   Campaign,
+  CampaignCreate,
   Company,
   CompanyDetail,
   Contact,
@@ -168,7 +169,7 @@ export const api = {
   // ---- campaigns ----
   campaigns: () => request<Campaign[]>("/api/campaigns"),
   campaign: (id: number) => request<Campaign>(`/api/campaigns/${id}`),
-  createCampaign: (data: Record<string, unknown>) =>
+  createCampaign: (data: CampaignCreate) =>
     request<Campaign>("/api/campaigns", { method: "POST", body: data }),
   updateCampaign: (id: number, data: Record<string, unknown>) =>
     request<Campaign>(`/api/campaigns/${id}`, { method: "PATCH", body: data }),
