@@ -143,6 +143,8 @@ export function ThreadView({
   };
 
   const suggestion = t.ai_suggestion ?? null;
+  // One mutation at a time across the header actions AND an in-flight reply.
+  const locked = busy !== null || sending;
 
   return (
     <div className="space-y-4">
@@ -162,10 +164,13 @@ export function ThreadView({
               <Button
                 variant="secondary"
                 busy={busy === "stage"}
-                disabled={busy !== null}
+                disabled={locked}
                 aria-haspopup="menu"
                 aria-expanded={stageOpen}
                 onClick={() => setStageOpen((o) => !o)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setStageOpen(false);
+                }}
               >
                 {t.stage} <ChevronDown aria-hidden className="size-3.5" />
               </Button>
@@ -174,6 +179,9 @@ export function ThreadView({
                   <button
                     aria-label="Close menu"
                     onClick={() => setStageOpen(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setStageOpen(false);
+                    }}
                     className="fixed inset-0 z-30 cursor-default"
                   />
                   <div
@@ -204,13 +212,13 @@ export function ThreadView({
               <Button
                 variant="secondary"
                 busy={busy === "reopen"}
-                disabled={busy !== null}
+                disabled={locked}
                 onClick={() => setReopenOpen(true)}
               >
                 Reopen
               </Button>
             )}
-            <Button variant="accent" disabled={busy !== null} onClick={() => setBookOpen(true)}>
+            <Button variant="accent" disabled={locked} onClick={() => setBookOpen(true)}>
               Book meeting
             </Button>
           </div>

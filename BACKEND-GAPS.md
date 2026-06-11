@@ -58,6 +58,11 @@ Only §1 blocks the new frontend; everything else is here so it can be acted on 
 - [ ] No **user-level delete** for companies/contacts (Exclude status or admin delete only).
 - [ ] No **logout / token revocation / refresh** — stateless 7-day JWT; client just drops the token.
 - [ ] `GET /api/conversations/{id}` **marks the thread read as a GET side effect** — consider an explicit PATCH.
+- [ ] **`POST /api/conversations/{id}/reply` never sends real email** — it only appends a `Message` row
+      (no `outbound_enabled` gate, no `email_provider.send` call), unlike `/send` which does both. The
+      conversations composer therefore "sends" replies that no prospect ever receives. Either wire it
+      through the same gated send path as `/send`, or label it a private note in the UI. (Found during
+      the Task 21 frontend build — the UI defensively handles a 403 that is currently unreachable.)
 - [ ] **Admin nested-tree endpoints return raw dicts** (no `response_model`) — frontend types for them are
       hand-maintained; schema drift won't be caught by anything.
 
