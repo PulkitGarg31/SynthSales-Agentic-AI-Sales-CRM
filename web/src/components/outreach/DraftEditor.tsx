@@ -161,14 +161,18 @@ export function DraftEditor({
       const thread = await api.sendFromDraft(draft.id);
       toast(`Sent to ${contactName}`, "success");
       onSent(thread);
+      // Deliberately stay `sending` on success: the draft is genuinely sent,
+      // and re-enabling before the list refetch flips the row to Sent would
+      // open a sub-second window where a second click emails the prospect
+      // twice (the backend doesn't reject re-sends). The read-only Sent view
+      // replaces this editor as soon as the reload lands.
     } catch (e) {
+      setSending(false);
       if (e instanceof ApiError && e.status === 403) {
         setSendError(e.message);
       } else {
         toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.", "error");
       }
-    } finally {
-      setSending(false);
     }
   };
 
