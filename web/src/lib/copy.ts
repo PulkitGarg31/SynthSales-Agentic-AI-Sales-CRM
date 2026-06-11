@@ -9,7 +9,7 @@
 import { AGENT_LABELS } from "./constants";
 
 export const HERO = {
-  eyebrow: "AI-powered B2B outreach",
+  eyebrow: "Introducing Sellari AI",
   headline: { pre: "Outreach that ", em: "researches itself", post: "." },
   sub:
     "Struggling with sales? The fix is just one click away. Sellari AI studies your market, finds the people who can actually say yes, and reaches out with emails that feel hand-written. All that's left for you is the meeting.",
