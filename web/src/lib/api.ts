@@ -305,10 +305,13 @@ export const api = {
     }),
 
   // ---- logs ----
-  logs: (category?: string) =>
-    request<LogEntry[]>(
-      `/api/logs${category && category !== "All" ? `?category=${category}` : ""}`
-    ),
+  logs: (category?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (category && category !== "All") params.set("category", category);
+    if (limit) params.set("limit", String(limit));
+    const qs = params.toString();
+    return request<LogEntry[]>(`/api/logs${qs ? `?${qs}` : ""}`);
+  },
 
   // ---- system ----
   health: () => request<HealthOut>("/health", { auth: false }),
