@@ -3,16 +3,14 @@
 Compiled while auditing the backend for the **Sellari AI** frontend rebuild.
 Only §1 blocks the new frontend; everything else is here so it can be acted on later.
 
-## 1 · Required by the new frontend (small — do with the rebuild)
+## 1 · Required by the new frontend — ✅ DONE with the rebuild (2026-06-11)
 
-- [ ] **Password-reset flow** — no reset endpoint exists anywhere; the old forgot-password page was a dead form.
-      Suggested shape (reuses existing OTP machinery + rate limits in `api/routers/auth.py`):
-      `POST /api/auth/forgot-password {email}` → always 200 (no account enumeration), throttled per IP+email,
-      generates OTP into the existing `otp_code`/`otp_expires_at` fields and emails it;
-      `POST /api/auth/reset-password {email, code, new_password}` → validates code (same lockout counter),
-      runs the existing password-policy validator, sets hash, clears OTP.
-      Also covers logged-in "change password" (Settings links to the same flow). **Effort: S**
-- [ ] **Expose `is_admin` in `UserOut`** (`schemas.py`) — the sidebar can't know whether to show `/admin` without it. **Effort: XS**
+- [x] **Password-reset flow** — built exactly as suggested: `POST /api/auth/forgot-password` (always 200,
+      throttled per IP+email) + `POST /api/auth/reset-password` (OTP ladder, policy validator, sets hash,
+      clears OTP). Frontend page at `/forgot-password`; Settings links to it for logged-in changes.
+      Verified end-to-end 2026-06-12 (request → DB code → reset → new login, old password rejected).
+      Reset codes now go out as branded HTML email.
+- [x] **`is_admin` in `UserOut`** — exposed; the sidebar/admin guard consume it.
 
 ## 2 · Docs ↔ code drift
 
@@ -28,14 +26,16 @@ Only §1 blocks the new frontend; everything else is here so it can be acted on 
 
 ## 3 · Rename sweep (Reachly → Sellari AI) — backend side
 
-- [ ] `APP_NAME` = "Reachly API" in `core/config.py` → "Sellari API" (surfaces in `/health` and Swagger title).
-- [ ] `SMTP_FROM` default "Reachly <…>" in `core/config.py` / `.env.example` / live `.env`.
-- [ ] `.env.example` comments & branding mentions.
-- [ ] `services/seed.py` — any Reachly-branded demo strings.
+- [x] **All USER-VISIBLE strings done (2026-06-12)**: `SMTP_FROM` (config default + live `.env`), OTP email
+      subject/body, calendar event description, conversation message authors, default outreach footer,
+      scraper user-agent. `services/seed.py` is clean.
+- [ ] `APP_NAME` = "Reachly API" in `core/config.py` → "Sellari API" (surfaces in `/health` JSON and Swagger
+      title only — no end user sees it; rename whenever).
+- [ ] `.env.example` comments still say Reachly (`APP_NAME`, header comment, `SMTP_FROM` sample). Internal.
 - [ ] **Recommendation: keep** the Docker container `reachly_postgres`, db/user `reachly`, volume `reachly_pgdata`
       for now — renaming them forces a data migration for zero functional gain; revisit at deploy time.
       (`db.ps1` hardcodes the container name if you ever do rename.)
-- Frontend-side rename (token key `sellari_token`, all copy, metadata, logo) is part of the rebuild itself.
+- [x] Frontend-side rename (token key `sellari_token`, all copy, metadata, logo) — done in the rebuild.
 
 ## 4 · Functional gaps (post-rebuild candidates)
 
