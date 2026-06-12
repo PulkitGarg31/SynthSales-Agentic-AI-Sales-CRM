@@ -41,7 +41,9 @@ class User(Base):
     # (read or delete any user's data). Bootstrap the first admin by setting
     # this column true directly in the DB (see README / db.ps1).
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    otp_code: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    # Stored with a provenance prefix ("V" = signup verification, "R" = password
+    # reset) so a code issued by one flow can never be consumed by the other.
+    otp_code: Mapped[str | None] = mapped_column(String(8), nullable=True)
     otp_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

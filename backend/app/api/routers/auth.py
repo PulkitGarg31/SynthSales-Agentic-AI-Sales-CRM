@@ -102,7 +102,7 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
         email=payload.email,
         hashed_password=hash_password(payload.password),
         is_verified=False,
-        otp_code=otp,
+        otp_code="V" + otp,  # provenance tag: signup-verification channel
         otp_expires_at=utcnow() + timedelta(minutes=15),
         otp_attempts=0,
     )
@@ -139,7 +139,9 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
             level="warning",
         )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    if not secrets.compare_digest(user.otp_code.encode(), payload.code.encode()):
+    # Only signup-verification codes ("V" prefix) are valid here: a code issued
+    # by forgot-password can't flip is_verified (or reach the admin auto-grant).
+    if not secrets.compare_digest(user.otp_code.encode(), ("V" + payload.code).encode()):
         user.otp_attempts += 1
         db.commit()
         if user.otp_attempts >= MAX_OTP_ATTEMPTS:
@@ -185,7 +187,7 @@ def resend_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     otp = _new_otp()
-    user.otp_code = otp
+    user.otp_code = "V" + otp  # provenance tag: signup-verification channel
     user.otp_expires_at = utcnow() + timedelta(minutes=15)
     user.otp_attempts = 0
     db.commit()
@@ -218,7 +220,7 @@ def forgot_password(
     if not user:
         return {**generic, "email_sent": False, "dev_otp": None}
     otp = _new_otp()
-    user.otp_code = otp
+    user.otp_code = "R" + otp  # provenance tag: password-reset channel
     user.otp_expires_at = utcnow() + timedelta(minutes=15)
     user.otp_attempts = 0
     db.commit()
@@ -242,7 +244,9 @@ def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
             level="warning",
         )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    if not secrets.compare_digest(user.otp_code.encode(), payload.code.encode()):
+    # Only password-reset codes ("R" prefix) are valid here: a signup code
+    # can't be replayed to change the password.
+    if not secrets.compare_digest(user.otp_code.encode(), ("R" + payload.code).encode()):
         user.otp_attempts += 1
         db.commit()
         if user.otp_attempts >= MAX_OTP_ATTEMPTS:

@@ -43,6 +43,9 @@ async def lifespan(app: FastAPI):
                 "outbound_enabled BOOLEAN NOT NULL DEFAULT false"
             )
         )
+        # OTP codes carry a 1-char provenance prefix (V/R) since 2026-06-12;
+        # widening is idempotent (a no-op when already VARCHAR(8)).
+        conn.execute(text("ALTER TABLE users ALTER COLUMN otp_code TYPE VARCHAR(8)"))
         conn.execute(
             text(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "

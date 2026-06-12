@@ -39,11 +39,11 @@ Only §1 blocks the new frontend; everything else is here so it can be acted on 
 
 ## 4 · Functional gaps (post-rebuild candidates)
 
-- [ ] **OTP channel sharing** — signup verification and password reset share `users.otp_code` with no
-      provenance tag, so a reset-issued code also passes `POST /verify-otp` (flipping `is_verified` and,
-      for `ADMIN_EMAILS` addresses, triggering the admin auto-grant via the forgot-password path) and a
-      signup code works at `reset-password`. Inbox control is proven either way, but tag the codes
-      (e.g. `R`/`V` prefix + widen `otp_code` to String(8) + idempotent ALTER) if the flows ever diverge.
+- [x] **OTP channel sharing** — FIXED 2026-06-12: codes now carry a `V`/`R` provenance prefix
+      (`otp_code` widened to String(8) + idempotent ALTER in lifespan). `verify-otp` only accepts `V`
+      codes, `reset-password` only `R` codes — verified live in all four directions (cross-channel
+      rejected, own-channel accepted). A reset code can no longer flip `is_verified` or reach the
+      `ADMIN_EMAILS` auto-grant. Codes issued before the fix are invalidated (users just request a new one).
 - [ ] **`email_sent` is a soft enumeration oracle** on `POST /forgot-password` when real SMTP is
       configured (known email → true, unknown → false). Register already leaks existence, so no new
       info today — but in production consider always returning `email_sent: true` outside development.
