@@ -20,6 +20,7 @@ from app.core.security import (
 from app.models import User, utcnow
 from app.core.config import settings
 from app.providers.email import email_provider
+from app.providers.email_templates import otp_email
 from app.providers.oauth import oauth_provider
 from app.schemas import (
     ForgotPasswordIn,
@@ -62,20 +63,13 @@ def _new_otp() -> str:
     return f"{random.randint(0, 999999):06d}"
 
 
-def _send_otp(email: str, otp: str) -> bool:
-    """Email the OTP. Returns True only when actually delivered to a real inbox
-    (via SMTP/Gmail) — console mode counts as not delivered."""
-    # Put the code + time in the subject so Gmail doesn't thread/collapse
-    # multiple OTP emails — you can always see which one is newest.
+def _send_otp(email: str, otp: str, purpose: str = "verify") -> bool:
+    """Email the OTP (branded HTML + plain-text fallback). Returns True only
+    when actually delivered to a real inbox (via SMTP/Gmail) — console mode
+    counts as not delivered."""
     stamp = datetime.now(timezone.utc).astimezone().strftime("%H:%M")
-    subject = f"Sellari AI code {otp} (sent {stamp})"
-    body = (
-        f"Welcome to Sellari AI!\n\n"
-        f"Your verification code is: {otp}\n\n"
-        f"Sent at {stamp}. It expires in 15 minutes and replaces any earlier code.\n"
-        f"If you didn't request this, ignore this email."
-    )
-    sent = email_provider.send(email, subject, body)
+    subject, body, html = otp_email(otp, stamp, purpose)
+    sent = email_provider.send(email, subject, body, html)
     return sent and email_provider.mode in ("smtp", "gmail")
 
 
@@ -228,7 +222,7 @@ def forgot_password(
     user.otp_expires_at = utcnow() + timedelta(minutes=15)
     user.otp_attempts = 0
     db.commit()
-    delivered = _send_otp(user.email, otp)
+    delivered = _send_otp(user.email, otp, purpose="reset")
     add_log(db, user.id, "User", f"Password-reset code issued for {user.email}.")
     return {**generic, "email_sent": delivered, "dev_otp": _dev_otp(otp, delivered)}
 
