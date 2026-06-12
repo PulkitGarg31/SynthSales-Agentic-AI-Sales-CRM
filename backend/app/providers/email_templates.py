@@ -46,9 +46,14 @@ def otp_email(otp: str, stamp: str, purpose: str = "verify") -> tuple[str, str, 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{subject}</title>
+<!-- Title left empty on purpose: some mail clients render it above the body. -->
+<title></title>
 </head>
 <body style="margin:0;padding:0;background-color:{_CREAM};">
+  <!-- Hidden preheader: the snippet inboxes show under the subject line. -->
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
+    {expiry}
+  </div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{_CREAM};">
     <tr>
       <td align="center" style="padding:48px 16px;">
