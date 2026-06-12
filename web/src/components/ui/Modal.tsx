@@ -18,23 +18,30 @@ export function Modal({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // While open: Escape closes, focus moves into the panel (restored to the
-  // trigger on close), and the page behind doesn't scroll.
+  // Focus + scroll lock depend ONLY on `open`. Parents often pass an inline
+  // onClose (new identity every render); if it were a dependency here, every
+  // keystroke inside the modal would re-run the effect and panelRef.focus()
+  // would steal focus from whatever input the user is typing in.
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     panelRef.current?.focus();
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [open]);
+
+  // Escape listener: cheap to re-bind when onClose changes, steals nothing.
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-      previouslyFocused?.focus();
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open) return null;
