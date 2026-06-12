@@ -1,8 +1,21 @@
 import type { Metadata } from "next";
+import { ArrowUpRight } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { AGENT_LABELS } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "About" };
+
+// The humans behind the agents.
+const BUILDERS = [
+  { name: "Arnav Joshi", github: "https://github.com/Arnav020" },
+  { name: "Navnoor Bawa", github: "https://github.com/NavnoorBawa" },
+  { name: "Pulkit Garg", github: "https://github.com/PulkitGarg31" },
+] as const;
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
+}
 
 // One truthful line per agent, in pipeline order. Labels come from the shared
 // AGENT_LABELS map so marketing and app UI never drift apart.
@@ -128,6 +141,42 @@ export default function AboutPage() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      <section className="border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
+          <div className="max-w-2xl space-y-4">
+            <Eyebrow index="03">The builders</Eyebrow>
+            <h2 className="display text-3xl md:text-4xl">
+              Made by <em>three humans</em>.
+            </h2>
+            <p className="text-base leading-relaxed text-ink-soft">
+              The agents do the outreach. We built the agents.
+            </p>
+          </div>
+          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+            {BUILDERS.map((person) => (
+              <a
+                key={person.name}
+                href={person.github}
+                target="_blank"
+                rel="noreferrer"
+                className="group rounded-2xl border border-line bg-paper p-6 transition-colors hover:border-ink/40"
+              >
+                <span className="flex size-12 items-center justify-center rounded-full bg-band text-sm font-semibold text-cream">
+                  {initialsOf(person.name)}
+                </span>
+                <h3 className="mt-4 text-base font-semibold tracking-tight text-ink">
+                  {person.name}
+                </h3>
+                <p className="mt-1 inline-flex items-center gap-1 font-mono text-xs text-ink-soft transition-colors group-hover:text-ink">
+                  {person.github.replace("https://", "")}
+                  <ArrowUpRight aria-hidden className="size-3" />
+                </p>
+              </a>
+            ))}
+          </div>
         </div>
       </section>
     </>
