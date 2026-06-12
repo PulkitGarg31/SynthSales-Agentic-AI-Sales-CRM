@@ -190,7 +190,7 @@ export function CampaignInspector({
               }
               confirmLabel="Delete campaign"
               destructive
-              typedPhrase={c.name}
+              typedPhrase="confirm"
             />
           )}
         </div>

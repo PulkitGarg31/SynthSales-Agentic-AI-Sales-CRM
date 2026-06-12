@@ -342,7 +342,7 @@ function AdminInner() {
           }
           confirmLabel="Delete user"
           destructive
-          typedPhrase={deletingUser.email}
+          typedPhrase="confirm"
         />
       )}
     </div>
