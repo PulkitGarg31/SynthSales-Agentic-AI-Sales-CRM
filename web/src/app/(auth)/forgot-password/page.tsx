@@ -152,6 +152,7 @@ export default function ForgotPasswordPage() {
           <Input
             id="forgot-email"
             type="email"
+            suppressHydrationWarning
             autoComplete="email"
             required
             value={email}

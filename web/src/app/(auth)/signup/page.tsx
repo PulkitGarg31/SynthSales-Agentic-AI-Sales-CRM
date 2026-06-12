@@ -142,6 +142,7 @@ export default function SignupPage() {
           <Input
             id="signup-email"
             type="email"
+            suppressHydrationWarning
             autoComplete="email"
             required
             value={email}

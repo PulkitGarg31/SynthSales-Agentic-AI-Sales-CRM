@@ -177,6 +177,7 @@ export default function LoginPage() {
           <Input
             id="login-email"
             type="email"
+            suppressHydrationWarning
             autoComplete="email"
             required
             value={email}

@@ -65,6 +65,9 @@ export function ContactForm() {
           <Input
             id="contact-email"
             type="email"
+            // Email-autofill browser extensions inject attributes/styles into
+            // email fields before hydration; don't let that log a mismatch.
+            suppressHydrationWarning
             autoComplete="email"
             required
             value={email}
