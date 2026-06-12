@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
-import type { AdminCampaignRow, AdminUserRow } from "@/lib/api-types";
+import type { AdminCampaignRow, AdminUserRow, HealthOut } from "@/lib/api-types";
 import { useAuth } from "@/components/AuthProvider";
 import { CampaignInspector } from "@/components/admin/CampaignInspector";
 import { UserTreeDrawer } from "@/components/admin/UserTreeDrawer";
@@ -13,12 +13,14 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorCard } from "@/components/ui/ErrorCard";
+import { Eyebrow } from "@/components/ui/Eyebrow";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { SkeletonRows } from "@/components/ui/Skeleton";
+import { StatNumeral } from "@/components/ui/StatNumeral";
 import { Tabs } from "@/components/ui/Tabs";
 import { CAMPAIGN_TONE } from "@/lib/constants";
 
-const TAB_VALUES = ["users", "campaigns"] as const;
+const TAB_VALUES = ["overview", "users", "campaigns"] as const;
 type Tab = (typeof TAB_VALUES)[number];
 
 const TH = "px-5 py-3 text-left text-[11px] font-medium uppercase tracking-[0.12em] text-ink-faint";
@@ -35,6 +37,139 @@ function rowClickGuarded(e: React.MouseEvent, open: () => void) {
 
 function Dash() {
   return <span className="text-ink-faint">-</span>;
+}
+
+// ---- overview tab ------------------------------------------------------------
+
+// Compact integration row: name + state chip + one-line meaning.
+function HealthRow({ name, ok, chip, note }: { name: string; ok: boolean; chip: string; note: string }) {
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3">
+      <span className="w-36 shrink-0 text-sm font-medium text-ink">{name}</span>
+      <Badge tone={ok ? "moss" : "amber"}>{chip}</Badge>
+      <span className="min-w-0 flex-1 text-xs text-ink-soft">{note}</span>
+    </li>
+  );
+}
+
+function SystemHealth({ health }: { health: HealthOut }) {
+  const i = health.integrations;
+  const sendLive = i.email_mode !== "console";
+  return (
+    <Card title="System health" flush>
+      <ul className="divide-y divide-line">
+        <HealthRow
+          name="AI providers"
+          ok={i.ai}
+          chip={i.ai ? "Connected" : "Off"}
+          note={i.ai ? "Research, scoring and drafting run at full depth." : "Agents fall back to deterministic heuristics."}
+        />
+        <HealthRow
+          name="Web search"
+          ok={i.search}
+          chip={i.search ? "DuckDuckGo" : "Off"}
+          note={i.search ? "Enrichment and the people finder can reach the web." : "Enrichment and the people finder are blind."}
+        />
+        <HealthRow
+          name="Email verification"
+          ok={!i.email_verification.startsWith("free")}
+          chip={i.email_verification}
+          note={
+            i.email_verification.startsWith("free")
+              ? "Without a paid verifier, contacts stay Unknown."
+              : "Mailboxes are confirmed before any draft is written."
+          }
+        />
+        <HealthRow
+          name="Email finder"
+          ok={i.email_finder !== "off"}
+          chip={i.email_finder}
+          note={i.email_finder === "off" ? "Falls back to domain discovery + pattern guessing." : "One lookup per company for the top contact."}
+        />
+        <HealthRow
+          name="Email sending"
+          ok={sendLive}
+          chip={i.email_mode}
+          note={sendLive ? "Real delivery for OTPs, outreach and follow-ups." : "Console mode: emails are logged, nothing is delivered."}
+        />
+        <HealthRow
+          name="Google OAuth"
+          ok={i.google_oauth}
+          chip={i.google_oauth ? "Configured" : "Off"}
+          note={i.google_oauth ? "Sign-in, Calendar and mailbox connections available." : "Google sign-in and connections are unavailable."}
+        />
+      </ul>
+    </Card>
+  );
+}
+
+function OverviewTab({
+  users,
+  campaigns,
+  onOpenUser,
+}: {
+  users: AdminUserRow[];
+  campaigns: AdminCampaignRow[];
+  onOpenUser: (u: AdminUserRow) => void;
+}) {
+  const health = useApi(api.health);
+
+  const verified = users.filter((u) => u.is_verified).length;
+  const sending = users.filter((u) => u.outbound_enabled).length;
+  const totals = {
+    companies: users.reduce((n, u) => n + u.companies, 0),
+    contacts: users.reduce((n, u) => n + u.contacts, 0),
+    drafts: campaigns.reduce((n, c) => n + c.drafts, 0),
+  };
+  const topTenants = [...users]
+    .sort((a, b) => b.contacts - a.contacts || b.companies - a.companies)
+    .slice(0, 5);
+
+  return (
+    <div className="space-y-6">
+      {/* Site-wide numbers */}
+      <Card>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
+          <StatNumeral value={users.length} label="Users" />
+          <StatNumeral value={`${verified}/${users.length}`} label="Verified" />
+          <StatNumeral value={sending} label="Sending on" />
+          <StatNumeral value={campaigns.length} label="Campaigns" />
+          <StatNumeral value={totals.companies} label="Companies" />
+          <StatNumeral value={totals.contacts} label="Contacts" />
+        </div>
+      </Card>
+
+      {/* Integrations, live from /health */}
+      {health.loading ? (
+        <SkeletonRows n={4} />
+      ) : health.error ? (
+        <ErrorCard message={health.error} onRetry={health.reload} />
+      ) : health.data ? (
+        <SystemHealth health={health.data} />
+      ) : null}
+
+      {/* Heaviest tenants */}
+      <Card title="Most active users" flush>
+        <ul className="divide-y divide-line">
+          {topTenants.map((u) => (
+            <li key={u.id}>
+              <button
+                type="button"
+                onClick={() => onOpenUser(u)}
+                className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 text-left transition-colors hover:bg-cream/60"
+              >
+                <span className="min-w-0 text-sm font-medium text-ink">{u.name}</span>
+                <span className="min-w-0 font-mono text-xs text-ink-soft">{u.email}</span>
+                <span className="ml-auto shrink-0 text-xs tabular-nums text-ink-soft">
+                  {u.campaigns} campaigns · {u.companies} companies · {u.contacts} contacts
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </div>
+  );
 }
 
 // ---- users tab ---------------------------------------------------------------
@@ -204,7 +339,7 @@ function AdminInner() {
   const rawTab = search.get("tab");
   const tab: Tab = (TAB_VALUES as readonly string[]).includes(rawTab ?? "")
     ? (rawTab as Tab)
-    : "users";
+    : "overview";
 
   const [treeFor, setTreeFor] = useState<AdminUserRow | null>(null);
   const [inspecting, setInspecting] = useState<AdminCampaignRow | null>(null);
@@ -228,16 +363,39 @@ function AdminInner() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="space-y-4">
-        <h1 className="display text-3xl sm:text-4xl">Admin</h1>
+        {/* Distinct admin chrome: the band strip marks "you are in admin mode". */}
+        <div className="rounded-2xl bg-band px-6 py-5">
+          <Eyebrow>Site administration</Eyebrow>
+          <h1 className="display mt-1.5 text-3xl text-ink sm:text-4xl">Control room</h1>
+          <p className="mt-1.5 text-sm text-ink-soft">
+            Cross-tenant oversight: every user, every campaign, the whole system.
+          </p>
+        </div>
         <Tabs
           value={tab}
           onChange={(v) => router.replace(`/admin?tab=${v}`)}
           items={[
+            { value: "overview", label: "Overview" },
             { value: "users", label: "Users", count: users.data?.length },
             { value: "campaigns", label: "Campaigns", count: campaigns.data?.length },
           ]}
         />
       </header>
+
+      {tab === "overview" &&
+        (users.loading || campaigns.loading ? (
+          <SkeletonRows n={5} />
+        ) : users.error ? (
+          <ErrorCard message={users.error} onRetry={users.reload} />
+        ) : campaigns.error ? (
+          <ErrorCard message={campaigns.error} onRetry={campaigns.reload} />
+        ) : (
+          <OverviewTab
+            users={users.data ?? []}
+            campaigns={campaigns.data ?? []}
+            onOpenUser={setTreeFor}
+          />
+        ))}
 
       {tab === "users" &&
         (users.loading ? (
@@ -274,6 +432,7 @@ function AdminInner() {
           campaignId={inspecting.id}
           onClose={closeInspector}
           onDeleted={onCampaignDeleted}
+          onChanged={campaignsReload}
         />
       )}
 

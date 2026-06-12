@@ -336,4 +336,8 @@ export const api = {
     request<AdminCampaignDetail>(`/api/admin/campaigns/${id}`),
   adminDeleteCampaign: (id: number) =>
     request<void>(`/api/admin/campaigns/${id}`, { method: "DELETE" }),
+  adminDeleteCompany: (id: number) =>
+    request<void>(`/api/admin/companies/${id}`, { method: "DELETE" }),
+  adminDeleteContact: (id: number) =>
+    request<void>(`/api/admin/contacts/${id}`, { method: "DELETE" }),
 };

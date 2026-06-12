@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import type { AdminCampaignDetailCompany } from "@/lib/api-types";
@@ -44,20 +45,42 @@ function scoringPayload(co: AdminCampaignDetailCompany) {
   };
 }
 
+type Removal = { kind: "company" | "contact"; id: number; name: string };
+
 /** Cross-tenant inspector for one campaign: fields, per-company scoring debug, danger ops. */
 export function CampaignInspector({
   campaignId,
   onClose,
   onDeleted,
+  onChanged,
 }: {
   campaignId: number;
   onClose: () => void;
   /** Called after a successful delete - close the drawer and refetch the list. */
   onDeleted: () => void;
+  /** A row inside the campaign changed (company/contact removed) - refresh counts. */
+  onChanged?: () => void;
 }) {
   const detail = useApi(() => api.adminCampaignDetail(campaignId), [campaignId]);
   const { run } = useAction();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [removing, setRemoving] = useState<Removal | null>(null);
+
+  const removeRow = async () => {
+    if (!removing) return;
+    const { kind, id } = removing;
+    const ok = await run(
+      `admin-remove-${kind}:${id}`,
+      () =>
+        (kind === "company" ? api.adminDeleteCompany(id) : api.adminDeleteContact(id)).then(
+          () => true,
+        ),
+      { success: kind === "company" ? "Company removed" : "Contact removed" },
+    );
+    if (!ok) throw new Error("remove failed"); // keep the modal open on failure
+    detail.reload();
+    onChanged?.();
+  };
 
   const d = detail.data;
   const c = d?.campaign;
@@ -111,11 +134,20 @@ export function CampaignInspector({
                     <span className="font-mono text-xs tabular-nums text-ink-soft">
                       score {co.ai_score ?? 0}
                     </span>
-                    <span className="ml-auto flex shrink-0 gap-1.5">
+                    <span className="ml-auto flex shrink-0 items-center gap-1.5">
                       {co.match_level && (
                         <Badge tone={MATCH_TONE[co.match_level] ?? "faint"}>{co.match_level}</Badge>
                       )}
                       <Badge tone={COMPANY_TONE[co.status] ?? "faint"}>{co.status}</Badge>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${co.name}`}
+                        title="Remove company"
+                        onClick={() => setRemoving({ kind: "company", id: co.id, name: co.name })}
+                        className="rounded-lg p-1 text-ink-faint transition-colors hover:bg-rust/10 hover:text-rust"
+                      >
+                        <Trash2 size={14} strokeWidth={1.75} />
+                      </button>
                     </span>
                   </div>
 
@@ -135,7 +167,7 @@ export function CampaignInspector({
                           {ct.email && (
                             <span className="font-mono text-xs text-ink-soft">{ct.email}</span>
                           )}
-                          <span className="ml-auto flex shrink-0 gap-1.5">
+                          <span className="ml-auto flex shrink-0 items-center gap-1.5">
                             {(ct.drafts ?? []).map((dr) => (
                               <Badge key={dr.id} tone={DRAFT_TONE[dr.state] ?? "faint"}>
                                 {dr.state}
@@ -144,6 +176,17 @@ export function CampaignInspector({
                             <Badge tone={VERIFICATION_TONE[ct.verification] ?? "faint"}>
                               {ct.verification}
                             </Badge>
+                            <button
+                              type="button"
+                              aria-label={`Remove ${ct.name}`}
+                              title="Remove contact"
+                              onClick={() =>
+                                setRemoving({ kind: "contact", id: ct.id, name: ct.name })
+                              }
+                              className="rounded-lg p-1 text-ink-faint transition-colors hover:bg-rust/10 hover:text-rust"
+                            >
+                              <Trash2 size={13} strokeWidth={1.75} />
+                            </button>
                           </span>
                         </li>
                       ))}
@@ -164,6 +207,25 @@ export function CampaignInspector({
               </Button>
             </div>
           </section>
+
+          {removing && (
+            <ConfirmModal
+              open
+              onClose={() => setRemoving(null)}
+              onConfirm={removeRow}
+              title={removing.kind === "company" ? "Remove company?" : "Remove contact?"}
+              body={
+                <p>
+                  <strong className="font-semibold text-ink">{removing.name}</strong>
+                  {removing.kind === "company"
+                    ? " and its contacts, drafts and conversations will be permanently removed from this campaign."
+                    : " and their drafts and conversations will be permanently removed."}
+                </p>
+              }
+              confirmLabel={removing.kind === "company" ? "Remove company" : "Remove contact"}
+              destructive
+            />
+          )}
 
           {confirmingDelete && (
             <ConfirmModal
