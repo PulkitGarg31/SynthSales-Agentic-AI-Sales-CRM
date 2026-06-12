@@ -47,16 +47,15 @@ function scoringPayload(co: AdminCampaignDetailCompany) {
 
 type Removal = { kind: "company" | "contact"; id: number; name: string };
 
-/** Cross-tenant inspector for one campaign: fields, per-company scoring debug, danger ops. */
-export function CampaignInspector({
+/** Cross-tenant inspector body for one campaign: fields, per-company scoring
+    debug, danger ops. Used by both the drawer and /admin/campaigns/[id]. */
+export function CampaignInspectorView({
   campaignId,
-  onClose,
   onDeleted,
   onChanged,
 }: {
   campaignId: number;
-  onClose: () => void;
-  /** Called after a successful delete - close the drawer and refetch the list. */
+  /** Called after a successful campaign delete. */
   onDeleted: () => void;
   /** A row inside the campaign changed (company/contact removed) - refresh counts. */
   onChanged?: () => void;
@@ -86,7 +85,7 @@ export function CampaignInspector({
   const c = d?.campaign;
 
   return (
-    <Drawer onClose={onClose} title="Campaign inspector" wide>
+    <>
       {detail.loading ? (
         <SkeletonRows n={6} />
       ) : detail.error ? (
@@ -257,6 +256,29 @@ export function CampaignInspector({
           )}
         </div>
       ) : null}
+    </>
+  );
+}
+
+export function CampaignInspector({
+  campaignId,
+  onClose,
+  onDeleted,
+  onChanged,
+}: {
+  campaignId: number;
+  onClose: () => void;
+  onDeleted: () => void;
+  onChanged?: () => void;
+}) {
+  return (
+    <Drawer
+      onClose={onClose}
+      title="Campaign inspector"
+      wide
+      expandHref={`/admin/campaigns/${campaignId}`}
+    >
+      <CampaignInspectorView campaignId={campaignId} onDeleted={onDeleted} onChanged={onChanged} />
     </Drawer>
   );
 }

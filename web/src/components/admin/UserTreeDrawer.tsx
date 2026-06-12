@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ChevronRight, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Maximize2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { Badge } from "@/components/ui/Badge";
@@ -23,12 +24,15 @@ export function Drawer({
   onClose,
   title,
   wide = false,
+  expandHref,
   children,
 }: {
   onClose: () => void;
   title: string;
   /** max-w-2xl instead of max-w-xl - for dense inspector payloads. */
   wide?: boolean;
+  /** Route that shows this same content as a full page. */
+  expandHref?: string;
   children: React.ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -69,14 +73,26 @@ export function Drawer({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 className="display text-xl">{title}</h2>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-cream hover:text-ink"
-          >
-            <X size={16} strokeWidth={1.75} />
-          </button>
+          <div className="flex items-center gap-1">
+            {expandHref && (
+              <Link
+                href={expandHref}
+                aria-label="Open as full page"
+                title="Open as full page"
+                className="rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-cream hover:text-ink"
+              >
+                <Maximize2 size={15} strokeWidth={1.75} />
+              </Link>
+            )}
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-cream hover:text-ink"
+            >
+              <X size={16} strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
         {children}
       </div>
@@ -102,13 +118,14 @@ function Chevron() {
 
 // ---- user tree ---------------------------------------------------------------
 
-/** Nested disclosure view of one user's data: campaigns → companies → contacts. */
-export function UserTreeDrawer({ userId, onClose }: { userId: number; onClose: () => void }) {
+/** Nested disclosure view of one user's data: campaigns → companies → contacts.
+    Used by both the drawer (quick look) and /admin/users/[id] (full page). */
+export function UserTreeView({ userId }: { userId: number }) {
   const tree = useApi(() => api.adminUserTree(userId), [userId]);
   const t = tree.data;
 
   return (
-    <Drawer onClose={onClose} title="User data">
+    <>
       {tree.loading ? (
         <SkeletonRows n={6} />
       ) : tree.error ? (
@@ -195,6 +212,14 @@ export function UserTreeDrawer({ userId, onClose }: { userId: number; onClose: (
           )}
         </div>
       ) : null}
+    </>
+  );
+}
+
+export function UserTreeDrawer({ userId, onClose }: { userId: number; onClose: () => void }) {
+  return (
+    <Drawer onClose={onClose} title="User data" expandHref={`/admin/users/${userId}`}>
+      <UserTreeView userId={userId} />
     </Drawer>
   );
 }
