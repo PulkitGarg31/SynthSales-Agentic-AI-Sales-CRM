@@ -2,13 +2,28 @@ import type { Metadata } from "next";
 import { Mail, Plus } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { ContactForm } from "@/components/marketing/ContactForm";
-import { FAQ } from "@/lib/copy";
 
 export const metadata: Metadata = { title: "Contact" };
 
 // One real inbox: the form below delivers here, and the card offers it
 // directly for people who prefer their own mail client.
 const CONTACT_EMAIL = "brodomyjob@gmail.com";
+
+// Contact-specific questions (the landing page has the product FAQ).
+const CONTACT_FAQ = [
+  {
+    q: "How fast will I hear back?",
+    a: "Usually within a day, often sooner. There is no ticket queue or support tier; messages land in a real inbox and a person answers.",
+  },
+  {
+    q: "Can I get a demo?",
+    a: "Yes. Mention a couple of times that suit you and we'll walk you through Sellari live, on your own company list if you bring one.",
+  },
+  {
+    q: "Found a bug or have a feature idea?",
+    a: "Send it through the form with as much detail as you can. The builders read every report themselves.",
+  },
+] as const;
 
 export default function ContactPage() {
   return (
@@ -52,7 +67,7 @@ export default function ContactPage() {
             </h2>
           </div>
           <div className="mt-10">
-            {FAQ.slice(0, 3).map((item) => (
+            {CONTACT_FAQ.map((item) => (
               <details key={item.q} className="group border-b border-line py-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-medium text-ink [&::-webkit-details-marker]:hidden">
                   {item.q}
