@@ -5,38 +5,45 @@ export const metadata: Metadata = { title: "Changelog" };
 
 const ENTRIES = [
   {
-    date: "June 12, 2026",
-    title: "Contact form + dark mode",
+    date: "June 2026",
+    title: "Dark mode + a faster way to reach us",
     points: [
-      "A real contact form on the Contact page, delivered straight to our inbox.",
       "Full dark mode across the site and the app, with a toggle in every topbar.",
-      "Landing-page copy refined end to end.",
+      "A contact form that lands in a real inbox; a person replies.",
     ],
   },
   {
-    date: "June 11, 2026",
-    title: "Sellari AI launches",
+    date: "May 2026",
+    title: "Sharper contact discovery",
     points: [
-      "Complete redesign: warm editorial interface across all 21 screens.",
-      "New password-reset flow and an admin panel with cross-tenant tooling.",
-      "Live pipeline page with per-agent re-runs and a streaming activity log.",
-    ],
-  },
-  {
-    date: "June 5, 2026",
-    title: "Smarter contact discovery",
-    points: [
-      "Escalating LinkedIn search with a strict commercial-role gate.",
+      "Deeper LinkedIn search with a stricter decision-maker filter.",
       "Catch-all mail servers handled honestly: best guess kept, labeled Risky.",
-      "Hunter.io lookup for the top contact of each company, used sparingly.",
+      "A per-company mail-domain override for tricky setups.",
     ],
   },
   {
-    date: "May 27, 2026",
-    title: "The eight-agent pipeline",
+    date: "April 2026",
+    title: "Follow-ups that know when to stop",
     points: [
-      "Research, scoring, people finding, email verification, outreach drafting, follow-up tracking, meeting booking, and reply reading: one orchestrated run.",
-      "Everything degrades gracefully with zero credentials configured.",
+      "Automatic nudges for quiet threads, capped at three.",
+      "Stalled threads are marked and set aside instead of dripping forever.",
+      "A clear 'no' in a reply now opts the contact out on the spot.",
+    ],
+  },
+  {
+    date: "March 2026",
+    title: "Meetings on your calendar",
+    points: [
+      "Booking from a conversation creates a real Google Calendar event with a Meet link.",
+      "No calendar connected? Paste your own link; nothing is fabricated.",
+    ],
+  },
+  {
+    date: "February 2026",
+    title: "Verification, hardened",
+    points: [
+      "Every address confirmed as a deliverable mailbox before a draft is written.",
+      "Parked and dead company domains detected and scored down honestly.",
     ],
   },
 ] as const;
