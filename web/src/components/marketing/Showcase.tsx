@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/Badge";
 function Window({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-paper">
+      {/* macOS traffic lights. Deliberately off-palette: these mimic real Mac
+          window chrome, so they use Apple's actual vivid colors. */}
       <div className="flex items-center gap-1.5 border-b border-line px-4 py-2.5">
-        <span className="size-2 rounded-full bg-line" />
-        <span className="size-2 rounded-full bg-line" />
-        <span className="size-2 rounded-full bg-line" />
+        <span className="size-2 rounded-full bg-[#ff5f57]" />
+        <span className="size-2 rounded-full bg-[#febc2e]" />
+        <span className="size-2 rounded-full bg-[#28c840]" />
         <span className="ml-2 text-[11px] uppercase tracking-[0.12em] text-ink-faint">{title}</span>
       </div>
       <div className="p-4">{children}</div>
@@ -32,11 +34,11 @@ export function Showcase() {
       <div className="max-w-2xl space-y-4">
         <Eyebrow index="01">Inside the product</Eyebrow>
         <h2 className="display text-3xl md:text-4xl">
-          One pipeline, <em>fully visible</em>.
+          No Black Box, <em>just proof</em>.
         </h2>
         <p className="text-base leading-relaxed text-ink-soft">
-          Every stage writes its work down (scores, verdicts, drafts, replies), so you always know
-          why a company is in your pipeline and what happens next.
+          Every score, draft, verdict and reply is right there on screen, so you always know where
+          a deal stands and why.
         </p>
       </div>
       <div aria-hidden className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">

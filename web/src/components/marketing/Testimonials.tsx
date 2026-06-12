@@ -3,10 +3,11 @@ import { TESTIMONIALS } from "@/lib/copy";
 
 export function Testimonials() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
+    <section className="bg-band">
+      <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
       <div className="max-w-2xl space-y-4">
-        <Eyebrow index="04">From the field</Eyebrow>
-        <h2 className="display text-3xl md:text-4xl">
+        <Eyebrow index="04">Early users</Eyebrow>
+        <h2 className="display text-3xl text-ink md:text-4xl">
           Quiet pipelines, <em>loud results</em>.
         </h2>
       </div>
@@ -25,6 +26,7 @@ export function Testimonials() {
             </figcaption>
           </figure>
         ))}
+        </div>
       </div>
     </section>
   );

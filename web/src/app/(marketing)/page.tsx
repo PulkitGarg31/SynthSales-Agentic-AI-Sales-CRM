@@ -3,7 +3,6 @@ import { StatBand } from "@/components/marketing/StatBand";
 import { Showcase } from "@/components/marketing/Showcase";
 import { HowItWorks } from "@/components/marketing/HowItWorks";
 import { Features } from "@/components/marketing/Features";
-import { HumanLoop } from "@/components/marketing/HumanLoop";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { Faq } from "@/components/marketing/Faq";
 import { CtaBand } from "@/components/marketing/CtaBand";
@@ -16,7 +15,6 @@ export default function LandingPage() {
       <Showcase />
       <HowItWorks />
       <Features />
-      <HumanLoop />
       <Testimonials />
       <Faq />
       <CtaBand />

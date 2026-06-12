@@ -18,9 +18,9 @@ export const HERO = {
 } as const;
 
 export const STATS = [
-  { value: "12,418", label: "companies researched" },
-  { value: "31,206", label: "emails verified" },
-  { value: "642", label: "meetings booked" },
+  { value: "6,142", label: "companies researched" },
+  { value: "15,659", label: "emails verified" },
+  { value: "306", label: "meetings booked" },
 ] as const;
 
 export type Phase = {
@@ -36,28 +36,28 @@ export const PHASES: readonly Phase[] = [
     title: "Research",
     agents: [AGENT_LABELS.enrichment, AGENT_LABELS.scoring],
     description:
-      "Every company is read, not assumed. Parked and dead domains are flagged honestly, and thin evidence caps the score: a company that barely exists can never look like a strong match.",
+      "Every company is read the way an analyst would read it: the website, the signals, the news, the hiring. Weak evidence sinks the score and dead domains are flagged on sight, so only real, reachable businesses rise to the top of your list.",
   },
   {
     index: "02",
     title: "Find people",
     agents: [AGENT_LABELS.employee_finder, AGENT_LABELS.email_guess_verification],
     description:
-      "Real LinkedIn profiles of commercial decision makers, or none at all. Names are never invented. Likely addresses are guessed pattern by pattern and confirmed against the mail server before anyone is contacted.",
+      "Real LinkedIn profiles of decision makers, or none at all. Names are never invented. Addresses are guessed pattern by pattern and confirmed against the mail server before anyone is contacted, so bounces stay rare.",
   },
   {
     index: "03",
     title: "Reach out",
     agents: [AGENT_LABELS.outreach, AGENT_LABELS.tracking],
     description:
-      "Drafts grounded in the research on each company, not boilerplate. Quiet threads get a nudge, up to three, then the tracker marks them stalled and stops on its own.",
+      "No templates with a name swapped in. Each draft is built from that one company's own research, so it reads like you did the homework. Quiet threads get up to three gentle follow-ups, and then the outreach knows when to stop.",
   },
   {
     index: "04",
     title: "Convert",
     agents: [AGENT_LABELS.meeting, AGENT_LABELS.reply_classifier],
     description:
-      "Inbound replies are read and classified: interested, question, not interested, meeting-ready. When a prospect is ready, a real Google Meet event lands on your own calendar.",
+      "Inbound replies are read and classified the moment they land: interested, question, not interested, meeting-ready. When a prospect says yes, a real Google Meet event lands on your own calendar and the deal moves to the meeting stage.",
   },
 ] as const;
 
@@ -76,58 +76,44 @@ export const FEATURES: readonly Feature[] = [
     icon: "mail-check",
     title: "Verified or nothing",
     line:
-      "Every address is confirmed against the mail server before a draft is written, or clearly labeled Risky when a catch-all server won't say. Contacts with no confirmable address get no email at all.",
+      "Before a draft is written, every address is verified as a real, deliverable mailbox. If it can't be confirmed it's marked Risky or skipped. Guesswork never reaches an inbox.",
   },
   {
     icon: "radar",
     title: "Honest domain research",
     line:
-      "Parked and dead domains are detected, scored down, and labeled. The research never hallucinates a profile for a company that isn’t there.",
+      "A parked domain can't buy anything. Dead and abandoned sites are spotted early, scored down, and labeled honestly instead of dressed up as leads.",
   },
   {
     icon: "messages-square",
     title: "Replies, read for you",
     line:
-      "Inbound replies are classified by intent and the pipeline reacts: a clear ‘no’ opts the contact out automatically, so nobody gets nudged twice.",
+      "Every reply is read and sorted by what it means. A clear 'no' opts the contact out on the spot, an interested one rises to the top of your inbox, and nobody ever gets nudged twice.",
   },
   {
     icon: "repeat",
     title: "Follow-ups that know when to stop",
     line:
-      "Unanswered threads get a polite nudge, up to three. Then the thread is marked stalled and left alone. There is no infinite drip.",
+      "Silence gets a polite nudge, then another, three at most. After that the thread is marked stalled and set aside for good. Persistence, never pestering.",
   },
   {
     icon: "calendar-check",
     title: "Real meetings, real links",
     line:
-      "Booking creates an actual Google Calendar event with a Google Meet link on your own calendar. The link is never fabricated.",
+      "One click books a real Google Calendar event with a Meet link on your calendar. No fake links, no scheduling dance.",
   },
   {
     icon: "shield-check",
     title: "Off by default",
     line:
-      "Outbound sending ships disabled. Until you flip the switch in Settings, not one email leaves the building.",
+      "Out of the box, sending is off. Draft, review and test as much as you like; not one email reaches a prospect until you flip the switch yourself.",
   },
 ] as const;
-
-export const HUMAN_LOOP = {
-  headline: { pre: "Nothing sends ", em: "until you say so", post: "." },
-  aside:
-    "The pipeline is patient. It does the reading, the finding, the drafting. And then it waits for you.",
-  body:
-    "Sellari is built around a hard kill-switch: outbound email is off by default, and every send path respects it. Drafts queue for your review, follow-ups pause while sending is off, and a contact who says no is never contacted again.",
-  points: [
-    "Outbound email is disabled until you turn it on",
-    "Drafts wait in the queue for your review",
-    "Automatic follow-ups cap at three, then stop",
-    "A confident ‘not interested’ opts the contact out",
-  ],
-} as const;
 
 export const TESTIMONIALS = [
   {
     quote:
-      "We turned a four-thousand-row spreadsheet into eleven booked meetings without writing a single cold email ourselves. The drafts read like our best SDR on a good day.",
+      "We turned a five-hundred-row spreadsheet into eleven booked meetings without writing a single cold email ourselves. The drafts read like our best SDR on a good day.",
     name: "Maya Lindqvist",
     role: "Head of Growth, logistics SaaS",
   },
@@ -148,23 +134,23 @@ export const TESTIMONIALS = [
 export const FAQ = [
   {
     q: "Where do the contacts come from?",
-    a: "Public LinkedIn profiles surfaced through real search results, filtered to commercial decision-making roles. If no genuine profile is found, a company yields zero contacts; names are never invented. You can also add contacts yourself.",
+    a: "Real LinkedIn profiles found through live search, filtered to decision makers. No profile found means zero contacts; names are never invented.",
   },
   {
     q: "What happens when no email can be verified?",
-    a: "The contact stays marked Unknown with no address, and no outreach is drafted for them. On catch-all mail servers, where a specific mailbox can’t be confirmed, the best-guess address is kept and clearly labeled Risky.",
+    a: "The contact stays Unknown with no address and gets no outreach. On catch-all servers the best guess is kept, clearly labeled Risky.",
   },
   {
     q: "When does anything actually get sent?",
-    a: "Never by default. Outbound sending is off until you enable it in Settings, and drafts wait for review before they go. Automatic follow-ups also pause whenever sending is off.",
+    a: "Never by default. Sending stays off until you enable it in Settings, and drafts wait for your review first.",
   },
   {
     q: "Can I re-run a single agent without redoing everything?",
-    a: "Yes. Each stage can be re-run on its own, and downstream results are cleared so you see a clean picture instead of a stale mix. Already-verified emails are always kept: they’re confirmed, so they’re never re-verified or re-charged.",
+    a: "Yes. Any stage can be re-run on its own; downstream results are cleared for a clean picture, and verified emails are always kept.",
   },
   {
     q: "How do meetings get booked?",
-    a: "Connect your Google Calendar, and booking a meeting creates a real event with a Google Meet link on your calendar. Prefer not to connect? Supply your own link instead; Sellari never fabricates one.",
+    a: "Connect Google Calendar and every booking creates a real event with a Meet link. No calendar? Paste your own link; Sellari never fabricates one.",
   },
 ] as const;
 
@@ -190,15 +176,15 @@ export const FOOTER_COLUMNS: readonly { title: string; links: readonly FooterLin
   {
     title: "Resources",
     links: [
-      { label: "Documentation", href: "#" },
-      { label: "Changelog", href: "#" },
+      { label: "Documentation", href: "/docs" },
+      { label: "Changelog", href: "/changelog" },
     ],
   },
   {
     title: "Legal",
     links: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
     ],
   },
 ] as const;

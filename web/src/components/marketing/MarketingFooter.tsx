@@ -10,7 +10,7 @@ export function MarketingFooter() {
           <div className="space-y-4">
             <Wordmark withEmblem />
             <p className="max-w-xs text-sm leading-relaxed text-ink-soft">
-              Eight agents research, verify, and draft. You approve every send.
+              Sellari AI does the research, the finding, and the writing. You approve every send.
             </p>
           </div>
           {FOOTER_COLUMNS.map((column) => (

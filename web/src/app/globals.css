@@ -51,8 +51,17 @@
   --color-rust: #e8705a;
 }
 
-/* Inside an (inverted, now light) band surface, the "light text on band"
-   tokens flip back to their light-theme values so contrast holds. */
+/* Band surfaces re-point the text/surface tokens so sections can keep their
+   normal ink/paper/line classes and stay readable on the dark band. */
+.bg-band {
+  --color-ink: #f4efe6;
+  --color-ink-soft: #c9c2b2;
+  --color-line: #3a342a;
+  --color-paper: #211b12;
+}
+
+/* Inside an (inverted, now light) band surface in dark mode, the tokens flip
+   back to their light-theme values so contrast holds. */
 .dark .bg-band {
   --color-cream: #211e19;
   --color-ink: #211e19;
@@ -62,6 +71,7 @@
   --color-moss: #5a7052;
   --color-rust: #b5482f;
   --color-line: #ddd5c4;
+  --color-paper: #fbf8f1;
 }
 
 /* Overlay scrims must stay dark scrims; with ink flipped light, bg-ink/40
