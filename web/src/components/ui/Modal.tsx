@@ -104,6 +104,19 @@ export function ConfirmModal({
   const close = () => {
     if (!busy) onClose();
   };
+  const confirm = async () => {
+    if (blocked || busy) return;
+    setBusy(true);
+    try {
+      await onConfirm();
+      onClose();
+    } catch {
+      // Swallow: the modal staying open signals failure; the caller's
+      // onConfirm (e.g. useAction) is responsible for surfacing it.
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <Modal open={open} onClose={close} title={title}>
       <div className="text-sm text-ink-soft space-y-3">{body}</div>
@@ -114,6 +127,10 @@ export function ConfirmModal({
           aria-label={`Type "${typedPhrase}" to confirm`}
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
+          // Enter submits once the phrase matches (same path as the button).
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void confirm();
+          }}
         />
       )}
       <div className="mt-5 flex justify-end gap-2">
@@ -124,18 +141,7 @@ export function ConfirmModal({
           variant={destructive ? "danger" : "accent"}
           busy={busy}
           disabled={blocked}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              await onConfirm();
-              onClose();
-            } catch {
-              // Swallow: the modal staying open signals failure; the caller's
-              // onConfirm (e.g. useAction) is responsible for surfacing it.
-            } finally {
-              setBusy(false);
-            }
-          }}
+          onClick={() => void confirm()}
         >
           {confirmLabel}
         </Button>
