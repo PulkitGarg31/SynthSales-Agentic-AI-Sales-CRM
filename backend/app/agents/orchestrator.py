@@ -12,9 +12,11 @@ from app.agents.scoring import scoring_agent
 from app.agents.tracking import tracking_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
 from app.core.database import SessionLocal
-from app.models import AgentConfig, Campaign, Company, Contact
+from app.models import AgentConfig, Campaign, Company, Contact, EmailDraft
 from app.services import contact_directory
+from app.services import snapshots
 from app.services.events import add_notification
+from app.services.pipeline_locks import is_locked, locked_contact_ids
 
 
 def ensure_agents(db: Session, owner_id: int) -> None:
@@ -120,6 +122,14 @@ RUNNABLE_KEYS = {
 }
 
 
+# Pipeline output order — index drives "successors" for the cascade.
+_OUTPUT_ORDER = [
+    "enrichment", "scoring", "employee_finder",
+    "email_guess_verification", "outreach",
+]
+_AGENT_NAMES = {key: name for key, name, _ in AGENT_REGISTRY}
+
+
 def _qualified_companies(db: Session, campaign: Campaign) -> list[Company]:
     return (
         db.query(Company)
@@ -148,9 +158,10 @@ def _walk_for_contactable(
     is what the per-agent "Re-run" button on the campaign timeline sends.
     """
     if force:
-        # Nuke every contact in the campaign so the re-run produces a clean
-        # picture instead of a mix of stale and new. CASCADE wipes their email
-        # drafts at the same time.
+        # Forced re-run wipes contacts for a clean picture — but NEVER a locked
+        # contact (one with a sent Thread): its conversation must survive. CASCADE
+        # wipes the deleted contacts' drafts.
+        locked = locked_contact_ids(db, campaign.id)
         stale_contacts = (
             db.query(Contact)
             .join(Company, Company.id == Contact.company_id)
@@ -158,7 +169,8 @@ def _walk_for_contactable(
             .all()
         )
         for ct in stale_contacts:
-            db.delete(ct)
+            if ct.id not in locked:
+                db.delete(ct)
         db.commit()
 
     candidates = (
@@ -205,6 +217,61 @@ def _walk_for_contactable(
     return contactable
 
 
+def _reset_scoring_fields(db: Session, campaign: Campaign) -> None:
+    """Clear scoring's output. Preserve user-set statuses (Excluded/Approved/
+    Contacted); only automatic Qualified/Reviewed fall back to Researching."""
+    for c in db.query(Company).filter(Company.campaign_id == campaign.id):
+        c.ai_score = 0
+        c.rank = 0
+        c.match_level = "Moderate"
+        c.match_explanation = ""
+        c.score_factors = []
+        if c.status in ("Qualified", "Reviewed"):
+            c.status = "Researching"
+
+
+def _delete_non_locked_contacts(db: Session, campaign: Campaign) -> None:
+    """Delete every contact in the campaign that has no Thread (CASCADE removes
+    their drafts). Locked contacts (sent conversations) are preserved."""
+    locked = locked_contact_ids(db, campaign.id)
+    contacts = (
+        db.query(Contact).join(Company, Company.id == Contact.company_id)
+        .filter(Company.campaign_id == campaign.id).all()
+    )
+    for c in contacts:
+        if c.id not in locked:
+            db.delete(c)
+
+
+def _delete_non_locked_drafts(db: Session, campaign: Campaign) -> None:
+    """Delete drafts belonging to non-locked contacts (outreach output)."""
+    locked = locked_contact_ids(db, campaign.id)
+    drafts = (
+        db.query(EmailDraft)
+        .join(Contact, Contact.id == EmailDraft.contact_id)
+        .join(Company, Company.id == Contact.company_id)
+        .filter(Company.campaign_id == campaign.id).all()
+    )
+    for d in drafts:
+        if d.contact_id not in locked:
+            db.delete(d)
+
+
+def clear_successors(db: Session, campaign: Campaign, from_key: str) -> None:
+    """Clear the output of every output-agent AFTER `from_key`, preserving locked
+    contacts (sent conversations) and meetings. See the design spec's cascade map."""
+    if from_key not in _OUTPUT_ORDER:
+        return
+    successors = set(_OUTPUT_ORDER[_OUTPUT_ORDER.index(from_key) + 1:])
+    if "scoring" in successors:
+        _reset_scoring_fields(db, campaign)
+    if "employee_finder" in successors:
+        _delete_non_locked_contacts(db, campaign)  # CASCADE clears their drafts
+    elif "outreach" in successors:
+        _delete_non_locked_drafts(db, campaign)
+    db.commit()
+
+
 def run_agent_for_campaign(
     db: Session, campaign: Campaign, owner_id: int, key: str, force: bool = False,
 ) -> None:
@@ -216,6 +283,16 @@ def run_agent_for_campaign(
     contacts, stale email drafts, stale verification verdicts) and produce a
     fresh result. Defaults to False so bulk pipelines stay incremental.
     """
+    # A forced re-run is destructive: snapshot for undo, then clear this agent's
+    # successors (preserving locked conversations). Non-forced incremental runs
+    # are additive — no snapshot, no cascade.
+    if force and key in _OUTPUT_ORDER:
+        snapshots.capture(
+            db, campaign, owner_id,
+            trigger=f"agent:{key}", label=f"Re-run: {_AGENT_NAMES.get(key, key)}",
+        )
+        clear_successors(db, campaign, key)
+
     companies = db.query(Company).filter(Company.campaign_id == campaign.id).all()
 
     if key == "enrichment":
@@ -258,6 +335,7 @@ def run_agent_for_campaign(
                         (contact.email or "").strip()
                         and contact.approved is not False
                         and not contact.do_not_contact
+                        and not is_locked(db, contact)  # already in conversation
                     ):
                         outreach_agent.run(db, contact, c, campaign, owner_id, force=force)
 
@@ -272,6 +350,7 @@ def run_agent_for_campaign(
 
 def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dict:
     """Phases 1–6: research → score → contacts → guess/verify → outreach drafts."""
+    snapshots.capture(db, campaign, owner_id, trigger="pipeline", label="Full pipeline run")
     companies = db.query(Company).filter(Company.campaign_id == campaign.id).all()
 
     # Phase 1 — enrichment (concurrent: one private session per worker, bounded
@@ -320,6 +399,7 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
                     (contact.email or "").strip()
                     and contact.approved is not False
                     and not contact.do_not_contact
+                    and not is_locked(db, contact)  # already in conversation
                 ):
                     outreach_agent.run(db, contact, c, campaign, owner_id, force=True)
 
