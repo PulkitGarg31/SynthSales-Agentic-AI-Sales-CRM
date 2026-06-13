@@ -234,6 +234,24 @@ class VerifiedContact(Base):
     )
 
 
+class PipelineSnapshot(Base):
+    """One-row-per-campaign undo buffer. Captures the campaign's pipeline output
+    (company agent-fields + contacts + drafts) before a destructive op; a single
+    restore rolls it back and consumes it. Expires after 24h. See the spec."""
+    __tablename__ = "pipeline_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), index=True
+    )
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    trigger: Mapped[str] = mapped_column(String(40), default="")
+    label: Mapped[str] = mapped_column(String(120), default="")
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Thread(Base):
     __tablename__ = "threads"
 
