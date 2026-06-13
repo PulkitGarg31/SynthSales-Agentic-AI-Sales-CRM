@@ -30,6 +30,7 @@ from app.models import Company, Contact
 from app.providers.hunter import hunter
 from app.providers.search import search
 from app.providers.verification import verification as verifier
+from app.services import contact_directory
 
 
 # --------------------------------------------------------------------------- #
@@ -185,6 +186,10 @@ class EmailGuessVerificationAgent(Agent):
             f"address ({verified} confirmed, {with_email - verified} best-guess on a "
             "catch-all server).",
         )
+
+        # Record any confirmed addresses into the global directory so other
+        # campaigns for the same company can reuse them (skips finder + verify).
+        contact_directory.record_verified(db, company)
 
     @staticmethod
     def _confirmed(contact: Contact) -> bool:

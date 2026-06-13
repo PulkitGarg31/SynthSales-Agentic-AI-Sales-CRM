@@ -13,6 +13,7 @@ from app.agents.tracking import tracking_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
 from app.core.database import SessionLocal
 from app.models import AgentConfig, Campaign, Company, Contact
+from app.services import contact_directory
 from app.services.events import add_notification
 
 
@@ -183,12 +184,13 @@ def _walk_for_contactable(
             continue
 
         if not c.contacts or force:
-            try:
-                employee_finder_agent.run(db, c, owner_id, force=force)
-            except Exception:
-                # Don't let one bad row kill the walk — log via agent.run and
-                # treat as "no contacts found" so we continue down the list.
-                pass
+            # Reuse first: a company already in the verified-contact directory is
+            # seeded directly (Verified contacts) and the finder is skipped.
+            if not contact_directory.seed_company(db, c):
+                try:
+                    employee_finder_agent.run(db, c, owner_id, force=force)
+                except Exception:
+                    pass
             db.refresh(c)
 
         if c.contacts:
