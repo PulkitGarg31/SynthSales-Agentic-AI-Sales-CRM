@@ -161,6 +161,15 @@ class PipelineAgentOut(BaseModel):
     runnable: bool = True  # False for "meeting" (no on-demand run)
 
 
+class SnapshotStatusOut(BaseModel):
+    available: bool
+    reason: str | None = None
+    trigger: str | None = None
+    label: str | None = None
+    created_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
 # ---------- Company / Contact ----------
 class ScoreFactor(BaseModel):
     label: str

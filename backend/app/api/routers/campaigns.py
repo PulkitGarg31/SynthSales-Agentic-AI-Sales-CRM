@@ -28,9 +28,12 @@ from app.schemas import (
     CampaignUpdate,
     CompanyOut,
     PipelineAgentOut,
+    SnapshotStatusOut,
 )
-from app.services.events import add_log
+from app.services import snapshots
+from app.services.events import add_log, add_notification
 from app.services.serializers import campaign_rollups, company_out
+from app.services.snapshots import ConversationActive
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
@@ -275,6 +278,43 @@ def get_pipeline(
         )
     out.sort(key=lambda a: a.order)
     return out
+
+
+@router.get("/{campaign_id}/snapshot", response_model=SnapshotStatusOut)
+def get_snapshot_status(
+    campaign_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Undo availability for this campaign (drives a future Undo button)."""
+    c = _owned(db, user, campaign_id)
+    return snapshots.availability(db, c)
+
+
+@router.post("/{campaign_id}/restore", response_model=CampaignOut)
+def restore_campaign(
+    campaign_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Undo the last destructive run: roll the campaign's pipeline output back to
+    the snapshot and consume it. 409 if the campaign has a live conversation."""
+    c = _owned(db, user, campaign_id)
+    try:
+        ok = snapshots.restore(db, c)
+    except ConversationActive:
+        raise HTTPException(
+            status_code=409,
+            detail="Undo unavailable: this campaign has active conversations.",
+        )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Nothing to undo.")
+    add_log(db, user.id, "Campaign", f"Undid the last run for '{c.name}'.")
+    add_notification(
+        db, user.id, "campaign", "Run undone",
+        f"'{c.name}' was rolled back to its previous state.",
+    )
+    return campaign_rollups(db, c)
 
 
 class RunAgentIn(BaseModel):
