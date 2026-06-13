@@ -746,3 +746,10 @@ and consumes it (one undo only); `GET …/snapshot` reports availability.
   the live seeded campaign.
 - Makes `BACKEND-GAPS.md` §2 "24h cache before clear" real and implements CLAUDE.md's per-agent
   "clears successors except outreach/meeting" semantics.
+
+#### Frontend (Undo UI)
+- Added an **"Undo last run"** header button on the campaign pipeline page (`UndoLastRun.tsx`),
+  rendered only when `GET /api/campaigns/{id}/snapshot` reports an available snapshot and no run is
+  in flight. A `ConfirmModal` shows what it restores + the 24h window; confirm → `POST /restore` →
+  reload campaign + pipeline + availability. Availability is re-checked after each run and once a run
+  finishes. ✅ `npm run build` clean (typecheck + lint, 29 routes).
