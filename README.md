@@ -713,3 +713,36 @@ display pairing, hairline borders, numbered eyebrows, dark band sections, giant 
   notifications/logs — all contracts hold; counts cross-checked against `.\db.ps1 health`.
 - New backend gaps recorded in `BACKEND-GAPS.md` (reply endpoint never emails; admin user
   delete orphans meetings).
+
+### 2026-06-13 (verified-contact directory + pipeline undo)
+
+Implemented `.claude/plans/2026-06-13-contact-directory-and-pipeline-undo-design.md` (11-task
+plan, subagent-driven on Opus 4.8). Two independent backend features.
+
+**Verified-contact directory** (`verified_contacts` table + `services/contact_directory.py`).
+A global, cross-tenant store of Verified contacts keyed by normalized company domain (name
+fallback). The guess-verify agent upserts confirmed contacts (`record_verified`); the finder
+walk seeds a known company straight from the directory (`seed_company`) and skips the web search —
+and because seeded contacts are `Verified`, guess-verify's `_confirmed()` short-circuit also skips
+the paid verification. Net: a previously-seen company costs 0 finder searches + 0 verify credits.
+
+**Cascade-clear + one-level 24h undo** (`pipeline_snapshots` table + `services/snapshots.py` +
+`services/pipeline_locks.py`). A forced per-agent re-run (and the full pipeline) first snapshots
+the campaign's pipeline output (company agent-fields + contacts + drafts), then `clear_successors`
+clears that agent's downstream outputs. `POST /api/campaigns/{id}/restore` rolls the snapshot back
+and consumes it (one undo only); `GET …/snapshot` reports availability.
+- **Conversation lock invariant**: a contact with a sent `Thread` is "locked" — no clear path
+  (cascade re-run, full pipeline, finder force, restore) ever deletes it, so live conversations
+  keep all their messages and keep replying. Meetings are inherently safe (no FK to contacts).
+  Unsent drafts are cleared freely. Undo is blocked (409) once a campaign has any conversation.
+- Expiry: 24h, lazy on read + an hourly scheduler purge job.
+
+#### Process + verification
+- Subagent-driven on Opus 4.8: fresh implementer per task; trivial tasks controller-reviewed,
+  risky logic (snapshots restore, orchestrator cascade) verified with self-contained DB tests.
+- ✅ Per-module import checks; ✅ restore remap round-trip (contacts + drafts re-linked); ✅ wired
+  `run_agent_for_campaign(force)` → snapshot + cascade + re-run → undo restores; ✅ app boots clean
+  (`/health` ok); ✅ HTTP smoke: `GET /snapshot` → `conversation_active`, `POST /restore` → 409 on
+  the live seeded campaign.
+- Makes `BACKEND-GAPS.md` §2 "24h cache before clear" real and implements CLAUDE.md's per-agent
+  "clears successors except outreach/meeting" semantics.

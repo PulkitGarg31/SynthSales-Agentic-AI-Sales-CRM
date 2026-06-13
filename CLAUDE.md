@@ -57,8 +57,8 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
 **enrichment → scoring → employee_finder → email_guess_verification → outreach → tracking → meeting → reply_classifier**.
 
 `agents/orchestrator.py` is the only place that sequences them. Two entry points:
-- `run_campaign_pipeline()` — the full Phase 1–6 run a "Run all agents" click triggers. Also clears the data but before clearing store that in a cache for 24 hours. Ask for confirmation before running this with a clear warning message.
-- `run_agent_for_campaign(..., key, force)` — runs one stage on demand (the per-agent Re-run buttons). Simply clears the results of upcoming agents(exception is outreach and meeting)
+- `run_campaign_pipeline()` — the full Phase 1–6 run a "Run all agents" click triggers. Before mutating anything it snapshots the campaign's pipeline output (company agent-fields + contacts + drafts) for a **one-level 24h undo** (`services/snapshots.py`); `POST /api/campaigns/{id}/restore` rolls it back and consumes it, `GET …/snapshot` reports availability. The UI shows a confirmation warning before running.
+- `run_agent_for_campaign(..., key, force)` — runs one stage on demand (the per-agent Re-run buttons). A forced re-run (`force=True`) first snapshots for undo, then `clear_successors` clears that agent's downstream outputs — **except** locked contacts (any contact with a sent `Thread` → a live conversation) and meetings, which no clear path ever deletes (`services/pipeline_locks.py`). Undo is blocked once the campaign has any live conversation. A non-forced run is additive (no snapshot, no cascade).
   `RUNNABLE_KEYS` excludes `meeting` (it only fires when a user books a meeting in Conversations).
 
 Non-obvious orchestration rules you must respect when editing agents:
@@ -145,7 +145,10 @@ tracking agent's auto follow-ups, and the meeting agent's contact email. **Exemp
 ### Data model & status lifecycles
 
 `backend/app/models.py` — Users, Campaigns, Companies, Contacts, EmailDrafts, Threads+Messages,
-Meetings, Notifications, Logs, AgentConfigs. All child rows cascade-delete from their owner. Key
+Meetings, Notifications, Logs, AgentConfigs, plus VerifiedContact (the global cross-tenant verified-contact
+directory, keyed by company domain/name — finder + guess-verify reuse it to skip re-finding and paid
+verification) and PipelineSnapshot (the per-campaign one-level 24h undo buffer). All child rows cascade-delete
+from their owner. Key
 status fields the UI depends on:
 - `Company.status`: `Researching` (not yet processed) → `Qualified` (top-N) | `Reviewed` (scored but
   not selected) | `Excluded`/`Approved`/`Contacted` (user-set, preserved across re-runs).

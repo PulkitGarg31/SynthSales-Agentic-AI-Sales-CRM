@@ -1,7 +1,7 @@
 # Design Spec — Verified-Contact Directory + Pipeline Undo
 
 - **Date:** 2026-06-13
-- **Status:** Design approved; pending implementation plan
+- **Status:** Implemented 2026-06-13 (backend; frontend Undo button still a follow-up)
 - **Scope:** Backend only (`backend/`). Frontend Undo button + confirmation pop-up are a follow-up.
 - **Migrations:** No Alembic. Two brand-new tables come up via `Base.metadata.create_all` in `main.py::lifespan` — no `ALTER` needed.
 
