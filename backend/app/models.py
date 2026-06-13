@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -205,6 +206,32 @@ class EmailDraft(Base):
     footer: Mapped[str] = mapped_column(Text, default="")
     state: Mapped[str] = mapped_column(String(20), default="Queued")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class VerifiedContact(Base):
+    """Global, cross-tenant directory of verified contacts keyed by company.
+    A contact verified once (by any user) is reused by every future campaign for
+    the same company, skipping the finder's web search and the paid verify
+    credit. Cross-tenant reuse is intentional (standard B2B data tooling)."""
+    __tablename__ = "verified_contacts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Normalized website domain — primary match key. "" when the company has none.
+    domain_key: Mapped[str] = mapped_column(String(200), default="", index=True)
+    # Normalized company name — fallback match key when domain_key == "".
+    name_key: Mapped[str] = mapped_column(String(200), default="", index=True)
+    company_name: Mapped[str] = mapped_column(String(200), default="")
+    contact_name: Mapped[str] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(120), default="")
+    email: Mapped[str] = mapped_column(String(255))
+    linkedin: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    confidence: Mapped[int] = mapped_column(Integer, default=0)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("domain_key", "name_key", "email", name="uq_verified_contact"),
+    )
 
 
 class Thread(Base):
