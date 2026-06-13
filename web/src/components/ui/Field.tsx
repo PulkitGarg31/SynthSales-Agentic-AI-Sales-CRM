@@ -29,6 +29,8 @@ export function Field({
   htmlFor,
   hint,
   error,
+  warn,
+  required = false,
   className = "",
   children,
 }: {
@@ -36,18 +38,41 @@ export function Field({
   htmlFor?: string;
   hint?: React.ReactNode;
   error?: React.ReactNode;
+  warn?: React.ReactNode;
+  required?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className={`space-y-1.5 ${className}`}>
-      <Label htmlFor={htmlFor}>{label}</Label>
+    <div className={`group/field space-y-1.5 ${className}`}>
+      <Label htmlFor={htmlFor}>
+        {label}
+        {required && (
+          <span aria-hidden className="ml-0.5 text-terracotta">
+            *
+          </span>
+        )}
+      </Label>
       {children}
       {error ? (
         <p className="text-xs text-rust">{error}</p>
-      ) : hint ? (
-        <p className="text-xs text-ink-soft">{hint}</p>
-      ) : null}
+      ) : (
+        <>
+          {/* Max-reached note: only while the field is focused (hidden on blur). */}
+          {warn && (
+            <p className="hidden text-xs text-amber-deep group-focus-within/field:block">
+              {warn}
+            </p>
+          )}
+          {hint && (
+            <p
+              className={`text-xs text-ink-soft ${warn ? "group-focus-within/field:hidden" : ""}`}
+            >
+              {hint}
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }

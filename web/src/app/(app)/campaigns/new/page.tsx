@@ -153,6 +153,19 @@ function toPayload(d: Draft): CampaignCreate {
   };
 }
 
+/** "Needs at least N characters" when a field has some text but is below its
+ *  minimum; undefined when empty (the required mark handles that) or long enough. */
+function minErr(value: string, min: number): string | undefined {
+  const len = value.trim().length;
+  return len > 0 && len < min ? `Needs at least ${min} characters` : undefined;
+}
+
+/** "Maximum N characters" once the field is full - maxLength blocks further
+ *  typing, so this tells the user why their keystroke did nothing. */
+function maxNote(value: string, max: number): string | undefined {
+  return value.length >= max ? `Maximum ${max} characters` : undefined;
+}
+
 // ---- stepper -----------------------------------------------------------------
 
 const STEPS = ["Upload", "Product", "Targeting", "Outreach"];
@@ -212,6 +225,8 @@ export default function NewCampaignPage() {
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(INITIAL);
   const [file, setFile] = useState<File | null>(null);
+  // Company count from the uploaded CSV - caps "Top companies to pursue" at 15%.
+  const [companyCount, setCompanyCount] = useState(0);
   // Set when createCampaign succeeded but the CSV upload failed - the retry
   // path then re-uploads to this campaign instead of creating a duplicate.
   const [orphan, setOrphan] = useState<{ id: number; name: string } | null>(null);
@@ -223,19 +238,29 @@ export default function NewCampaignPage() {
       [k]: d[k].includes(v) ? d[k].filter((x) => x !== v) : [...d[k], v],
     }));
 
+  // Min-length errors for the required free-text fields (shown only once the
+  // field has some text but is still too short).
+  const nameErr = minErr(draft.name, 3);
+  const productErr = minErr(draft.product, 2);
+  const industryErr = minErr(draft.industry, 2);
+  const descErr = minErr(draft.product_description, 20);
+  const icpErr = minErr(draft.icp, 20);
+
+  // Top-N is capped at 15% of the uploaded CSV's company count (at least 1).
+  const maxTop = Math.max(1, Math.floor(companyCount * 0.15));
+
   // CsvDrop only reports files that passed client validation, so step 1 needs
   // just "a name and an accepted file".
   const stepValid = [
-    draft.name.trim().length > 0 && file !== null,
-    draft.product.trim().length > 0 &&
-      draft.product_description.trim().length > 0 &&
-      draft.industry.trim().length > 0,
-    draft.icp.trim().length > 0 &&
+    draft.name.trim().length >= 3 && file !== null,
+    draft.product.trim().length >= 2 &&
+      draft.product_description.trim().length >= 20 &&
+      draft.industry.trim().length >= 2,
+    draft.icp.trim().length >= 20 &&
       draft.industries.length > 0 &&
       draft.sizes.length > 0 &&
-      draft.signals.length > 0 &&
-      draft.ranking.length > 0 &&
-      draft.top_n >= 1,
+      draft.top_n >= 1 &&
+      draft.top_n <= maxTop,
     true, // outreach prefs are all optional
   ][step];
 
@@ -277,11 +302,18 @@ export default function NewCampaignPage() {
         <StepRail step={step} onJump={setStep} locked={busy !== null} />
 
         <Card className="p-6">
+          {step !== 3 && (
+            <p className="mb-5 text-xs text-ink-faint">
+              <span aria-hidden className="text-terracotta">*</span> required
+            </p>
+          )}
           {step === 0 && (
             <div className="space-y-5">
-              <Field label="Campaign name" htmlFor="cw-name">
+              <Field label="Campaign name" htmlFor="cw-name" required error={nameErr} warn={maxNote(draft.name, 80)}>
                 <Input
                   id="cw-name"
+                  maxLength={80}
+                  aria-invalid={nameErr ? true : undefined}
                   value={draft.name}
                   onChange={(e) => set("name", e.target.value)}
                   placeholder="Q3 Enterprise Push"
@@ -290,18 +322,32 @@ export default function NewCampaignPage() {
               </Field>
               <Field
                 label="Target companies (CSV)"
+                required
                 hint="One row per company. We read company_name (or company / name); domain, industry and country are used when present."
               >
-                <CsvDrop file={file} onFile={setFile} />
+                <CsvDrop
+                  file={file}
+                  onFile={(f, total) => {
+                    setFile(f);
+                    const count = total ?? 0;
+                    setCompanyCount(count);
+                    if (count > 0) {
+                      const cap = Math.max(1, Math.floor(count * 0.15));
+                      setDraft((d) => ({ ...d, top_n: Math.min(d.top_n || cap, cap) }));
+                    }
+                  }}
+                />
               </Field>
             </div>
           )}
 
           {step === 1 && (
             <div className="space-y-5">
-              <Field label="Product / service name" htmlFor="cw-product">
+              <Field label="Product / service name" htmlFor="cw-product" required error={productErr} warn={maxNote(draft.product, 80)}>
                 <Input
                   id="cw-product"
+                  maxLength={80}
+                  aria-invalid={productErr ? true : undefined}
                   value={draft.product}
                   onChange={(e) => set("product", e.target.value)}
                   placeholder="Apex Cloud Data Platform"
@@ -309,37 +355,46 @@ export default function NewCampaignPage() {
               </Field>
               <Field
                 label="Product description"
+                required
                 htmlFor="cw-desc"
                 hint="What it does and the problem it solves, in one or two sentences."
+                error={descErr}
+                warn={maxNote(draft.product_description, 600)}
               >
                 <Textarea
                   id="cw-desc"
+                  maxLength={600}
+                  aria-invalid={descErr ? true : undefined}
                   rows={3}
                   value={draft.product_description}
                   onChange={(e) => set("product_description", e.target.value)}
                   placeholder="A unified data platform that serves operational data to teams in real time, with no custom pipelines."
                 />
               </Field>
-              <Field label="Your industry" htmlFor="cw-industry" hint="The category your product sits in.">
+              <Field label="Your industry" htmlFor="cw-industry" hint="The category your product sits in." required error={industryErr} warn={maxNote(draft.industry, 60)}>
                 <Input
                   id="cw-industry"
+                  maxLength={60}
+                  aria-invalid={industryErr ? true : undefined}
                   value={draft.industry}
                   onChange={(e) => set("industry", e.target.value)}
                   placeholder="Data infrastructure"
                 />
               </Field>
-              <Field label="Value proposition" htmlFor="cw-value" hint="Optional: the outcome customers get.">
+              <Field label="Value proposition" htmlFor="cw-value" hint="The outcome customers get." warn={maxNote(draft.value_proposition, 300)}>
                 <Textarea
                   id="cw-value"
+                  maxLength={300}
                   rows={2}
                   value={draft.value_proposition}
                   onChange={(e) => set("value_proposition", e.target.value)}
                   placeholder="Cut reporting lead time by 60% and retire 3–4 point tools."
                 />
               </Field>
-              <Field label="Key differentiators" htmlFor="cw-diff" hint="Optional.">
+              <Field label="Key differentiators" htmlFor="cw-diff" warn={maxNote(draft.differentiators, 200)}>
                 <Input
                   id="cw-diff"
+                  maxLength={200}
                   value={draft.differentiators}
                   onChange={(e) => set("differentiators", e.target.value)}
                   placeholder="Real-time, no-pipeline setup"
@@ -352,44 +407,49 @@ export default function NewCampaignPage() {
             <div className="space-y-5">
               <Field
                 label="Ideal customer profile"
+                required
                 htmlFor="cw-icp"
                 hint="The company most likely to buy: situation, size, needs. The scoring agent judges fit against this."
+                error={icpErr}
+                warn={maxNote(draft.icp, 600)}
               >
                 <Textarea
                   id="cw-icp"
+                  maxLength={600}
+                  aria-invalid={icpErr ? true : undefined}
                   rows={3}
                   value={draft.icp}
                   onChange={(e) => set("icp", e.target.value)}
                   placeholder="Mid-sized 3PL firms migrating to the cloud and growing their data teams."
                 />
               </Field>
-              <Field label="Target industries" hint="Pick at least one. Matching companies score higher.">
+              <Field label="Target industries" hint="Pick at least one. Matching companies score higher." required>
                 <Chips options={INDUSTRIES} selected={draft.industries} onToggle={toggle("industries")} />
               </Field>
-              <Field label="Company size (employees)" hint="Pick at least one bracket.">
+              <Field label="Company size (employees)" hint="Pick at least one bracket." required>
                 <Chips options={SIZES} selected={draft.sizes} onToggle={toggle("sizes")} />
               </Field>
-              <Field label="Target countries" hint="Optional: leave empty for no geographic preference.">
+              <Field label="Target countries" hint="Leave empty for no geographic preference.">
                 <Chips options={COUNTRIES} selected={draft.geographies} onToggle={toggle("geographies")} />
-              </Field>
-              <Field label="Buying signals" hint="Evidence that a company is ready to buy. Keep at least one.">
-                <Chips options={BUYING_SIGNALS} selected={draft.signals} onToggle={toggle("signals")} />
-              </Field>
-              <Field label="Ranking factors" hint="What the scoring agent weighs when ranking. Keep at least one.">
-                <Chips options={RANKING_FACTORS} selected={draft.ranking} onToggle={toggle("ranking")} />
               </Field>
               <Field
                 label="Top companies to pursue"
+                required
                 htmlFor="cw-topn"
-                hint="How many companies make the cut as Qualified."
+                hint={`Up to ${maxTop} — 15% of your ${companyCount} ${companyCount === 1 ? "company" : "companies"}.`}
+                error={
+                  draft.top_n > maxTop ? `Maximum ${maxTop} (15% of ${companyCount})` : undefined
+                }
               >
                 <Input
                   id="cw-topn"
                   type="number"
                   min={1}
+                  max={maxTop}
                   value={draft.top_n}
                   onChange={(e) => set("top_n", e.target.valueAsNumber || 0)}
                   className="w-28"
+                  aria-invalid={draft.top_n > maxTop ? true : undefined}
                 />
               </Field>
             </div>
@@ -422,10 +482,12 @@ export default function NewCampaignPage() {
               <Field
                 label="Email template"
                 htmlFor="cw-template"
-                hint="Optional: leave blank to let the outreach agent write each email from scratch."
+                hint="Leave blank to let the outreach agent write each email from scratch."
+                warn={maxNote(draft.email_template, 4000)}
               >
                 <Textarea
                   id="cw-template"
+                  maxLength={4000}
                   rows={5}
                   value={draft.email_template}
                   onChange={(e) => set("email_template", e.target.value)}
@@ -436,10 +498,12 @@ export default function NewCampaignPage() {
               <Field
                 label="Footer / signature"
                 htmlFor="cw-footer"
-                hint="Optional: appears at the bottom of every email."
+                hint="Appears at the bottom of every email."
+                warn={maxNote(draft.footer, 500)}
               >
                 <Textarea
                   id="cw-footer"
+                  maxLength={500}
                   rows={4}
                   value={draft.footer}
                   onChange={(e) => set("footer", e.target.value)}

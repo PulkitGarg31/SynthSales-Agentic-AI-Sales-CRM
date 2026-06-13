@@ -100,7 +100,7 @@ export function CsvDrop({
   onFile,
 }: {
   file: File | null;
-  onFile: (file: File | null) => void;
+  onFile: (file: File | null, total?: number) => void;
 }) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +155,7 @@ export function CsvDrop({
     }
     setError(null);
     setPreview(parsed);
-    onFile(f);
+    onFile(f, parsed.total);
   }
 
   function remove() {
