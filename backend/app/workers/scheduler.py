@@ -13,6 +13,7 @@ from app.providers.inbound import inbound_provider
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models import User
+from app.services import snapshots
 
 logger = logging.getLogger(__name__)
 _scheduler: BackgroundScheduler | None = None
@@ -44,6 +45,16 @@ def _poll_inbound() -> None:
         db.close()
 
 
+def _purge_snapshots() -> None:
+    db = SessionLocal()
+    try:
+        n = snapshots.purge_expired(db)
+        if n:
+            logger.info("Purged %s expired pipeline snapshot(s)", n)
+    finally:
+        db.close()
+
+
 def start_scheduler() -> None:
     global _scheduler
     if not settings.enable_scheduler or _scheduler is not None:
@@ -61,6 +72,13 @@ def start_scheduler() -> None:
         "interval",
         minutes=settings.inbound_poll_minutes,
         id="inbound",
+        next_run_time=None,  # don't fire immediately on boot
+    )
+    _scheduler.add_job(
+        _purge_snapshots,
+        "interval",
+        minutes=60,
+        id="snapshot_purge",
         next_run_time=None,  # don't fire immediately on boot
     )
     _scheduler.start()
