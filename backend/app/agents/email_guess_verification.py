@@ -31,6 +31,7 @@ from app.providers.hunter import hunter
 from app.providers.search import search
 from app.providers.verification import verification as verifier
 from app.services import contact_directory
+from app.services.pipeline_locks import is_locked
 
 
 # --------------------------------------------------------------------------- #
@@ -92,7 +93,7 @@ class EmailGuessVerificationAgent(Agent):
         # when the verifier is out of credits).
         if force:
             for contact in company.contacts:
-                if self._confirmed(contact):
+                if self._confirmed(contact) or is_locked(db, contact):
                     continue
                 contact.email = ""
                 contact.verification = "Unknown"
@@ -124,7 +125,8 @@ class EmailGuessVerificationAgent(Agent):
         #    Pass the discovered mail domain when we have one; otherwise let Hunter
         #    resolve it from the company name (better than the website domain).
         hunter_done = None
-        if hunter.available and contacts and not self._confirmed(contacts[0]):
+        if hunter.available and contacts and not self._confirmed(contacts[0]) \
+                and not is_locked(db, contacts[0]):
             top = contacts[0]
             fn, ln = _parts(top.name)
             hit = hunter.find_email(fn, ln, domain=real_domain, company=company.name)
@@ -147,8 +149,8 @@ class EmailGuessVerificationAgent(Agent):
         #    ZeroBounce), with the per-domain catch-all short-circuit.
         domain_is_catch_all = False
         for contact in contacts:
-            if contact is hunter_done or self._confirmed(contact):
-                continue  # already Verified — keep it, never re-verify (saves a credit)
+            if contact is hunter_done or self._confirmed(contact) or is_locked(db, contact):
+                continue  # confirmed or in-conversation — never re-verify
             candidates = guess_emails(contact.name, domain)
             if domain_is_catch_all:
                 # Domain already shown catch-all — every probe returns the same

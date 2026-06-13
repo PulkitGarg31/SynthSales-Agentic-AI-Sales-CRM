@@ -15,6 +15,7 @@ from app.agents.base import Agent
 from app.models import Company, Contact
 from app.providers.ai import ai
 from app.providers.search import search, _is_commercial_role
+from app.services.pipeline_locks import is_locked
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +72,12 @@ class EmployeeFinderAgent(Agent):
             )
             return company.contacts
 
-        # Forced re-run WITH fresh results: clear the old contacts first.
+        # Forced re-run WITH fresh results: clear the old contacts first — but
+        # never a locked contact (sent conversation), whose thread must survive.
         if force and company.contacts:
             for stale in list(company.contacts):
-                db.delete(stale)
+                if not is_locked(db, stale):
+                    db.delete(stale)
             db.commit()
             db.refresh(company)
 
