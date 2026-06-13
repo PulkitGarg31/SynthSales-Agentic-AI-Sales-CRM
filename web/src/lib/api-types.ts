@@ -231,6 +231,15 @@ export interface PipelineAgent {
   runnable: boolean;
 }
 
+export interface SnapshotStatus {
+  available: boolean;
+  reason?: string | null;   // "conversation_active" | "none"
+  trigger?: string | null;  // "pipeline" | "agent:<key>"
+  label?: string | null;    // e.g. "Full pipeline run" | "Re-run: Company Scoring"
+  created_at?: string | null;
+  expires_at?: string | null;
+}
+
 export interface FunnelStage {
   label: string;
   value: number;

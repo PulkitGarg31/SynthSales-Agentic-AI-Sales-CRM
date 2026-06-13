@@ -21,6 +21,7 @@ import type {
   PipelineAgent,
   RegisterResponse,
   ResendResponse,
+  SnapshotStatus,
   SyncResult,
   Thread,
   ThreadDetail,
@@ -201,6 +202,10 @@ export const api = {
       method: "POST",
       body: { key, force },
     }),
+  campaignSnapshot: (id: number) =>
+    request<SnapshotStatus>(`/api/campaigns/${id}/snapshot`),
+  restoreCampaign: (id: number) =>
+    request<Campaign>(`/api/campaigns/${id}/restore`, { method: "POST" }),
 
   // ---- companies ----
   company: (id: number) => request<CompanyDetail>(`/api/companies/${id}`),

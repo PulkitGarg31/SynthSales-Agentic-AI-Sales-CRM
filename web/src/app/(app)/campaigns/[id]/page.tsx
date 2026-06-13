@@ -17,6 +17,7 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { ConfirmModal, Modal } from "@/components/ui/Modal";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { PipelineTimeline } from "@/components/campaigns/PipelineTimeline";
+import { UndoLastRun } from "@/components/campaigns/UndoLastRun";
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -206,6 +207,7 @@ function CampaignDetailInner() {
   }, [id]);
 
   const pipeline = usePipeline(id);
+  const snapshot = useApi(() => api.campaignSnapshot(id), [id]);
   const { busy, run } = useAction();
 
   // ?fresh=1 (set by the wizard) opens the run-all confirm exactly once:
@@ -226,9 +228,18 @@ function CampaignDetailInner() {
   const started = () => {
     void pipeline.refresh().catch(() => {});
     pipeline.watch();
+    snapshot.reload();
   };
 
   const anyRunning = pipeline.agents?.some((a) => a.status === "Running") ?? false;
+
+  // A snapshot is captured when a run starts; re-check availability once the run
+  // finishes so the Undo button appears.
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !anyRunning) snapshot.reload();
+    wasRunning.current = anyRunning;
+  }, [anyRunning, snapshot.reload]);
   const notFound =
     !Number.isInteger(id) ||
     (!campaign.loading && !campaign.error && campaign.data === null);
@@ -274,6 +285,16 @@ function CampaignDetailInner() {
             <Button variant="secondary" onClick={() => setEditing(true)}>
               Edit
             </Button>
+            {!anyRunning && (
+              <UndoLastRun
+                campaignId={id}
+                status={snapshot.data}
+                onRestored={() => {
+                  campaign.reload();
+                  started();
+                }}
+              />
+            )}
             <Button
               variant="accent"
               busy={busy === "run-all"}
