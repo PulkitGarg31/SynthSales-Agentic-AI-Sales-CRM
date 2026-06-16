@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import {
+  Megaphone,
+  Pause,
+  Play,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { wsSubscribe } from "@/lib/ws";
 import { LOG_CATEGORIES } from "@/lib/constants";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chips } from "@/components/ui/Chips";
@@ -27,37 +35,75 @@ interface ActivityItem {
   level: string;
 }
 
-// Backend emits "warn"; tolerate "warning" too.
-const LEVEL_TEXT: Record<string, string> = {
-  info: "text-ink-soft",
-  warn: "text-amber-deep",
-  warning: "text-amber-deep",
-  error: "text-rust",
+// Each backend category gets a human label + icon for the feed. AI rows also
+// carry a "[Agent Name]" prefix in the message, which we lift out as the source.
+const CATEGORY_META: Record<string, { label: string; icon: LucideIcon }> = {
+  Campaign: { label: "Campaign", icon: Megaphone },
+  AI: { label: "Agents", icon: Sparkles },
+  Email: { label: "Email", icon: Send },
+  Verification: { label: "Verification", icon: ShieldCheck },
+  User: { label: "Account", icon: UserRound },
 };
 
-/** "Jun 11 14:03:22" - derived purely from the row's own date. */
+/** Pull a leading "[Source] " prefix out of the message, if present. */
+function splitMessage(category: string, message: string): { source: string; text: string } {
+  const m = message.match(/^\[(.+?)\]\s*([\s\S]*)$/);
+  if (m) return { source: m[1], text: m[2] };
+  return { source: CATEGORY_META[category]?.label ?? category, text: message };
+}
+
+/** "2h ago"-style relative time. */
+function relTime(d: Date): string {
+  const mins = Math.floor((Date.now() - d.getTime()) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** "Jun 11, 14:03:22" - the absolute stamp, shown on hover. */
 function stamp(d: Date): string {
   const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  return `${date} ${d.toTimeString().slice(0, 8)}`;
+  return `${date}, ${d.toTimeString().slice(0, 8)}`;
 }
 
 // ---- local components ------------------------------------------------------
 
 function LogRow({ item }: { item: ActivityItem }) {
+  const meta = CATEGORY_META[item.category] ?? { label: item.category, icon: Sparkles };
+  const Icon = meta.icon;
+  const { source, text } = splitMessage(item.category, item.message);
+  const level = item.level === "warning" ? "warn" : item.level;
+
+  const iconWrap =
+    level === "error"
+      ? "bg-rust/10 text-rust"
+      : level === "warn"
+        ? "bg-amber/15 text-amber-deep"
+        : "bg-ink/5 text-ink-soft";
+
   return (
-    <li className="flex items-baseline gap-3 px-5 py-2.5">
-      <span className="shrink-0 font-mono text-xs text-ink-faint">{stamp(item.time)}</span>
-      <span
-        className={`w-12 shrink-0 font-mono text-xs uppercase ${
-          LEVEL_TEXT[item.level] ?? "text-ink-soft"
-        }`}
-      >
-        {item.level}
+    <li className="flex gap-3 px-5 py-3">
+      <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${iconWrap}`}>
+        <Icon size={16} strokeWidth={1.75} aria-hidden />
       </span>
-      <Badge>{item.category}</Badge>
-      <span className="min-w-0 flex-1 truncate text-sm text-ink-soft" title={item.message}>
-        {item.message}
-      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-ink">{text}</p>
+        <p className="mt-0.5 text-xs text-ink-faint">
+          {source}
+          {level !== "info" && (
+            <span className={level === "error" ? "text-rust" : "text-amber-deep"}>
+              {" · "}
+              {level === "error" ? "error" : "warning"}
+            </span>
+          )}
+          {" · "}
+          <time dateTime={item.time.toISOString()} title={stamp(item.time)}>
+            {relTime(item.time)}
+          </time>
+        </p>
+      </div>
     </li>
   );
 }
@@ -151,7 +197,12 @@ export default function ActivityPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="display text-3xl sm:text-4xl">Activity</h1>
+        <div>
+          <h1 className="display text-3xl sm:text-4xl">Activity</h1>
+          <p className="mt-2 font-serif italic text-ink-soft">
+            Everything your agents and account have been up to.
+          </p>
+        </div>
         <Button variant="secondary" onClick={togglePaused}>
           {paused ? (
             <Play aria-hidden className="size-4" />
@@ -194,7 +245,7 @@ export default function ActivityPage() {
             ))}
           </ul>
           <p className="border-t border-line px-5 py-3 text-xs text-ink-faint">
-            showing latest {rows.length} (max {MAX_ROWS})
+            Showing the latest {rows.length} events.
           </p>
         </Card>
       )}
