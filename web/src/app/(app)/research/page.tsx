@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import type { Company } from "@/lib/api-types";
 import { COMPANY_TONE, DOMAIN_TONE, MATCH_TONE } from "@/lib/constants";
+import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -35,7 +36,7 @@ function CompanyRow({ company }: { company: Company }) {
         // Respect open-in-new-tab intent and in-progress text selection.
         if (e.metaKey || e.ctrlKey || e.shiftKey) return;
         if (window.getSelection()?.toString()) return;
-        router.push(`/research/${company.id}`);
+        router.push(`/research/${company.id}?campaign=${company.campaign_id}`);
       }}
       className="cursor-pointer transition-colors hover:bg-cream/60"
     >
@@ -82,6 +83,9 @@ function ResearchInner() {
   const param = Number(search.get("campaign"));
   const selected = all.find((c) => c.id === param) ?? all[0] ?? null;
   const selectedId = selected?.id ?? null;
+  // Back link shows only when the URL is actually scoped to a campaign (the
+  // drill-in from a pipeline agent), not the newest-campaign display fallback.
+  const scoped = all.find((c) => c.id === param) ?? null;
 
   // Companies are kept in backend order (rank ASC, then name - the ranked
   // research order). While no campaign is selectable yet, resolve empty.
@@ -94,6 +98,7 @@ function ResearchInner() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {scoped && <BackLink href={`/campaigns/${scoped.id}`} label="Back to campaign" />}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="display text-3xl sm:text-4xl">Research</h1>
         {selected && !companies.loading && !companies.error && (

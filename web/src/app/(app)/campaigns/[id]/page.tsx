@@ -8,6 +8,7 @@ import { usePipeline } from "@/lib/usePipeline";
 import { wsSubscribe } from "@/lib/ws";
 import type { Campaign } from "@/lib/api-types";
 import { CAMPAIGN_TONE } from "@/lib/constants";
+import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -260,6 +261,7 @@ function CampaignDetailInner() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <BackLink href="/campaigns" label="Back to campaigns" />
       {/* Header - owns the campaign call's state */}
       {campaign.loading ? (
         <SkeletonRows n={2} />

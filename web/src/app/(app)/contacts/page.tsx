@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import type { Contact } from "@/lib/api-types";
 import { VERIFICATION_TONE } from "@/lib/constants";
+import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -27,11 +28,14 @@ const TH =
 function ContactRow({
   contact,
   companyName,
+  campaignId,
   onSaved,
   onRequestOptOut,
 }: {
   contact: Contact;
   companyName: string;
+  /** Carried into the company link so its "Back to research" keeps the campaign. */
+  campaignId: number | null;
   onSaved: () => void;
   onRequestOptOut: (contact: Contact) => void;
 }) {
@@ -77,7 +81,11 @@ function ContactRow({
       </td>
       <td className="px-5 py-3">
         <Link
-          href={`/research/${contact.company_id}`}
+          href={
+            campaignId !== null
+              ? `/research/${contact.company_id}?campaign=${campaignId}`
+              : `/research/${contact.company_id}`
+          }
           className="text-ink underline-offset-2 transition-colors hover:underline"
         >
           {companyName}
@@ -198,6 +206,7 @@ function ContactsInner() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {selected && <BackLink href={`/campaigns/${selected.id}`} label="Back to campaign" />}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="display text-3xl sm:text-4xl">Contacts</h1>
         {ready && contacts.data !== null && !contacts.error && (
@@ -280,6 +289,7 @@ function ContactsInner() {
                           companyNames.data?.[ct.company_id] ??
                           `Company #${ct.company_id}`
                         }
+                        campaignId={selectedId}
                         onSaved={contacts.reload}
                         onRequestOptOut={setOptOutTarget}
                       />

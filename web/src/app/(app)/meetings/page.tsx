@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import type { Meeting } from "@/lib/api-types";
 import type { Tone } from "@/lib/constants";
+import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -167,10 +168,17 @@ function MeetingCard({ meeting, onSaved }: { meeting: Meeting; onSaved: () => vo
 
 // ---- page ------------------------------------------------------------------
 
-export default function MeetingsPage() {
+function MeetingsInner() {
   const router = useRouter();
+  const search = useSearchParams();
   const meetings = useApi(() => api.meetings());
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+
+  // Meetings aren't campaign-scoped, but a pipeline drill-in carries
+  // ?campaign=<id> purely so we can offer a way back to that campaign.
+  const campaignParam = Number(search.get("campaign"));
+  const backToCampaign =
+    Number.isInteger(campaignParam) && campaignParam > 0 ? campaignParam : null;
 
   const all = meetings.data ?? [];
   const { upcoming, past } = splitMeetings(all);
@@ -182,6 +190,9 @@ export default function MeetingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      {backToCampaign !== null && (
+        <BackLink href={`/campaigns/${backToCampaign}`} label="Back to campaign" />
+      )}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="display text-3xl sm:text-4xl">Meetings</h1>
       </header>
@@ -231,5 +242,20 @@ export default function MeetingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function MeetingsPage() {
+  // Next 16: useSearchParams must sit under a Suspense boundary.
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-4xl">
+          <SkeletonRows n={4} />
+        </div>
+      }
+    >
+      <MeetingsInner />
+    </Suspense>
   );
 }

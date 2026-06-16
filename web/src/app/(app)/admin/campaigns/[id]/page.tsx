@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { CampaignInspectorView } from "@/components/admin/CampaignInspector";
+import { BackLink } from "@/components/ui/BackLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 
@@ -37,12 +36,7 @@ export default function AdminCampaignPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-3">
-        <Link
-          href="/admin?tab=campaigns"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-        >
-          <ArrowLeft size={15} strokeWidth={1.75} /> Control room
-        </Link>
+        <BackLink href="/admin?tab=campaigns" label="Control room" />
         <div>
           <Eyebrow>Site administration</Eyebrow>
           <h1 className="display mt-1.5 text-3xl sm:text-4xl">Campaign inspector</h1>

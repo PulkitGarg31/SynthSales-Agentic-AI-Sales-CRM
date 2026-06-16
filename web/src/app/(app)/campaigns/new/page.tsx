@@ -7,6 +7,7 @@ import { Check } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAction } from "@/lib/hooks";
 import type { CampaignCreate } from "@/lib/api-types";
+import { BackLink } from "@/components/ui/BackLink";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chips, type ChipOption } from "@/components/ui/Chips";
@@ -291,6 +292,7 @@ export default function NewCampaignPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
+      <BackLink href="/campaigns" label="Back to campaigns" />
       <header>
         <h1 className="display text-3xl sm:text-4xl">New campaign</h1>
         <p className="mt-2 font-serif text-lg italic text-ink-soft">

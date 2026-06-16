@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Megaphone, Microscope, Users, PenLine, Inbox,
+  LayoutDashboard, Megaphone, Inbox,
   CalendarClock, Bot, PlugZap, Activity, Settings, ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -26,22 +26,19 @@ export const NAV: NavGroup[] = [
   ]},
   { group: "Pipeline", items: [
     { href: "/campaigns", label: "Campaigns", icon: Megaphone, eyebrow: "02 · Campaigns" },
-    { href: "/research", label: "Research", icon: Microscope, eyebrow: "03 · Research" },
-    { href: "/contacts", label: "Contacts", icon: Users, eyebrow: "04 · Contacts" },
-    { href: "/outreach", label: "Outreach", icon: PenLine, eyebrow: "05 · Outreach" },
   ]},
   { group: "Engage", items: [
-    { href: "/conversations", label: "Conversations", icon: Inbox, eyebrow: "06 · Conversations" },
-    { href: "/meetings", label: "Meetings", icon: CalendarClock, eyebrow: "07 · Meetings" },
+    { href: "/conversations", label: "Conversations", icon: Inbox, eyebrow: "03 · Conversations" },
+    { href: "/meetings", label: "Meetings", icon: CalendarClock, eyebrow: "04 · Meetings" },
   ]},
   { group: "System", items: [
-    { href: "/agents", label: "Agents", icon: Bot, eyebrow: "08 · Agents" },
-    { href: "/integrations", label: "Integrations", icon: PlugZap, eyebrow: "09 · Integrations" },
-    { href: "/activity", label: "Activity", icon: Activity, eyebrow: "10 · Activity" },
-    { href: "/settings", label: "Settings", icon: Settings, eyebrow: "11 · Settings" },
+    { href: "/agents", label: "Agents", icon: Bot, eyebrow: "05 · Agents" },
+    { href: "/integrations", label: "Integrations", icon: PlugZap, eyebrow: "06 · Integrations" },
+    { href: "/activity", label: "Activity", icon: Activity, eyebrow: "07 · Activity" },
+    { href: "/settings", label: "Settings", icon: Settings, eyebrow: "08 · Settings" },
   ]},
   { group: "Admin", adminOnly: true, items: [
-    { href: "/admin", label: "Admin", icon: ShieldCheck, eyebrow: "12 · Admin" },
+    { href: "/admin", label: "Admin", icon: ShieldCheck, eyebrow: "09 · Admin" },
   ]},
 ];
 
@@ -60,9 +57,14 @@ export function navItemFor(pathname: string): NavItem | null {
   return null;
 }
 
-// Routes the shell links to that deliberately have no sidebar entry.
+// Routes the shell links to that deliberately have no sidebar entry - research,
+// contacts and outreach are now reached through a campaign's pipeline, not the
+// sidebar, but still need a Topbar eyebrow.
 const EXTRA_EYEBROWS: Record<string, string> = {
   "/notifications": "Notifications",
+  "/research": "Research",
+  "/contacts": "Contacts",
+  "/outreach": "Outreach",
 };
 
 /** Topbar eyebrow for the current pathname - NAV items first, then extras. */

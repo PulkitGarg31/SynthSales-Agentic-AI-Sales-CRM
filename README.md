@@ -148,6 +148,66 @@ app still runs: AI/ZeroBounce degrade gracefully and email uses "console" mode
 
 ## Progress log
 
+### 2026-06-16 (sidebar = campaigns dropdown; campaign-preserving research chain)
+- **Fixed the broken back-chain** company → research → campaign: the company detail
+  (`/research/[id]`) now reads `?campaign=<id>` and its "Back to research" returns to
+  `/research?campaign=<id>` (which offers "Back to campaign"), instead of the unscoped
+  all-companies view that had no way back. The research table and the contacts table now pass
+  `?campaign=<company.campaign_id>` when linking into a company. (`/research/[id]` got the standard
+  Suspense + `useSearchParams` wrapper.)
+- **Sidebar restructure** (per user): dropped **Research / Contacts / Outreach** as sidebar items —
+  they're reached through a campaign's pipeline agents now — and added a **campaigns dropdown** under
+  the Campaigns row (`CampaignsNavItem` in `Sidebar.tsx`): the label still links to the list, a
+  chevron toggles a scrollable list of the user's campaigns (auto-expands on any `/campaigns/*`
+  route, highlights the active campaign), each opening its pipeline. Conversations & Meetings stay.
+- `nav.ts`: removed the three items + their now-unused icons, renumbered the eyebrows (Dashboard 01
+  … Admin 09), and moved Research/Contacts/Outreach into `EXTRA_EYEBROWS` so the Topbar still labels
+  those pages.
+- Verified: `tsc --noEmit` clean; `eslint` clean on all changed files; `/campaigns`, `/campaigns/10`,
+  `/research/1?campaign=10`, `/conversations`, `/meetings` all compile → 200.
+
+### 2026-06-16 (back link on the campaign-scoped result pages)
+- Completes the round-trip for the agent→results deep-links: each result page now shows a
+  contextual `← Back to campaign` (→ `/campaigns/<id>`) **only when scoped to a specific
+  campaign** — i.e. the state you land in from a pipeline agent click. On the default sidebar
+  "All campaigns" view it shows nothing (keeps the top-level-sections-use-the-sidebar rule).
+- Signal per page: Research keys off the URL `?campaign` param (its `selected` auto-falls-back to
+  the newest campaign, so it can't be used); Contacts/Outreach/Conversations reuse their existing
+  `selected` (null on "All"). Meetings isn't campaign-scoped, so it got a small Suspense refactor
+  (`MeetingsInner` + `useSearchParams`) to read `?campaign` purely for the back link — and the
+  `meeting` agent link now carries `?campaign=<id>` too (the `resultsLink` /meetings special-case
+  was dropped).
+- Verified: `tsc --noEmit` clean; `eslint` clean on all six changed files; `/research`,
+  `/contacts`, `/outreach`, `/conversations`, `/meetings` compile → 200 both scoped and bare.
+
+### 2026-06-16 (click a pipeline agent → its results)
+- The campaign pipeline (`PipelineTimeline`) showed each agent's status + `completed/total` +
+  Run/Re-run, but the rows were never clickable — no way to drill into what a stage produced
+  (the `/pipeline` payload carries no per-agent results, and logs aren't tagged per agent).
+- Each agent now **deep-links to the existing page that already holds its outputs**, scoped to the
+  campaign via `?campaign=<id>` (no backend change — every target page already supported it):
+  `enrichment`/`scoring` → Research, `employee_finder`/`email_guess_verification` → Contacts,
+  `outreach` → Outreach, `tracking`/`reply_classifier` → Conversations, `meeting` → Meetings.
+- Two affordances per row: the **agent name is a link**, plus an explicit **"View … →"** link that
+  also shows on the non-runnable rows (`meeting`, `reply_classifier`). Mapping lives in a small
+  `RESULTS` table + `resultsLink()` helper in `PipelineTimeline.tsx`.
+- Verified: `tsc --noEmit` clean; `eslint` clean on the file; `/campaigns/10` recompiles → 200.
+
+### 2026-06-16 (back navigation on drill-down pages)
+- Added a shared **`BackLink`** ui primitive (`web/src/components/ui/BackLink.tsx`): an
+  `ArrowLeft` + label `<Link>` to a fixed parent route (not `router.back()`, so it always lands
+  on the list even when the page was opened from a deep link or a fresh tab).
+- Wired a persistent "← Back to …" affordance onto every drill-down page, which previously only
+  offered a way back from their not-found cards: the campaign pipeline (`/campaigns/[id]` →
+  `/campaigns`), the new-campaign wizard (`/campaigns/new` → `/campaigns`, alongside its existing
+  footer Cancel/Back step controls), and the company research detail (`/research/[id]` →
+  `/research`, placed in the thin page wrapper so it shows in every load/error/loaded state).
+- Migrated the two admin drill-downs (`/admin/users/[id]`, `/admin/campaigns/[id]`) off their
+  inline `Link + ArrowLeft` markup onto the same `BackLink`, so all five share one implementation.
+- Top-level sections keep the sidebar as their nav (no back button there, by design).
+- Verified: `tsc --noEmit` clean; `/campaigns/new`, `/campaigns/1`, `/research/1` recompile and
+  serve 200 in dev; no new lint findings.
+
 ### 2026-06-16 (rebrand → SynthSales)
 - Renamed the product from **Sellari AI** to **SynthSales** across all user-facing surfaces.
 - New logo art dropped in from `Logo/`: the sunrise emblem (`web/public/brand/emblem.png`,

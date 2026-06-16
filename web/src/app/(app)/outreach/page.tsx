@@ -8,6 +8,7 @@ import { useApi } from "@/lib/hooks";
 import { useAuth } from "@/components/AuthProvider";
 import type { Contact, EmailDraft, Thread, ThreadDetail } from "@/lib/api-types";
 import { DRAFT_TONE } from "@/lib/constants";
+import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -106,6 +107,7 @@ function OutreachInner() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {selected && <BackLink href={`/campaigns/${selected.id}`} label="Back to campaign" />}
       {/* Outbound kill-switch banner - pinned while sending is paused. The
           send button stays visible; the backend 403 is surfaced inline. */}
       {!me.outbound_enabled && (

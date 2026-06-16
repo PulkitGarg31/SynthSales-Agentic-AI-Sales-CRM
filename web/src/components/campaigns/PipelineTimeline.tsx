@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAction } from "@/lib/hooks";
 import type { PipelineAgent } from "@/lib/api-types";
@@ -24,6 +25,28 @@ const NON_RUNNABLE_NOTE: Record<string, string> = {
   reply_classifier: "Runs when your inbox syncs.",
 };
 
+// Each agent's outputs already live on a results page; clicking the agent opens
+// that page scoped to this campaign. Every target accepts ?campaign=<id> except
+// meetings (which isn't campaign-filtered).
+const RESULTS: Record<string, { path: string; noun: string }> = {
+  enrichment: { path: "/research", noun: "research" },
+  scoring: { path: "/research", noun: "research" },
+  employee_finder: { path: "/contacts", noun: "contacts" },
+  email_guess_verification: { path: "/contacts", noun: "contacts" },
+  outreach: { path: "/outreach", noun: "drafts" },
+  tracking: { path: "/conversations", noun: "conversations" },
+  reply_classifier: { path: "/conversations", noun: "conversations" },
+  meeting: { path: "/meetings", noun: "meetings" },
+};
+
+function resultsLink(key: string, campaignId: number): { href: string; noun: string } | null {
+  const dest = RESULTS[key];
+  if (!dest) return null;
+  // Every target carries ?campaign=<id>: the campaign-filtered pages use it to
+  // scope, and /meetings (unscoped) uses it only to offer a back link.
+  return { href: `${dest.path}?campaign=${campaignId}`, noun: dest.noun };
+}
+
 /** "2h ago"-style relative time; "-" when the agent has never run. */
 function relTime(iso?: string | null): string {
   if (!iso) return "-";
@@ -37,12 +60,14 @@ function relTime(iso?: string | null): string {
 
 function AgentRow({
   agent,
+  campaignId,
   last,
   busy,
   onRun,
   onRerun,
 }: {
   agent: PipelineAgent;
+  campaignId: number;
   /** Last row in the rail - no connecting line below its dot. */
   last: boolean;
   busy: string | null;
@@ -58,6 +83,7 @@ function AgentRow({
     agent.total > 0
       ? Math.min(100, Math.round((agent.completed / agent.total) * 100))
       : 0;
+  const link = resultsLink(agent.key, campaignId);
 
   return (
     <li className="flex gap-4">
@@ -69,7 +95,16 @@ function AgentRow({
 
       <div className={`min-w-0 flex-1 ${last ? "" : "pb-7"}`}>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="text-sm font-medium text-ink">{label}</p>
+          {link ? (
+            <Link
+              href={link.href}
+              className="text-sm font-medium text-ink underline-offset-2 transition-colors hover:text-terracotta hover:underline"
+            >
+              {label}
+            </Link>
+          ) : (
+            <p className="text-sm font-medium text-ink">{label}</p>
+          )}
           {agent.status !== "Idle" && (
             <Badge tone={AGENT_STATUS_TONE[agent.status]}>{agent.status}</Badge>
           )}
@@ -108,11 +143,29 @@ function AgentRow({
             >
               Re-run fresh…
             </button>
+            {link && (
+              <Link
+                href={link.href}
+                className="ml-auto shrink-0 text-xs font-medium text-terracotta underline-offset-2 hover:underline"
+              >
+                View {link.noun} →
+              </Link>
+            )}
           </div>
         ) : (
-          <p className="mt-2 text-xs italic text-ink-faint">
-            {NON_RUNNABLE_NOTE[agent.key] ?? "Runs automatically."}
-          </p>
+          <div className="mt-2 flex items-center gap-4">
+            <p className="text-xs italic text-ink-faint">
+              {NON_RUNNABLE_NOTE[agent.key] ?? "Runs automatically."}
+            </p>
+            {link && (
+              <Link
+                href={link.href}
+                className="ml-auto shrink-0 text-xs font-medium text-terracotta underline-offset-2 hover:underline"
+              >
+                View {link.noun} →
+              </Link>
+            )}
+          </div>
         )}
       </div>
     </li>
@@ -151,6 +204,7 @@ export function PipelineTimeline({
           <AgentRow
             key={agent.key}
             agent={agent}
+            campaignId={campaignId}
             last={i === sorted.length - 1}
             busy={busy}
             onRun={(a) => void start(a, false)}

@@ -8,6 +8,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 import type { Thread } from "@/lib/api-types";
 import { INTENT_TONE, STAGE_TONE } from "@/lib/constants";
+import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -134,6 +135,7 @@ function ConversationsInner() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {selected && <BackLink href={`/campaigns/${selected.id}`} label="Back to campaign" />}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="display text-3xl sm:text-4xl">Conversations</h1>
         <div className="flex items-center gap-3">
