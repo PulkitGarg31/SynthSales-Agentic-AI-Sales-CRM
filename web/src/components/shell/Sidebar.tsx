@@ -26,11 +26,14 @@ function CampaignsNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: ()
   // own sub-row instead of the parent.
   const parentActive = pathname === item.href || pathname === "/campaigns/new";
 
+  // Follow the campaigns area: expand on entering /campaigns/*, collapse on
+  // leaving it (e.g. navigating to Dashboard/Settings). Manual toggles persist
+  // while you stay within the same in/out state.
   const [open, setOpen] = useState(inArea);
   const [wasInArea, setWasInArea] = useState(inArea);
   if (inArea !== wasInArea) {
     setWasInArea(inArea);
-    if (inArea) setOpen(true);
+    setOpen(inArea);
   }
 
   const rows = campaigns.data ?? [];
