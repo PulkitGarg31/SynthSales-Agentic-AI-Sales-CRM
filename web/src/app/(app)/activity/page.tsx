@@ -14,7 +14,7 @@ import {
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { wsSubscribe } from "@/lib/ws";
-import { LOG_CATEGORIES } from "@/lib/constants";
+import { AGENT_LABELS, LOG_CATEGORIES } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chips } from "@/components/ui/Chips";
@@ -35,8 +35,7 @@ interface ActivityItem {
   level: string;
 }
 
-// Each backend category gets a human label + icon for the feed. AI rows also
-// carry a "[Agent Name]" prefix in the message, which we lift out as the source.
+// Each backend category gets a human label + icon for the feed.
 const CATEGORY_META: Record<string, { label: string; icon: LucideIcon }> = {
   Campaign: { label: "Campaign", icon: Megaphone },
   AI: { label: "Agents", icon: Sparkles },
@@ -45,11 +44,44 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon }> = {
   User: { label: "Account", icon: UserRound },
 };
 
-/** Pull a leading "[Source] " prefix out of the message, if present. */
+// Agents log under "[<display name>] ..." - map those to the friendly names the
+// rest of the UI uses, so the feed reads in the user's vocabulary.
+const SOURCE_LABELS: Record<string, string> = {
+  "Company Enrichment": "Research",
+  "Company Scoring": "Scoring & ranking",
+  "Employee Finder": "People finder",
+  "Email Guessing & Verification": "Email verifier",
+  "Outreach Generation": "Outreach writer",
+  "Email Tracking & Follow-up": "Follow-up tracker",
+  "Meeting Coordination": "Meeting scheduler",
+  "Reply Detection & Intent": "Reply reader",
+};
+
+/**
+ * Rewrite developer-flavoured log text into something a user can read: turn the
+ * agent-trigger line into plain English and strip internal parentheticals.
+ * Unknown messages pass through untouched (minus a couple of safe cleanups).
+ */
+function humanize(message: string): string {
+  const trig = message.match(/^Triggered '([^']+)' agent for '(.+?)'( \(force\))?\.$/);
+  if (trig) {
+    const label = AGENT_LABELS[trig[1]] ?? trig[1];
+    return `${trig[3] ? "Re-ran" : "Ran"} ${label} on ${trig[2]}.`;
+  }
+  return message
+    .replace(/\s*\(search\+AI[^)]*\)/gi, "") // (search+AI, confidence 22)
+    .replace(/\s*\(confidence \d+\)/gi, "")
+    .replace(/\s*\(0 skipped\)/gi, "")
+    .replace(/\s*\(\d+ confirmed[^)]*\)/gi, "") // (2 confirmed, 0 best-guess ...)
+    .replace(/\s*\([^)]*best-guess[^)]*\)/gi, "")
+    .replace(/\bOTP\b/g, "verification code");
+}
+
+/** Pull a leading "[Source] " prefix out of the message and humanize the rest. */
 function splitMessage(category: string, message: string): { source: string; text: string } {
   const m = message.match(/^\[(.+?)\]\s*([\s\S]*)$/);
-  if (m) return { source: m[1], text: m[2] };
-  return { source: CATEGORY_META[category]?.label ?? category, text: message };
+  if (m) return { source: SOURCE_LABELS[m[1]] ?? m[1], text: humanize(m[2]) };
+  return { source: CATEGORY_META[category]?.label ?? category, text: humanize(message) };
 }
 
 /** "2h ago"-style relative time. */
@@ -60,6 +92,16 @@ function relTime(d: Date): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** Today / Yesterday / "Fri, Jun 13" - the day a row belongs to. */
+function dayLabel(d: Date): string {
+  const now = new Date(Date.now());
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((startOf(now) - startOf(d)) / 86_400_000);
+  if (diff <= 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
 /** "Jun 11, 14:03:22" - the absolute stamp, shown on hover. */
@@ -192,6 +234,16 @@ export default function ActivityPage() {
     })),
   ].slice(0, MAX_ROWS);
 
+  // Group consecutive rows by day (rows are already newest-first) so the feed
+  // reads as Today / Yesterday / dated sections.
+  const groups: { label: string; items: ActivityItem[] }[] = [];
+  for (const item of rows) {
+    const label = dayLabel(item.time);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  }
+
   const initialLoad = logs.loading && logs.data === null;
 
   return (
@@ -239,11 +291,22 @@ export default function ActivityPage() {
         </p>
       ) : (
         <Card flush>
-          <ul className="divide-y divide-line py-1">
-            {rows.map((item) => (
-              <LogRow key={item.key} item={item} />
-            ))}
-          </ul>
+          {groups.map((g, gi) => (
+            <div key={g.items[0].key}>
+              <p
+                className={`px-5 py-2 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-faint ${
+                  gi > 0 ? "border-t border-line" : ""
+                }`}
+              >
+                {g.label}
+              </p>
+              <ul className="divide-y divide-line border-t border-line">
+                {g.items.map((item) => (
+                  <LogRow key={item.key} item={item} />
+                ))}
+              </ul>
+            </div>
+          ))}
           <p className="border-t border-line px-5 py-3 text-xs text-ink-faint">
             Showing the latest {rows.length} events.
           </p>
