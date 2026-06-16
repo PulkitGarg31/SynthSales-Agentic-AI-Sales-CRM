@@ -12,7 +12,7 @@ const serif = Instrument_Serif({
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: { default: "Sellari AI · outreach that researches itself", template: "%s · Sellari AI" },
+  title: { default: "SynthSales · outreach that researches itself", template: "%s · SynthSales" },
   description:
     "Eight AI agents research companies, find decision makers, verify emails, draft outreach, and book the meeting. You approve every send.",
 };

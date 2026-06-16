@@ -10,7 +10,7 @@ export function MarketingFooter() {
           <div className="space-y-4">
             <Wordmark withEmblem />
             <p className="max-w-xs text-sm leading-relaxed text-ink-soft">
-              Sellari AI does the research, the finding, and the writing. You approve every send.
+              SynthSales does the research, the finding, and the writing. You approve every send.
             </p>
           </div>
           {FOOTER_COLUMNS.map((column) => (
@@ -39,14 +39,14 @@ export function MarketingFooter() {
           ))}
         </div>
         <div className="mt-14 flex items-center justify-between gap-4 border-t border-line pt-6 text-xs text-ink-soft">
-          <p>© {new Date().getFullYear()} Sellari AI</p>
+          <p>© {new Date().getFullYear()} SynthSales</p>
           <p className="font-serif italic">Built for quiet pipelines.</p>
         </div>
       </div>
       {/* Giant closing wordmark - pure text per the design reference, not the
           Wordmark component (the emblem PNG is sized for UI chrome, not 14vw). */}
       <p aria-hidden className="display select-none overflow-hidden px-2 pb-2 pt-8 text-[14vw] leading-none">
-        sellari <em>ai</em>
+        Synth<em>Sales</em>
         <span className="text-terracotta">.</span>
       </p>
     </footer>

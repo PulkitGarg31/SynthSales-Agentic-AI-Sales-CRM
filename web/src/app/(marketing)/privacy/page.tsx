@@ -23,7 +23,7 @@ const SECTIONS = [
   {
     title: "Google integrations",
     body:
-      "Connecting Google Calendar lets Sellari create meeting events on your calendar; connecting your mailbox lets it read replies to your outreach. Both are optional, scoped narrowly, and can be disconnected in Settings at any time.",
+      "Connecting Google Calendar lets SynthSales create meeting events on your calendar; connecting your mailbox lets it read replies to your outreach. Both are optional, scoped narrowly, and can be disconnected in Settings at any time.",
   },
   {
     title: "Deletion",

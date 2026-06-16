@@ -9,10 +9,10 @@
 import { AGENT_LABELS } from "./constants";
 
 export const HERO = {
-  eyebrow: "Introducing Sellari AI",
+  eyebrow: "Introducing SynthSales",
   headline: { pre: "Outreach that ", em: "researches itself", post: "." },
   sub:
-    "Struggling with sales? The fix is just one click away. Sellari AI studies your market, finds the people who can actually say yes, and reaches out with emails that feel hand-written. All that's left for you is the meeting.",
+    "Struggling with sales? The fix is just one click away. SynthSales studies your market, finds the people who can actually say yes, and reaches out with emails that feel hand-written. All that's left for you is the meeting.",
   primaryCta: { label: "Get started", href: "/signup" },
   secondaryCta: { label: "How it works", href: "/#how" },
 } as const;
@@ -150,7 +150,7 @@ export const FAQ = [
   },
   {
     q: "How do meetings get booked?",
-    a: "Connect Google Calendar and every booking creates a real event with a Meet link. No calendar? Paste your own link; Sellari never fabricates one.",
+    a: "Connect Google Calendar and every booking creates a real event with a Meet link. No calendar? Paste your own link; SynthSales never fabricates one.",
   },
 ] as const;
 

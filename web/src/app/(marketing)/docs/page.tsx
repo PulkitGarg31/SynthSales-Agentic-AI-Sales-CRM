@@ -13,7 +13,7 @@ const STEPS = [
   {
     title: "Run the pipeline",
     body:
-      "Hit Run all agents on the campaign page. Sellari researches every company, scores the fit, finds decision makers, and verifies their emails. Watch the timeline update live as each stage finishes.",
+      "Hit Run all agents on the campaign page. SynthSales researches every company, scores the fit, finds decision makers, and verifies their emails. Watch the timeline update live as each stage finishes.",
   },
   {
     title: "Review the research",
@@ -41,7 +41,7 @@ export default function DocsPage() {
           From zero to <em>first reply</em>.
         </h1>
         <p className="text-base leading-relaxed text-ink-soft md:text-lg">
-          Sellari is deliberately simple to start: one CSV, one brief, one click. Here is the whole
+          SynthSales is deliberately simple to start: one CSV, one brief, one click. Here is the whole
           journey.
         </p>
       </div>

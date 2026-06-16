@@ -24,7 +24,7 @@ function Splash() {
     <div className="flex justify-center py-12">
       <Image
         src="/brand/emblem.png"
-        alt="Sellari AI"
+        alt="SynthSales"
         width={742}
         height={894}
         sizes="64px"

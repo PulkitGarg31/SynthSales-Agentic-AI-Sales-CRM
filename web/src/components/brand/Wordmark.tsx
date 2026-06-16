@@ -15,7 +15,7 @@ export function Wordmark({ withEmblem = false, size = "md" }: { withEmblem?: boo
         />
       )}
       <span className={`${text} font-semibold tracking-tight text-ink`}>
-        sellari<em className="font-serif italic font-normal"> ai</em>
+        Synth<em className="font-serif italic font-normal">Sales</em>
         <span className="text-terracotta">.</span>
       </span>
     </span>

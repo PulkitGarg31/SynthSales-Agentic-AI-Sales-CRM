@@ -336,7 +336,7 @@ export default function DashboardPage() {
 
       {firstRun ? (
         <EmptyState
-          title="Welcome to Sellari"
+          title="Welcome to SynthSales"
           line="Upload a list. The agents do the rest."
           action={
             <Button onClick={() => router.push("/campaigns/new")}>Start a campaign</Button>

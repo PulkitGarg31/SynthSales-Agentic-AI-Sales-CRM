@@ -29,11 +29,11 @@ def otp_email(otp: str, stamp: str, purpose: str = "verify") -> tuple[str, str, 
     if purpose == "reset":
         eyebrow = "Reset your password"
         lead = "Use this code to set a new password:"
-        subject = f"Sellari AI reset code {otp} (sent {stamp})"
+        subject = f"SynthSales reset code {otp} (sent {stamp})"
     else:
         eyebrow = "Verify your email"
-        lead = "Welcome to Sellari AI. Your verification code:"
-        subject = f"Sellari AI code {otp} (sent {stamp})"
+        lead = "Welcome to SynthSales. Your verification code:"
+        subject = f"SynthSales code {otp} (sent {stamp})"
 
     expiry = f"Sent at {stamp}. It expires in 15 minutes and replaces any earlier code."
     ignore = "If you didn't request this, you can safely ignore this email."
@@ -62,7 +62,7 @@ def otp_email(otp: str, stamp: str, purpose: str = "verify") -> tuple[str, str, 
           <!-- Wordmark -->
           <tr>
             <td align="center" style="padding:0 0 28px 0;font-family:{_SANS};font-size:22px;font-weight:700;letter-spacing:-0.5px;color:{_INK};">
-              sellari<span style="font-family:{_SERIF};font-style:italic;font-weight:400;">&nbsp;ai</span><span style="color:{_TERRACOTTA};">.</span>
+              Synth<span style="font-family:{_SERIF};font-style:italic;font-weight:400;">Sales</span><span style="color:{_TERRACOTTA};">.</span>
             </td>
           </tr>
 

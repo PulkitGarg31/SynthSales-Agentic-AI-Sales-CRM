@@ -519,7 +519,7 @@ export default function AdminPage() {
         <h1 className="display text-3xl sm:text-4xl">Admin</h1>
         <EmptyState
           title="Admin access required"
-          line="This area is reserved for Sellari administrators."
+          line="This area is reserved for SynthSales administrators."
         />
       </div>
     );

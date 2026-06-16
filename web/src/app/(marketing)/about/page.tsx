@@ -85,13 +85,13 @@ export default function AboutPage() {
     <>
       <section className="mx-auto w-full max-w-3xl px-6 pb-16 pt-20 md:pt-28">
         <div className="space-y-4">
-          <Eyebrow>About Sellari</Eyebrow>
+          <Eyebrow>About SynthSales</Eyebrow>
           <h1 className="display text-4xl md:text-5xl">
             Outreach, done <em>carefully</em>.
           </h1>
         </div>
         <p className="mt-8 text-base leading-relaxed text-ink-soft md:text-lg">
-          Sellari exists because most cold outreach is careless: scraped lists, guessed emails,
+          SynthSales exists because most cold outreach is careless: scraped lists, guessed emails,
           templates with a first name bolted on. We built the opposite: a pipeline of eight agents
           that actually reads each company, finds the real people, confirms how to reach them, and
           writes something worth replying to. Then it stops and waits for you.

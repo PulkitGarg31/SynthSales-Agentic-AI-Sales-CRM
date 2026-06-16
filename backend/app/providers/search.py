@@ -453,7 +453,7 @@ class SearchProvider:
         root = root.split("/")[0].rstrip("/")
         if not root or "." not in root:
             return ""
-        headers = {"User-Agent": "Mozilla/5.0 (compatible; SellariBot/1.0)"}
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; SynthSalesBot/1.0)"}
         counts: dict[str, int] = {}
         for path in ("", "contact", "contact-us", "about"):
             try:

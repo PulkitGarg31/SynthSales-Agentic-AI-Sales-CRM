@@ -15,7 +15,7 @@ function NavColumn({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full w-60 flex-col overflow-y-auto border-r border-line bg-cream">
       <div className="px-5 pb-4 pt-5">
-        <Link href="/dashboard" onClick={onNavigate} aria-label="Sellari AI dashboard">
+        <Link href="/dashboard" onClick={onNavigate} aria-label="SynthSales dashboard">
           <Wordmark withEmblem />
         </Link>
       </div>

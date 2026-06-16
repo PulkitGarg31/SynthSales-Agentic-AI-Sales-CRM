@@ -44,7 +44,7 @@ def contact_us(payload: ContactIn, request: Request):
     )
     sent = email_provider.send(
         to=settings.contact_inbox,
-        subject=f"[Sellari contact] {name}",
+        subject=f"[SynthSales contact] {name}",
         body=body,
     )
     if not sent:

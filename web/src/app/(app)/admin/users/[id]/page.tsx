@@ -19,7 +19,7 @@ export default function AdminUserPage() {
       <div className="mx-auto max-w-3xl">
         <EmptyState
           title="Admin access required"
-          line="This area is reserved for Sellari administrators."
+          line="This area is reserved for SynthSales administrators."
         />
       </div>
     );

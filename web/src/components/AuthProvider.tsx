@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-cream">
         <Image
           src="/brand/emblem.png"
-          alt="Sellari AI"
+          alt="SynthSales"
           width={742}
           height={894}
           sizes="64px"

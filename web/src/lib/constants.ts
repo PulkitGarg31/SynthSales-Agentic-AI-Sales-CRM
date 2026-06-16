@@ -1,4 +1,4 @@
-// Canonical status→tone and label mappings shared across the Sellari UI.
+// Canonical status→tone and label mappings shared across the SynthSales UI.
 // `Tone` keys match the Badge component's tone variants.
 // Maps are declared `Record<string, Tone>` so admin views can index with plain
 // strings, while `satisfies` keeps each map exhaustive over its backend union.

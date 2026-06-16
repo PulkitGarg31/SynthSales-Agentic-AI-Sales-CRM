@@ -10,10 +10,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="flex flex-col px-6 py-8 sm:px-12">
-        <Link href="/" aria-label="Sellari AI home" className="w-fit">
+        <Link href="/" aria-label="SynthSales home" className="w-fit">
           <Image
             src="/brand/emblem.png"
-            alt="Sellari AI"
+            alt="SynthSales"
             width={742}
             height={894}
             sizes="56px"
@@ -26,7 +26,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
         <p className="text-sm text-ink-soft">
           <Link href="/" className="transition hover:text-ink">
-            &larr; sellari ai<span className="text-terracotta">.</span>
+            &larr; Synth<em className="font-serif italic">Sales</em><span className="text-terracotta">.</span>
           </Link>
         </p>
       </div>

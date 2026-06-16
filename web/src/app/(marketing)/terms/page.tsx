@@ -8,12 +8,12 @@ const SECTIONS = [
   {
     title: "The service",
     body:
-      "Sellari AI researches the companies you upload, finds and verifies contacts, drafts outreach, and manages replies. You keep ownership of everything you upload and everything the pipeline produces for you.",
+      "SynthSales researches the companies you upload, finds and verifies contacts, drafts outreach, and manages replies. You keep ownership of everything you upload and everything the pipeline produces for you.",
   },
   {
     title: "Acceptable use",
     body:
-      "Use Sellari for legitimate business outreach only. You are responsible for complying with the anti-spam and data-protection laws that apply to you (CAN-SPAM, GDPR, and friends), for honoring opt-outs, and for what you approve for sending.",
+      "Use SynthSales for legitimate business outreach only. You are responsible for complying with the anti-spam and data-protection laws that apply to you (CAN-SPAM, GDPR, and friends), for honoring opt-outs, and for what you approve for sending.",
   },
   {
     title: "Your approval gate",
@@ -23,7 +23,7 @@ const SECTIONS = [
   {
     title: "No warranty",
     body:
-      "Research, scores and drafts are produced by automated agents and provided as-is. Verify anything that matters before relying on it; Sellari is a tool, not a guarantee of meetings.",
+      "Research, scores and drafts are produced by automated agents and provided as-is. Verify anything that matters before relying on it; SynthSales is a tool, not a guarantee of meetings.",
   },
   {
     title: "Liability",

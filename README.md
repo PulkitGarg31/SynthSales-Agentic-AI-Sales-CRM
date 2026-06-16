@@ -148,6 +148,23 @@ app still runs: AI/ZeroBounce degrade gracefully and email uses "console" mode
 
 ## Progress log
 
+### 2026-06-16 (rebrand → SynthSales)
+- Renamed the product from **Sellari AI** to **SynthSales** across all user-facing surfaces.
+- New logo art dropped in from `Logo/`: the sunrise emblem (`web/public/brand/emblem.png`,
+  same 742×894 dims — clean swap) and the full lockup (now the social card via the
+  `app/opengraph-image.png` convention, auto-generating `og:image`/`twitter:image`).
+- Favicons via Next 16 file conventions: `app/favicon.ico`, `app/icon.svg`, `app/apple-icon.png`,
+  plus a generated `app/manifest.ts` (PWA, cream `#f4efe6` theme) pointing at the
+  `web-app-manifest-*.png` icons in `/public/brand`.
+- `Wordmark` and the display/footer/auth wordmarks now read **Synth** (grotesque) +
+  *Sales* (Instrument Serif italic) + terracotta dot, matching the lockup.
+- Swept every user-facing "Sellari"/"Sellari AI" string (metadata, hero/FAQ copy, terms,
+  privacy, about, docs, contact, dashboard, admin, footer, alt/aria labels) → "SynthSales".
+- **Left internal** (invisible identifiers, like the backend's retained "reachly" name):
+  `localStorage` keys `sellari_token` / `sellari_theme` — renaming would log users out / reset themes.
+- Verified: `npm run build` passes; route table shows `/favicon.ico`, `/icon.svg`,
+  `/apple-icon.png`, `/manifest.webmanifest`, `/opengraph-image.png` all served.
+
 ### 2026-05-27
 - Installed Node.js LTS (winget `OpenJS.NodeJS.LTS`); scaffolded Next.js 16 + Tailwind v4 + TS app in `web/`.
 - Built design system (Tailwind v4 `@theme` tokens) matching the reference image.

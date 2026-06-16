@@ -17,7 +17,7 @@ const CONTACT_FAQ = [
   },
   {
     q: "Can I get a demo?",
-    a: "Yes. Mention a couple of times that suit you and we'll walk you through Sellari live, on your own company list if you bring one.",
+    a: "Yes. Mention a couple of times that suit you and we'll walk you through SynthSales live, on your own company list if you bring one.",
   },
   {
     q: "Found a bug or have a feature idea?",
