@@ -20,12 +20,16 @@ from app.services.pipeline_locks import is_locked, locked_contact_ids
 
 
 def ensure_agents(db: Session, owner_id: int) -> None:
-    """Create the canonical agent rows for a user if missing."""
-    existing = {
-        a.key for a in db.query(AgentConfig).filter(AgentConfig.owner_id == owner_id)
+    """Create the canonical agent rows for a user if missing, and keep each
+    existing row's name/description in sync with the registry (the source of
+    truth) so copy changes reach already-seeded users too."""
+    rows = {
+        a.key: a
+        for a in db.query(AgentConfig).filter(AgentConfig.owner_id == owner_id)
     }
     for order, (key, name, desc) in enumerate(AGENT_REGISTRY, start=1):
-        if key not in existing:
+        cfg = rows.get(key)
+        if cfg is None:
             db.add(
                 AgentConfig(
                     owner_id=owner_id,
@@ -37,6 +41,9 @@ def ensure_agents(db: Session, owner_id: int) -> None:
                     status="Idle",
                 )
             )
+        elif cfg.name != name or cfg.description != desc:
+            cfg.name = name
+            cfg.description = desc
     db.commit()
 
 

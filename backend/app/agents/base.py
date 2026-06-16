@@ -7,14 +7,14 @@ from app.services.events import add_log
 
 # Canonical agent registry: key -> (display name, description, order)
 AGENT_REGISTRY: list[tuple[str, str, str]] = [
-    ("enrichment", "Company Enrichment", "Researches each company: profile, industry, size, funding, news, hiring signals."),
-    ("scoring", "Company Scoring", "Applies weighted, explainable scoring against your ICP and ranks companies."),
-    ("employee_finder", "Employee Finder", "Identifies top decision-makers and relevant business contacts per company."),
-    ("email_guess_verification", "Email Guessing & Verification", "Guesses likely email addresses from name + domain patterns, then verifies them: free syntax/MX checks first, then ZeroBounce for survivors. Stores only a ZeroBounce-confirmed address; stops at the first deliverable one."),
-    ("outreach", "Outreach Generation", "Writes personalized subject + body from research, role, and your product."),
-    ("tracking", "Email Tracking & Follow-up", "Monitors inboxes and sends contextual follow-ups until a meeting is booked."),
-    ("meeting", "Meeting Coordination", "Captures meeting links, stores details, and notifies both parties."),
-    ("reply_classifier", "Reply Detection & Intent", "Reads inbound replies from your connected mailbox, classifies intent (interested, meeting-ready, not-interested, question, out-of-office), and acts: opts the contact out + closes the thread on a clear no, surfaces and advances the rest. Never auto-sends."),
+    ("enrichment", "Company Enrichment", "Researches each company in depth: what they do, their size, recent funding and news, and signs they're ready to buy."),
+    ("scoring", "Company Scoring", "Scores and ranks every company against your ideal customer, so the best-fit prospects rise to the top."),
+    ("employee_finder", "Employee Finder", "Finds the real decision-makers at each company — the people actually worth reaching out to."),
+    ("email_guess_verification", "Email Guessing & Verification", "Works out each contact's email address and confirms it's deliverable, so your outreach lands in a real inbox."),
+    ("outreach", "Outreach Generation", "Writes a personalized email for every contact, tailored to their role, their company, and what you're selling."),
+    ("tracking", "Email Tracking & Follow-up", "Watches for replies and sends timely, relevant follow-ups so promising leads never go cold."),
+    ("meeting", "Meeting Coordination", "Books the meeting, shares a Google Meet link, and keeps both sides in the loop."),
+    ("reply_classifier", "Reply Detection & Intent", "Reads every reply, works out who's interested, and surfaces the ones ready for your attention."),
 ]
 
 
