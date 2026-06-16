@@ -22,23 +22,23 @@ export interface NavGroup {
 // only one group - type-checks uniformly for consumers.
 export const NAV: NavGroup[] = [
   { group: "Overview", items: [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, eyebrow: "01 · Dashboard" },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, eyebrow: "Dashboard" },
   ]},
   { group: "Pipeline", items: [
-    { href: "/campaigns", label: "Campaigns", icon: Megaphone, eyebrow: "02 · Campaigns" },
+    { href: "/campaigns", label: "Campaigns", icon: Megaphone, eyebrow: "Campaigns" },
   ]},
   { group: "Engage", items: [
-    { href: "/conversations", label: "Conversations", icon: Inbox, eyebrow: "03 · Conversations" },
-    { href: "/meetings", label: "Meetings", icon: CalendarClock, eyebrow: "04 · Meetings" },
+    { href: "/conversations", label: "Conversations", icon: Inbox, eyebrow: "Conversations" },
+    { href: "/meetings", label: "Meetings", icon: CalendarClock, eyebrow: "Meetings" },
   ]},
   { group: "System", items: [
-    { href: "/agents", label: "Agents", icon: Bot, eyebrow: "05 · Agents" },
-    { href: "/integrations", label: "Integrations", icon: PlugZap, eyebrow: "06 · Integrations" },
-    { href: "/activity", label: "Activity", icon: Activity, eyebrow: "07 · Activity" },
-    { href: "/settings", label: "Settings", icon: Settings, eyebrow: "08 · Settings" },
+    { href: "/agents", label: "Agents", icon: Bot, eyebrow: "Agents" },
+    { href: "/integrations", label: "Integrations", icon: PlugZap, eyebrow: "Integrations" },
+    { href: "/activity", label: "Activity", icon: Activity, eyebrow: "Activity" },
+    { href: "/settings", label: "Settings", icon: Settings, eyebrow: "Settings" },
   ]},
   { group: "Admin", adminOnly: true, items: [
-    { href: "/admin", label: "Admin", icon: ShieldCheck, eyebrow: "09 · Admin" },
+    { href: "/admin", label: "Admin", icon: ShieldCheck, eyebrow: "Admin" },
   ]},
 ];
 
