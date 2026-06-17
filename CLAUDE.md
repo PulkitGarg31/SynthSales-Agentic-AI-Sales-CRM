@@ -177,7 +177,7 @@ add the matching idempotent ALTER there or existing dev databases won't pick it 
 - `workers/scheduler.py` — APScheduler polls the tracking agent every `FOLLOWUP_INTERVAL_MINUTES`
   (default 15, the **poll cadence**) for all users. Disable with `ENABLE_SCHEDULER=false`. A thread
   gets an automatic follow-up only after our last message goes unanswered for `FOLLOWUP_DELAY_DAYS`
-  (default 10 — decoupled from the poll cadence); after `MAX_FOLLOW_UPS` (default 3) unanswered nudges
+  (default 7 — decoupled from the poll cadence); after `MAX_FOLLOW_UPS` (default 3) unanswered nudges
   it auto-advances to the terminal `Stalled` stage. `Contact.do_not_contact` suppresses every send
   path (outreach draft, send, auto follow-up, meeting invite). A second job polls the inbound reply
   reader (the `reply_classifier` agent) every `INBOUND_POLL_MINUTES` (default 5) for every user with
