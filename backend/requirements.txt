@@ -25,8 +25,9 @@ websockets
 httpx
 
 # Integrations (providers)
-anthropic              # AI provider (Claude)
+# AI (Gemini/Groq/OpenRouter) + email verification (Verifalia/ZeroBounce) use httpx REST — no SDKs.
 ddgs                   # DuckDuckGo search (company research)
+dnspython              # MX-record lookups (free email-verification layer)
 google-api-python-client       # Gmail + Calendar
 google-auth-oauthlib
 google-auth-httplib2
