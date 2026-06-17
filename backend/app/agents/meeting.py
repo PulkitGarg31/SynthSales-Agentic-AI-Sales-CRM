@@ -26,6 +26,7 @@ class MeetingAgent(Agent):
         notes: str | None = None,
         duration_minutes: int | None = None,
         notify: bool = True,
+        announce: bool = True,
     ) -> Meeting:
         contact = db.get(Contact, thread.contact_id) if thread.contact_id else None
         campaign = db.get(Campaign, thread.campaign_id)
@@ -97,27 +98,29 @@ class MeetingAgent(Agent):
             f"Great — booked for {scheduled_at:%b %d, %Y %I:%M %p} UTC. "
             f"Join link: {meet_link}"
         )
-        db.add(
-            Message(
-                thread_id=thread.id,
-                direction="us",
-                author="SynthSales",
-                body=confirm,
-                is_follow_up=True,
+        if announce:
+            db.add(
+                Message(
+                    thread_id=thread.id,
+                    direction="us",
+                    author="SynthSales",
+                    body=confirm,
+                    is_follow_up=True,
+                )
             )
-        )
         thread.stage = "Meeting"
         thread.last_activity = utcnow()
         db.commit()
         db.refresh(meeting)
 
-        add_notification(
-            db,
-            owner.id,
-            "meeting",
-            "Meeting scheduled",
-            f"{company_name} — {scheduled_at:%b %d, %Y %I:%M %p} UTC.",
-        )
+        if announce:
+            add_notification(
+                db,
+                owner.id,
+                "meeting",
+                "Meeting scheduled",
+                f"{company_name} — {scheduled_at:%b %d, %Y %I:%M %p} UTC.",
+            )
         # Email the contact ourselves only if a real calendar invite was NOT sent
         # (avoid double-emailing), sending is on, we have an address, and the
         # contact isn't suppressed.

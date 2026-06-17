@@ -108,15 +108,14 @@ def _closing_note(db, owner, thread, contact, campaign, verdict) -> str:
         ),
     )
     subject = _reply_subject(thread)
-    email_provider.send(contact.email, subject, body)
     _record_us(db, thread, subject, body)
     contact.do_not_contact = True
     thread.stage = "Closed"
-    db.commit()
     add_notification(
         db, owner.id, "reply", "Auto-replied: not interested",
         f"'{thread.subject}' — sent a closing note and marked the contact do-not-contact.",
     )
+    email_provider.send(contact.email, subject, body)
     return "closing_note"
 
 
@@ -127,7 +126,7 @@ def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
     # thread to Meeting and records the meeting + its confirmation message.
     meeting = meeting_agent.book(
         db, thread, owner, when, link=None,
-        notes="Auto-scheduled from an interested reply.", notify=False,
+        notes="Auto-scheduled from an interested reply.", notify=False, announce=False,
     )
     first = _first_name(contact)
     when_str = when.strftime("%A, %b %d at %I:%M %p UTC")
@@ -149,26 +148,29 @@ def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
     if meeting.link and meeting.link not in body:
         body = body.rstrip() + f"\n\nJoin link: {meeting.link}"
     subject = _reply_subject(thread)
-    email_provider.send(contact.email, subject, body)
     _record_us(db, thread, subject, body)
-    db.commit()
     add_notification(
         db, owner.id, "meeting", "Auto-booked from interested reply",
         f"'{thread.subject}' — proposed {when_str} and sent the Meet link.",
     )
+    email_provider.send(contact.email, subject, body)
     return "propose_and_book"
 
 
 def _answer_question(db, owner, thread, contact, campaign, verdict) -> str:
-    product_info = ""
+    parts: list[str] = []
     if campaign:
-        product_info = "\n".join(filter(None, [
-            f"Product: {campaign.product}",
-            f"Description: {campaign.product_description}",
-            f"Value proposition: {campaign.value_proposition}",
-            f"Differentiators: {campaign.differentiators}",
-            f"Business requirements served: {campaign.business_requirements}",
-        ]))
+        if campaign.product:
+            parts.append(f"Product: {campaign.product}")
+        if campaign.product_description:
+            parts.append(f"Description: {campaign.product_description}")
+        if campaign.value_proposition:
+            parts.append(f"Value proposition: {campaign.value_proposition}")
+        if campaign.differentiators:
+            parts.append(f"Differentiators: {campaign.differentiators}")
+        if campaign.business_requirements:
+            parts.append(f"Business requirements served: {campaign.business_requirements}")
+    product_info = "\n".join(parts)
     question = ""
     last_them = next(
         (m for m in reversed(thread.messages) if m.direction == "them"), None
@@ -197,12 +199,11 @@ def _answer_question(db, owner, thread, contact, campaign, verdict) -> str:
     if "call" not in body.lower():
         body = body + cta
     subject = _reply_subject(thread)
-    email_provider.send(contact.email, subject, body)
     _record_us(db, thread, subject, body)
     thread.stage = "Negotiating"
-    db.commit()
     add_notification(
         db, owner.id, "reply", "Auto-answered a question",
         f"'{thread.subject}' — answered from campaign product info.",
     )
+    email_provider.send(contact.email, subject, body)
     return "answer_question"
