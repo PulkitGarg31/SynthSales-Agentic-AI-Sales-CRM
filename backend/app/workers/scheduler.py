@@ -65,21 +65,24 @@ def start_scheduler() -> None:
         "interval",
         minutes=settings.followup_interval_minutes,
         id="followups",
-        next_run_time=None,  # don't fire immediately on boot
+        # first run is one interval out (interval trigger's default) — not on boot.
+        # NOTE: passing next_run_time=None here would PAUSE the job (it never runs).
     )
     _scheduler.add_job(
         _poll_inbound,
         "interval",
         minutes=settings.inbound_poll_minutes,
         id="inbound",
-        next_run_time=None,  # don't fire immediately on boot
+        # first run is one interval out (interval trigger's default) — not on boot.
+        # NOTE: passing next_run_time=None here would PAUSE the job (it never runs).
     )
     _scheduler.add_job(
         _purge_snapshots,
         "interval",
         minutes=60,
         id="snapshot_purge",
-        next_run_time=None,  # don't fire immediately on boot
+        # first run is one interval out (interval trigger's default) — not on boot.
+        # NOTE: passing next_run_time=None here would PAUSE the job (it never runs).
     )
     _scheduler.start()
     logger.info(
