@@ -9,7 +9,8 @@ drafts personalized outreach → tracks replies till they are ready for a meetin
 Two independent apps in one repo:
 
 - `backend/` — FastAPI + PostgreSQL (SQLAlchemy 2.0). Internals still carry the old name ("Reachly API",
-  container `reachly_postgres`) — kept deliberately; see `BACKEND-GAPS.md` §3 before renaming anything.
+  container `reachly_postgres`) — kept deliberately (renaming the container/db/volume forces a data
+  migration for zero functional gain; revisit at deploy time).
 - `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). All user-facing branding is **SynthSales**;
   no "reachly" string may appear in `web/src`. Talks to the backend over REST + WebSocket.
 
