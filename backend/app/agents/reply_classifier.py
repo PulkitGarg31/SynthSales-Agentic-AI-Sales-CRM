@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.models import Campaign, Company, Contact, Message, Thread, User, utcnow
 from app.providers.ai import ai
 from app.providers.inbound import InboundMessage, inbound_provider
+from app.services import auto_reply
 from app.services.events import add_notification
 
 # Canonical intent labels the classifier may return.
@@ -237,11 +238,22 @@ class ReplyClassifierAgent(Agent):
                 self._notify_reply(db, owner_id, thread, None)
                 continue
             msg.intent = verdict["intent"]
-            action = decide_action(
-                verdict["intent"], verdict["confidence"],
-                settings.reply_optout_min_confidence,
-            )
-            self._apply(db, owner_id, thread, verdict, action)
+            contact = db.get(Contact, thread.contact_id) if thread.contact_id else None
+            if auto_reply.gates_pass(owner, contact, verdict):
+                campaign = db.get(Campaign, thread.campaign_id)
+                try:
+                    handler = auto_reply.handle(db, owner, thread, contact, campaign, verdict)
+                    self.log(db, owner_id, f"Autonomous reply ({handler}) for '{thread.subject}'.")
+                except Exception:
+                    db.rollback()
+                    self.log(db, owner_id, "Autonomous reply failed; surfacing instead.", level="error")
+                    self._notify_reply(db, owner_id, thread, verdict)
+            else:
+                action = decide_action(
+                    verdict["intent"], verdict["confidence"],
+                    settings.reply_optout_min_confidence,
+                )
+                self._apply(db, owner_id, thread, verdict, action)
             classified += 1
 
         if ingested:
