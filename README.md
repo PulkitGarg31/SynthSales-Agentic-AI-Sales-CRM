@@ -148,6 +148,20 @@ app still runs: AI/ZeroBounce degrade gracefully and email uses "console" mode
 
 ## Progress log
 
+### 2026-06-17 (consistency sweep — doc/code mismatch fixes)
+- Ran a repo-wide consistency audit (backend schemas ↔ frontend types, status enums ↔ tone maps,
+  config ↔ docs ↔ `.env.example`, agent registry, branding, models ↔ migration ALTERs, endpoints ↔
+  client/nav). Most surfaces were already consistent; fixed the genuine mismatches:
+  - **Rebrand lag** — `CLAUDE.md` and `BACKEND-GAPS.md` still called the product "Sellari AI" after the
+    2026-06-16 rename; updated to **SynthSales** (code/UI/README were already correct).
+  - **`FOLLOWUP_DELAY_DAYS`** — `config.py` defaults to 7 but the docs and `.env.example` said 10; kept
+    the code value and corrected the docs/example to **7**.
+  - **Log level** — `api/routers/auth.py` emitted `level="warning"` in 7 audit logs while the frontend
+    `LogEntry` type and `seed.py` use `"warn"`; switched auth to `"warn"`.
+  - **Follow-up notification copy** — `agents/tracking.py` said "no reply after {interval} min" but the
+    trigger is the days-based delay; now reads `{followup_delay_days} days` (closes BACKEND-GAPS §2).
+- No automated tests; the two changed backend files byte-compiled clean, frontend untouched.
+
 ### 2026-06-16 (sidebar = campaigns dropdown; campaign-preserving research chain)
 - **Fixed the broken back-chain** company → research → campaign: the company detail
   (`/research/[id]`) now reads `?campaign=<id>` and its "Back to research" returns to
