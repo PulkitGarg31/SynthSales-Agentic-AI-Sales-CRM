@@ -308,6 +308,14 @@ def update_me(
             "User",
             f"Outbound email sending {'ENABLED' if payload.outbound_enabled else 'PAUSED'}.",
         )
+    if payload.autonomous_replies is not None:
+        user.autonomous_replies = payload.autonomous_replies
+        add_log(
+            db,
+            user.id,
+            "User",
+            f"Autonomous replies {'ENABLED' if payload.autonomous_replies else 'DISABLED'}.",
+        )
     db.commit()
     db.refresh(user)
     return user

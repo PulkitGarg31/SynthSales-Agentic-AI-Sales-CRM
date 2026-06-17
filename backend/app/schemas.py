@@ -80,6 +80,7 @@ class UserOut(ORMModel):
     is_verified: bool
     is_admin: bool = False
     outbound_enabled: bool = False
+    autonomous_replies: bool = False
     calendar_connected: bool = False
     mailbox_connected: bool = False
     created_at: datetime
@@ -87,6 +88,7 @@ class UserOut(ORMModel):
 
 class UserUpdate(BaseModel):
     outbound_enabled: bool | None = None
+    autonomous_replies: bool | None = None
 
 
 class RegisterOut(UserOut):
