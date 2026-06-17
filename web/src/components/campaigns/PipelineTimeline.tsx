@@ -185,7 +185,12 @@ export function PipelineTimeline({
   const { busy, run } = useAction();
   const [rerunning, setRerunning] = useState<PipelineAgent | null>(null);
 
-  const sorted = [...agents].sort((a, b) => a.order - b.order);
+  // Hide the reply reader from the pipeline rail: it isn't a step the user runs
+  // here (it fires on inbox sync), and its output is reached via the follow-up
+  // tracker + Conversations. Keeping it here only added noise.
+  const sorted = [...agents]
+    .filter((a) => a.key !== "reply_classifier")
+    .sort((a, b) => a.order - b.order);
 
   const start = (agent: PipelineAgent, force: boolean) =>
     run(
