@@ -14,7 +14,7 @@ from datetime import datetime, time, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models import Campaign, Contact, Message, Thread, User, utcnow
+from app.models import Campaign, Contact, Meeting, Message, Thread, User, utcnow
 from app.providers.ai import ai
 from app.providers.email import email_provider
 from app.agents.meeting import meeting_agent
@@ -179,9 +179,22 @@ def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
     # Honor a specific time the prospect asked for (e.g. a reschedule); otherwise
     # fall back to the default slot.
     when = _requested_time(thread) or _default_slot()
+    # A pre-existing Upcoming meeting for this contact means this is a reschedule —
+    # the reply should read as "moved", not a first invite.
+    company_name = contact.company.name if contact and contact.company else thread.subject
+    is_reschedule = bool(
+        db.query(Meeting)
+        .filter(
+            Meeting.campaign_id == thread.campaign_id,
+            Meeting.company == company_name,
+            Meeting.contact == (contact.name if contact else "—"),
+            Meeting.status == "Upcoming",
+        )
+        .first()
+    )
     # notify=False: create the event + Meet link, suppress Google's invite and
     # book()'s own email; we send one branded email below. book() still sets the
-    # thread to Meeting and records the meeting + its confirmation message.
+    # thread to Meeting and records the meeting.
     meeting = meeting_agent.book(
         db, thread, owner, when, link=None,
         notes="Auto-scheduled from an interested reply.", notify=False, announce=False,
@@ -189,28 +202,50 @@ def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
     first = _first_name(contact)
     when_str = when.strftime("%A, %b %d at %I:%M %p UTC")
     product = (campaign.product if campaign else "") or "what we do"
-    body = _compose(
-        prompt=(
-            f"A prospect named {contact.name} is interested in {product}. Write a short, "
-            f"warm reply that says you've set up a quick intro call for {when_str}, invites "
-            f"them to reply if another time suits, and tells them the Google Meet join link "
-            f"is {meeting.link}. Keep it under 90 words. No signature."
-        ),
-        system="You are a helpful B2B SDR.",
-        fallback=(
-            f"Great to hear, {first}! I've set up a quick intro call for {when_str}. "
-            f"Join link: {meeting.link}\n\nIf another time works better, just reply and "
-            f"I'll move it."
-        ),
-    )
+    if is_reschedule:
+        body = _compose(
+            prompt=(
+                f"A prospect named {contact.name} asked to reschedule the intro call about "
+                f"{product}. Write a short, warm reply that clearly confirms you've MOVED the "
+                f"call to {when_str} (a reschedule of an existing call, NOT a first invite), "
+                f"shares the updated Google Meet link {meeting.link}, and invites them to reply "
+                f"if that still doesn't work. Under 90 words. No signature."
+            ),
+            system="You are a helpful B2B SDR.",
+            fallback=(
+                f"No problem, {first} — I've moved our call to {when_str}. Here's the updated "
+                f"Google Meet link: {meeting.link}\n\nIf that time still doesn't suit, just let "
+                f"me know."
+            ),
+        )
+        notif_title, notif_detail = (
+            "Auto-rescheduled meeting",
+            f"'{thread.subject}' — moved the call to {when_str}.",
+        )
+    else:
+        body = _compose(
+            prompt=(
+                f"A prospect named {contact.name} is interested in {product}. Write a short, "
+                f"warm reply that says you've set up a quick intro call for {when_str}, invites "
+                f"them to reply if another time suits, and tells them the Google Meet join link "
+                f"is {meeting.link}. Keep it under 90 words. No signature."
+            ),
+            system="You are a helpful B2B SDR.",
+            fallback=(
+                f"Great to hear, {first}! I've set up a quick intro call for {when_str}. "
+                f"Join link: {meeting.link}\n\nIf another time works better, just reply and "
+                f"I'll move it."
+            ),
+        )
+        notif_title, notif_detail = (
+            "Auto-booked from interested reply",
+            f"'{thread.subject}' — proposed {when_str} and sent the Meet link.",
+        )
     if meeting.link and meeting.link not in body:
         body = body.rstrip() + f"\n\nJoin link: {meeting.link}"
     subject = _reply_subject(thread)
     _record_us(db, thread, subject, body)
-    add_notification(
-        db, owner.id, "meeting", "Auto-booked from interested reply",
-        f"'{thread.subject}' — proposed {when_str} and sent the Meet link.",
-    )
+    add_notification(db, owner.id, "meeting", notif_title, notif_detail)
     email_provider.send(contact.email, subject, body)
     return "propose_and_book"
 
