@@ -95,7 +95,16 @@ Non-obvious orchestration rules you must respect when editing agents:
   fallback), de-dupes by `Message.external_id`, classifies via `ai.complete_json`, and acts: a
   high-confidence *not-interested* sets `Contact.do_not_contact=True` + `Thread.stage="Closed"`
   (reusing the Step 04 suppression); interested/meeting-ready advance to `Negotiating` + surface;
-  everything else only surfaces. It never auto-sends and never opts a contact out without AI.
+  everything else only surfaces. It never opts a contact out without AI.
+- **Autonomous replies (off by default)** — by default `reply_classifier` only surfaces/advances/
+  closes; it does **not** send. When the user turns on `User.autonomous_replies` (Settings; also
+  requires `outbound_enabled`), the classifier routes high-confidence, actionable replies through
+  `services/auto_reply.py`, which composes and **sends a real email** and updates state:
+  *not-interested* → a warm closing note + `do_not_contact` + `Closed`; *interested/meeting-ready*
+  → auto-books a meeting (real Google Meet link) and sends it; *question* → answers from the
+  campaign's product info only (else proposes a call). `gates_pass()` enforces every gate
+  (`outbound_enabled` + `autonomous_replies` + a contactable, non-suppressed contact + an actionable
+  intent + confidence ≥ `REPLY_OPTOUT_MIN_CONFIDENCE`); any handler error falls back to surfacing.
 
 Each agent extends `agents/base.py::Agent` and calls `self.mark(db, owner_id, "Running"|"Idle"|"Error")`
 to drive the per-user `agent_configs` status the UI reads.
@@ -140,7 +149,8 @@ to drive the per-user `agent_configs` status the UI reads.
 
 `User.outbound_enabled` **defaults `False`**. No real email reaches a prospect until the user turns
 sending on in Settings → Email. Gated paths return 403 / skip while paused: conversation send, the
-tracking agent's auto follow-ups, and the meeting agent's contact email. **Exempt:** signup OTP and
+tracking agent's auto follow-ups, the meeting agent's contact email, and the autonomous reply
+handlers (`services/auto_reply.py`, additionally gated by `User.autonomous_replies`). **Exempt:** signup OTP and
 "send test" (to self) always work.
 
 ### Data model & status lifecycles
@@ -186,7 +196,7 @@ add the matching idempotent ALTER there or existing dev databases won't pick it 
 
 ### API surface & auth
 
-Routers in `backend/app/api/routers/`, all prefixed `/api/<name>`. Auth is JWT (`api/deps.py::
+Routers in `backend/app/api/routers/`, all prefixed `/api/<name>` (except the WebSocket router at `/ws`). Auth is JWT (`api/deps.py::
 get_current_user`); cross-tenant `/api/admin/*` routes require `require_admin` (a user is admin if
 `is_admin` is set, auto-granted at startup/verification for emails in `ADMIN_EMAILS`).
 
@@ -199,7 +209,7 @@ authenticated 401s auto-redirect to `/login`), `api-types.ts` mirrors backend sc
 `useApi` (fetch) + `useAction` (keyed mutations with toasts). `components/AuthProvider.tsx` wraps the
 `(app)` route group and guards routes (`useAuth() → {me, refresh, signOut}`). App pages run on live API
 data; canonical status→tone maps + `AGENT_LABELS` live in `lib/constants.ts` (exhaustive via `satisfies`).
-Route groups: `(marketing)` (landing/about/contact), `(auth)` (login/signup/forgot-password/
+Route groups: `(marketing)` (landing/about/contact/changelog/docs/privacy/terms), `(auth)` (login/signup/forgot-password/
 oauth-callback), `(app)` (dashboard, campaigns [+new, +/[id] pipeline page], research [+/[id]],
 contacts, outreach, conversations, meetings, agents, integrations, notifications, activity, settings,
 admin). Billing was dropped in the 2026-06 rebuild; Integrations/Activity/Admin are new.
