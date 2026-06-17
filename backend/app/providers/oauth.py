@@ -60,7 +60,10 @@ class GoogleOAuthProvider:
             "scope": GOOGLE_CALENDAR_SCOPES,
             "state": state,
             "access_type": "offline",
-            "prompt": "consent",
+            # select_account forces the account chooser so a user with multiple
+            # Google logins (e.g. a restricted Workspace + a personal Gmail) can
+            # pick the right one; consent forces the refresh token we store.
+            "prompt": "select_account consent",
             "include_granted_scopes": "true",
         }
         return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
