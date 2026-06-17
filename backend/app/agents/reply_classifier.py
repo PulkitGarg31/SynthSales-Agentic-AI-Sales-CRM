@@ -207,10 +207,10 @@ class ReplyClassifierAgent(Agent):
                 continue
             thread = self._match_thread(db, owner_id, m)
             if not thread:
-                self.log(
-                    db, owner_id,
-                    f"Unmatched reply from {m.from_email or '?'} — skipped.",
-                )
+                # Inbound that doesn't map to one of our threads (newsletters,
+                # other senders, shared-mailbox noise) is silently skipped — it
+                # used to flood the activity log with useless "Unmatched reply"
+                # entries.
                 continue
 
             msg = Message(
