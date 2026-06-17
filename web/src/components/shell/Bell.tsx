@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell as BellIcon } from "lucide-react";
 import { api } from "@/lib/api";
-import { useApi } from "@/lib/hooks";
+import type { AppNotification } from "@/lib/api-types";
+import { useApi, useAction } from "@/lib/hooks";
 import { wsSubscribe } from "@/lib/ws";
-import { onNotificationsChanged } from "@/lib/notifications-bus";
+import { onNotificationsChanged, emitNotificationsChanged } from "@/lib/notifications-bus";
 import { useToast } from "@/components/ui/Toast";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 
@@ -15,12 +16,17 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
  * Notification bell: unread count + latest-5 dropdown. This is the shell's
  * single WS subscription - a `notification` frame fires a toast and refetches
  * the list from REST (frames carry no id/read/created_at, so the count is
- * always derived from the API, never constructed from the frame). Opening the
- * dropdown marks nothing read.
+ * always derived from the API, never constructed from the frame). Clicking an
+ * unread row marks it read (optimistic) and emits on the notifications bus so
+ * this bell and an open notifications page stay in sync.
  */
 export function Bell() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const { run } = useAction();
+  // Optimistic overlay: ids marked read locally before the server confirms
+  // (mirrors the notifications page); a later refetch returns them read anyway.
+  const [readIds, setReadIds] = useState<ReadonlySet<number>>(new Set());
 
   // Close on route change - the shell persists across navigation.
   const pathname = usePathname();
@@ -65,7 +71,25 @@ export function Bell() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const unread = data?.filter((n) => !n.read).length ?? 0;
+  const isRead = (n: AppNotification) => n.read || readIds.has(n.id);
+
+  const markRead = async (n: AppNotification) => {
+    if (isRead(n)) return;
+    setReadIds((prev) => new Set(prev).add(n.id));
+    // onDone fires only on success; the bus refetches both this bell and an
+    // open notifications page. Failure rolls the optimistic flip back.
+    const r = await run(`read:${n.id}`, () => api.markRead(n.id), {
+      onDone: emitNotificationsChanged,
+    });
+    if (r === null)
+      setReadIds((prev) => {
+        const next = new Set(prev);
+        next.delete(n.id);
+        return next;
+      });
+  };
+
+  const unread = data?.filter((n) => !isRead(n)).length ?? 0;
   const latest = data?.slice(0, 5) ?? [];
 
   return (
@@ -102,22 +126,34 @@ export function Bell() {
               </p>
             ) : (
               <ul>
-                {latest.map((n) => (
-                  <li key={n.id} className="flex gap-2.5 px-4 py-2.5">
-                    <span
-                      aria-hidden
-                      className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                        n.read ? "bg-line" : "bg-terracotta"
-                      }`}
-                    />
-                    <div className="min-w-0">
-                      <p className={`truncate text-sm ${n.read ? "text-ink-soft" : "font-medium text-ink"}`}>
-                        {n.title}
-                      </p>
-                      {n.detail && <p className="truncate text-xs text-ink-soft">{n.detail}</p>}
-                    </div>
-                  </li>
-                ))}
+                {latest.map((n) => {
+                  const read = isRead(n);
+                  return (
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        onClick={() => void markRead(n)}
+                        aria-label={read ? n.title : `Mark "${n.title}" read`}
+                        className={`flex w-full gap-2.5 px-4 py-2.5 text-left transition-colors ${
+                          read ? "cursor-default" : "hover:bg-ink/5"
+                        }`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                            read ? "bg-line" : "bg-terracotta"
+                          }`}
+                        />
+                        <div className="min-w-0">
+                          <p className={`truncate text-sm ${read ? "text-ink-soft" : "font-medium text-ink"}`}>
+                            {n.title}
+                          </p>
+                          {n.detail && <p className="truncate text-xs text-ink-soft">{n.detail}</p>}
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             <div className="mt-1 border-t border-line px-4 pt-2">

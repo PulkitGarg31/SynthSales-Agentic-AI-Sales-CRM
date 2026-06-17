@@ -13,7 +13,7 @@ import {
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import { wsSubscribe } from "@/lib/ws";
-import { emitNotificationsChanged } from "@/lib/notifications-bus";
+import { emitNotificationsChanged, onNotificationsChanged } from "@/lib/notifications-bus";
 import type { AppNotification, NotificationType } from "@/lib/api-types";
 import { Button } from "@/components/ui/Button";
 import { Chips } from "@/components/ui/Chips";
@@ -115,14 +115,15 @@ export default function NotificationsPage() {
     [reload],
   );
 
+  // Reads from the bell dropdown emit on the bus; refetch so this list reflects
+  // them too (the bell and this page are independent fetches).
+  useEffect(() => onNotificationsChanged(reload), [reload]);
+
   const isRead = (n: AppNotification) => n.read || readIds.has(n.id);
 
-  // After a read persists: refresh this list AND signal the header Bell (a
-  // separate fetch instance) so its unread badge re-syncs instead of going stale.
-  const afterRead = () => {
-    reload();
-    emitNotificationsChanged();
-  };
+  // After a read persists, signal the bus; this page and the header Bell both
+  // subscribe and refetch, so the two independent fetches stay in sync.
+  const afterRead = () => emitNotificationsChanged();
 
   const markRead = async (n: AppNotification) => {
     if (isRead(n)) return;

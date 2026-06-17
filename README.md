@@ -767,6 +767,14 @@ the bell. (The 50-row `GET /api/notifications` cap is a separate latent undercou
 - `npm run build` clean (Turbopack compile + TypeScript, 32 routes incl. `/notifications`); only the
   pre-existing `metadataBase` warnings remain. No backend change.
 
+**Follow-up — mark-read from the bell dropdown.** The dropdown's latest-5 rows were display-only
+(`Bell.tsx` previously noted "Opening the dropdown marks nothing read"). Each **unread** row is now a
+`<button>`: clicking marks just that one read — an optimistic `readIds` overlay (badge drops instantly,
+dot greys), persisted via `api.markRead`, then `emitNotificationsChanged()` on the bus. Read rows stay
+inert and the dropdown stays open. The notifications page now also **subscribes** to the bus
+(`onNotificationsChanged(reload)`) and its `afterRead` is emit-only, so a dropdown read refreshes an open
+page and vice-versa through one symmetric sync path. ✅ `npm run build` clean (32 routes).
+
 ### 2026-06-11 (Sellari AI — full frontend rebuild)
 
 Implemented `.claude/specs/07-sellari-frontend-rebuild.md` (27-task plan in `.claude/plans/`).
