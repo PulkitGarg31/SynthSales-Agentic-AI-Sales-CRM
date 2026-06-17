@@ -48,3 +48,6 @@ Thumbs.db
 *.pdf
 
 extra/
+
+# --- Local manual-testing artifacts (kept local, not versioned) ---
+testing screenshots/
