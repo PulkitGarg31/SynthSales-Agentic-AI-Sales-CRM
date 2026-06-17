@@ -192,16 +192,27 @@ def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
         )
         .first()
     )
+    when_str = when.strftime("%A, %b %d at %I:%M %p UTC")
+    product = (campaign.product if campaign else "") or "what we do"
+    role = contact.role if contact and contact.role else "Contact"
+    # A useful, human-readable meeting note (shown in the Meetings tab + the
+    # calendar event description) instead of a terse "auto-scheduled" stub.
+    note = (
+        f"Auto-rescheduled to {when_str} at {contact.name}'s request. "
+        f"{role} at {company_name}, re: {product}."
+        if is_reschedule
+        else (
+            f"Auto-booked from {contact.name}'s interested reply. {role} at {company_name}, "
+            f"interested in {product}. Call proposed for {when_str}."
+        )
+    )
     # notify=False: create the event + Meet link, suppress Google's invite and
     # book()'s own email; we send one branded email below. book() still sets the
     # thread to Meeting and records the meeting.
     meeting = meeting_agent.book(
-        db, thread, owner, when, link=None,
-        notes="Auto-scheduled from an interested reply.", notify=False, announce=False,
+        db, thread, owner, when, link=None, notes=note, notify=False, announce=False,
     )
     first = _first_name(contact)
-    when_str = when.strftime("%A, %b %d at %I:%M %p UTC")
-    product = (campaign.product if campaign else "") or "what we do"
     if is_reschedule:
         body = _compose(
             prompt=(
