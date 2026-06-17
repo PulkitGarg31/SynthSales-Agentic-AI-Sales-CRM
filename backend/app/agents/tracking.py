@@ -122,7 +122,7 @@ class TrackingAgent(Agent):
             "followup",
             "Follow-up sent automatically",
             f"Thread '{thread.subject}' — no reply after "
-            f"{settings.followup_interval_minutes} min.",
+            f"{settings.followup_delay_days} days.",
         )
 
 

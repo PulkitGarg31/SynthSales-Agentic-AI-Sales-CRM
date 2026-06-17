@@ -17,8 +17,8 @@ Only §1 blocks the new frontend; everything else is here so it can be acted on 
 - [ ] **CLAUDE.md describes a "24h cache before clear"** on `run_campaign_pipeline` — not implemented anywhere in
       `agents/orchestrator.py`. Decide: implement (snapshot cleared rows so an accidental run is restorable) or
       correct CLAUDE.md. The new UI ships the required confirmation warning either way.
-- [ ] **Follow-up notification copy bug** — `agents/tracking.py` notification text says "no reply after
-      {FOLLOWUP_INTERVAL_MINUTES} min" but the real trigger is `FOLLOWUP_DELAY_DAYS` (days). Cosmetic.
+- [x] **Follow-up notification copy bug** — FIXED 2026-06-17: `agents/tracking.py` now cites
+      `FOLLOWUP_DELAY_DAYS` (days), the actual staleness trigger (was "{FOLLOWUP_INTERVAL_MINUTES} min").
 - [ ] **README staleness** — early sections still say "7-agent pipeline" and Claude/ZeroBounce-only providers
       (later progress-log entries are correct). Gets rewritten in the rename sweep anyway.
 - [ ] **`requirements.txt` staleness** — still lists `anthropic` (provider was removed); `dnspython` is imported by
