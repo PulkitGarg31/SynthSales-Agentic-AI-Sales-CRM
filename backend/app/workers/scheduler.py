@@ -1,7 +1,9 @@
-"""Background scheduler — runs the tracking/follow-up agent on an interval.
+"""Background scheduler — runs the follow-up and inbound-reply jobs on intervals.
 
-PRD §3 Phase 7: monitor inboxes every 15 minutes and send contextual
-follow-ups until a meeting is booked or the campaign is stopped.
+PRD §3 Phase 7. Two interval jobs (plus an hourly snapshot purge): follow-ups poll
+every `followup_interval_minutes` (default 15) and send a nudge once a thread has gone
+unanswered for `followup_delay_days` (default 7); a separate job polls inboxes every
+`inbound_poll_minutes` (default 5) and runs the reply classifier.
 """
 import logging
 

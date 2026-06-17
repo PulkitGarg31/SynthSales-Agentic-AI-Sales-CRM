@@ -337,7 +337,7 @@ def run_agent_for_campaign(
             for c in qualified:
                 for contact in c.contacts:
                     # Draft only for contacts that actually have an address
-                    # (ZeroBounce-verified or human-edited). No address → skip.
+                    # (provider-verified or human-edited). No address → skip.
                     if (
                         (contact.email or "").strip()
                         and contact.approved is not False

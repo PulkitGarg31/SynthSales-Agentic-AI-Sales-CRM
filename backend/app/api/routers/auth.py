@@ -204,8 +204,8 @@ def forgot_password(
     payload: ForgotPasswordIn, request: Request, db: Session = Depends(get_db)
 ):
     ip = _client_ip(request)
-    # Throttle before the lookup; always return 200 so the endpoint can't be
-    # used to enumerate accounts.
+    # Throttle before the lookup. Anti-enumeration: the existence check returns the
+    # same generic 200 body whether or not the account exists (the throttle path 429s).
     if not limiter.check(f"reset:ip:{ip}", 5, _RL_WINDOW) or not limiter.check(
         f"reset:email:{payload.email.lower()}", 3, _RL_WINDOW
     ):

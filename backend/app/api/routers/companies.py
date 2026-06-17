@@ -102,7 +102,7 @@ def add_contact(
     user: User = Depends(get_current_user),
 ):
     """Manually add a contact to a company (owner-scoped). The email is still
-    subject to ZeroBounce verification before any outreach."""
+    subject to email verification (free MX/syntax → Verifalia/ZeroBounce) before any outreach."""
     c = _owned(db, user, company_id)
     contact = Contact(
         company_id=c.id,
