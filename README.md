@@ -161,6 +161,21 @@ logged). DuckDuckGo search needs no key.
   - **Follow-up notification copy** — `agents/tracking.py` said "no reply after {interval} min" but the
     trigger is the days-based delay; now reads `{followup_delay_days} days` (closes BACKEND-GAPS §2).
 - No automated tests; the two changed backend files byte-compiled clean, frontend untouched.
+- **Doc↔code drift sweep (follow-on).** Cleared `BACKEND-GAPS.md` §1 ("Docs ↔ code drift"), then swept
+  the whole repo for similar drift and corrected it:
+  - **README** live sections — architecture diagram & PRD status tables (7→8 agents; AI is
+    Gemini→Groq→OpenRouter, not Claude; verify is MX + Verifalia/ZeroBounce; calendar is real Meet, not
+    a stub; endpoint/router count 39/12→72/14; stale routes `/email-review`→`/outreach`,
+    `/logs`→`/activity`, admin now done, Billing dropped); the intro design blurb (cream/ink/terracotta);
+    and the "Not built yet" list (dropped already-shipped wiring/Admin/Calendar).
+  - **`requirements.txt`** — dropped unused `anthropic`, added missing `dnspython`.
+  - **CLAUDE.md** — documented the autonomous-reply feature (`User.autonomous_replies` +
+    `services/auto_reply.py`) that contradicted the "never auto-sends" claim; `/ws` prefix + marketing-
+    route nits.
+  - **Backend comments/docstrings** — scheduler docstring (15-min poll vs 7-day trigger; two separate
+    jobs), stale "ZeroBounce" verifier mentions (`orchestrator.py`, `companies.py`), the forgot-password
+    "always 200" note, and the `.env.example` `SMTP_FROM` sample (→ SynthSales).
+  - Pruned the two now-resolved items from `BACKEND-GAPS.md` §1 (empty → removed; sections renumbered).
 
 ### 2026-06-16 (sidebar = campaigns dropdown; campaign-preserving research chain)
 - **Fixed the broken back-chain** company → research → campaign: the company detail

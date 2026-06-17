@@ -4,20 +4,7 @@ Originally compiled 2026-06-10 while auditing the backend for the **SynthSales**
 last reviewed **2026-06-17** (resolved items removed). Nothing below blocks the app today — these are
 known non-blocking gaps and pre-deploy hardening items, kept so they can be acted on later.
 
-## 1 · Docs ↔ code drift
-
-- [ ] **README staleness** — the architecture diagram (`README.md:50-52`), the env/feature blurb
-      (`:94-95`), and the status table (`:128-135`) still say "7-agent pipeline", "ai (Claude)" /
-      `ANTHROPIC_API_KEY`, "ZeroBounce via REST" (no Verifalia), and "Calendar … is a stub". The later
-      progress-log entries are correct (Gemini→Groq→OpenRouter at `:348-356`; Verifalia-preferred at
-      `:734-735`; real per-user Google Calendar/Meet). Update the top sections to 8 agents (add
-      `reply_classifier`), the AI chain, Verifalia→ZeroBounce, and real calendar booking.
-- [ ] **`requirements.txt` staleness** — still lists `anthropic` (`requirements.txt:28`; provider
-      removed, AI chain is Gemini/Groq/OpenRouter). `dnspython` is a hard dependency (imported as
-      `dns.resolver` at `providers/verification.py:24` for MX lookups) but is **absent** from
-      `requirements.txt` — add it. Also `alembic` is listed (`:9`) but unused (no migrations — see §3).
-
-## 2 · Functional gaps (post-rebuild candidates)
+## 1 · Functional gaps (post-rebuild candidates)
 
 - [ ] **`email_sent` is a soft enumeration oracle** on `POST /forgot-password` when real SMTP is
       configured (known email → true, unknown → false). Register already leaks existence, so no new
@@ -49,7 +36,7 @@ known non-blocking gaps and pre-deploy hardening items, kept so they can be acte
       ownerless `Meeting` row behind. Either give `Meeting` an owner FK with cascade (or delete meetings
       explicitly in `delete_user`), or adjust the admin UI confirm copy that claims meetings are removed.
 
-## 3 · Production-hardening checklist (pre-deploy)
+## 2 · Production-hardening checklist (pre-deploy)
 
 - [ ] **Alembic migrations** — replace `create_all` + the idempotent `ALTER TABLE` block in
       `main.py::lifespan` (`alembic` is already a dependency but unused).
