@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"Agentic CRM" (product name **Sellari AI**, formerly Reachly) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then an 8-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
+"Agentic CRM" (product name **SynthSales**, formerly Reachly) is an AI-powered B2B outreach platform: User(Company's representative) upload a CSV of potential customer's companies,and details of their product and customer requirements then an 8-agent pipeline will researches → scores → finds contacts → guesses & verifies emails of Sales decision makers →
 drafts personalized outreach → tracks replies till they are ready for a meetings or reject the deal -> Fix meeting if they are ready -> Send a Google Meet link -> reads inbound replies & classifies intent. 
 Two independent apps in one repo:
 
 - `backend/` — FastAPI + PostgreSQL (SQLAlchemy 2.0). Internals still carry the old name ("Reachly API",
   container `reachly_postgres`) — kept deliberately; see `BACKEND-GAPS.md` §3 before renaming anything.
-- `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). All user-facing branding is **Sellari AI**;
+- `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). All user-facing branding is **SynthSales**;
   no "reachly" string may appear in `web/src`. Talks to the backend over REST + WebSocket.
 
 **`README.md` is a running context log** — it is updated after each substantial task with what changed and why; keep that

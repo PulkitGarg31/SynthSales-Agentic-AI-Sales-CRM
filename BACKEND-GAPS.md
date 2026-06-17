@@ -1,6 +1,6 @@
 # Backend gaps & follow-ups — pre-rebuild audit (2026-06-10)
 
-Compiled while auditing the backend for the **Sellari AI** frontend rebuild.
+Compiled while auditing the backend for the **SynthSales** frontend rebuild.
 Only §1 blocks the new frontend; everything else is here so it can be acted on later.
 
 ## 1 · Required by the new frontend — ✅ DONE with the rebuild (2026-06-11)
@@ -24,12 +24,12 @@ Only §1 blocks the new frontend; everything else is here so it can be acted on 
 - [ ] **`requirements.txt` staleness** — still lists `anthropic` (provider was removed); `dnspython` is imported by
       `providers/verification.py` (MX lookups) but not pinned.
 
-## 3 · Rename sweep (Reachly → Sellari AI) — backend side
+## 3 · Rename sweep (Reachly → SynthSales) — backend side
 
 - [x] **All USER-VISIBLE strings done (2026-06-12)**: `SMTP_FROM` (config default + live `.env`), OTP email
       subject/body, calendar event description, conversation message authors, default outreach footer,
       scraper user-agent. `services/seed.py` is clean.
-- [ ] `APP_NAME` = "Reachly API" in `core/config.py` → "Sellari API" (surfaces in `/health` JSON and Swagger
+- [ ] `APP_NAME` = "Reachly API" in `core/config.py` → "SynthSales API" (surfaces in `/health` JSON and Swagger
       title only — no end user sees it; rename whenever).
 - [ ] `.env.example` comments still say Reachly (`APP_NAME`, header comment, `SMTP_FROM` sample). Internal.
 - [ ] **Recommendation: keep** the Docker container `reachly_postgres`, db/user `reachly`, volume `reachly_pgdata`
