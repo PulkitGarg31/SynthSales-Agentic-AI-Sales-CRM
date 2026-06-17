@@ -866,3 +866,36 @@ and consumes it (one undo only); `GET …/snapshot` reports availability.
   in flight. A `ConfirmModal` shows what it restores + the 24h window; confirm → `POST /restore` →
   reload campaign + pipeline + availability. Availability is re-checked after each run and once a run
   finishes. ✅ `npm run build` clean (typecheck + lint, 29 routes).
+
+### 2026-06-17 (fix: domain-liveness false positives/negatives)
+
+`search.py::domain_status` was misclassifying the modern web. Reproduced against live
+sites: **linear/notion/stripe/vercel/figma all returned "parked"** and **openai/g2 returned
+"dead"** — all perfectly live. Two root causes:
+- **False "parked":** the check tag-stripped only `resp.text[:6000]` and required ≥200 visible
+  chars. A modern JS site front-loads a huge `<head>` (preloads, inline CSS, scripts), so the
+  first 6 KB strips to 17–117 visible chars — no size threshold can separate a real SPA shell
+  (vercel = 17 chars) from a parking page.
+- **False "dead":** `200 ≤ status < 400` was the only "responding" window, so a `403/401/429/503`
+  (WAF/bot wall, e.g. Cloudflare) was bucketed with "no server exists." These then cascaded in
+  enrichment: parked/dead skipped the AI, forced confidence to 10–15, and demoted the company
+  below the `≥40` qualify bar — silently dropping good prospects.
+
+**Fix** — reachability and content judged separately:
+- **dead** = only a genuine connection failure/timeout on both schemes (after one retry). ANY HTTP
+  status, incl. 4xx/5xx, means *reachable* → at least "live".
+- Content judged on the **full document**: a parking marker → parked; else `len(body) ≥ 1500` or
+  a JS app-shell marker (`__NEXT_DATA__`, `id="__next"/"root"`, …) → live; only a tiny static page
+  with neither → parked (still catches the `vertexhealth.org → 114-byte /lander` case).
+- Browser User-Agent + one retry on https (mirrors `_site_email_domain`); markers tightened —
+  dropped bare `"godaddy"` (matches real GoDaddy-built sites) and `"coming soon"` (legit banners),
+  added cPanel `"account has been suspended"`.
+
+**Enrichment** (per user decision — *detect parked but don't skip AI*): a parked domain now runs
+the full search+AI flow (search by company name can surface the real/current site); it only
+annotates the parked warning + caps confidence ≤25 (step 4). Dead still skips the AI on the bulk
+path (nothing to research). Removed the now-orphaned `_mark_parked_domain`.
+
+✅ Verified 16/16: live network panel (7 sites now "live", dead control still "dead") + synthetic
+branch tests (lander/cPanel/tiny → parked; app-shell/large body/403/503 → correct; connect-fail →
+dead). ✅ Both modules import + `py_compile` clean.

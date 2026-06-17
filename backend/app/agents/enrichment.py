@@ -56,9 +56,11 @@ class EnrichmentAgent(Agent):
     ) -> None:
         """Enrich a single company.
 
-        force_ai=False (default, bulk pipeline): skip search+AI for dead/parked
-            domains to avoid spending AI tokens on companies whose websites
-            offer nothing to research.
+        force_ai=False (default, bulk pipeline): skip search+AI only for a DEAD
+            (unreachable) domain — there is nothing to research. A *parked*
+            domain still runs the full search+AI flow: searching by company NAME
+            can surface the company's real/current site, so we research it and
+            merely annotate the parked warning + cap confidence (step 4).
         force_ai=True (on-demand re-research): always run the search+AI flow,
             even if the domain looks dead/parked. The AI can still search by
             company name and may surface a current website or news the user
@@ -75,18 +77,15 @@ class EnrichmentAgent(Agent):
         else:
             status = known
 
-        # 2. Bulk path: skip the AI for dead/parked to save tokens.
-        if not force_ai:
-            if status == "dead":
-                self._mark_dead_domain(company)
-                db.commit()
-                self.log(db, owner_id, f"Skipped {company.name} — domain unreachable.")
-                return
-            if status == "parked":
-                self._mark_parked_domain(company)
-                db.commit()
-                self.log(db, owner_id, f"Skipped {company.name} — domain appears parked.")
-                return
+        # 2. Bulk path: skip the AI only for a dead (unreachable) domain — there
+        #    is nothing to research. A parked domain falls through to the AI flow
+        #    below (search by company name may surface the real site); step 4
+        #    annotates the parked warning and caps its confidence.
+        if not force_ai and status == "dead":
+            self._mark_dead_domain(company)
+            db.commit()
+            self.log(db, owner_id, f"Skipped {company.name} — domain unreachable.")
+            return
 
         # 3. Search + AI (or heuristic fallback). On force_ai with a dead/parked
         #    domain, this still runs — the search is by company NAME, which can
@@ -100,9 +99,12 @@ class EnrichmentAgent(Agent):
             self._enrich_heuristic(company, campaign, reason="no_ai_key")
             src = "heuristic"
 
-        # 4. If we forced AI despite a bad domain, cap confidence and prepend a
-        #    site warning as the first profile point so the UI still makes sense.
-        if force_ai and status in ("dead", "parked"):
+        # 4. Ran the AI against a bad domain — cap confidence and prepend a site
+        #    warning as the first profile point so the UI still makes sense. This
+        #    covers any parked domain (always reaches here now) and a forced
+        #    re-research of a dead domain (bulk dead returned in step 2, so a dead
+        #    status here always implies force_ai).
+        if status in ("dead", "parked"):
             company.enrichment_confidence = min(company.enrichment_confidence, 25)
             warning = self._site_warning_prefix(company, status)
             company.research_points = [warning] + list(company.research_points or [])
@@ -142,30 +144,6 @@ class EnrichmentAgent(Agent):
         company.recent_news = None
         company.active_hiring = False
         company.enrichment_confidence = 10
-
-    def _mark_parked_domain(self, company: Company) -> None:
-        ctx = _csv_context(company)
-        company.industry = company.industry or "Unknown"
-        company.size = company.size or "Unknown"
-        company.location = company.location or "Unknown"
-        points = [
-            f"The domain {company.domain} responds, but the page is a parked/"
-            f"placeholder site rather than an active company website.",
-            f"No real content was available to research {company.name} — this "
-            f"usually means the company no longer operates under this domain, or "
-            f"the link in the CSV is incorrect.",
-            "Verify manually before outreach.",
-        ]
-        if ctx:
-            points.append(f"CSV signals indicate {ctx}.")
-        points.append("No funding, news, or hiring signals could be confirmed.")
-        company.research_points = points
-        company.research_summary = self._summary_from_points(points)
-        company.metric_confidence = {}
-        company.recent_funding = None
-        company.recent_news = None
-        company.active_hiring = False
-        company.enrichment_confidence = 15
 
     def _site_warning_prefix(self, company: Company, status: str) -> str:
         """One-sentence lead used when force_ai re-research runs against a

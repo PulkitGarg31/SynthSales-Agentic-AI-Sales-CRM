@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 DomainStatus = Literal["live", "parked", "dead"]
 
 # Substrings (case-insensitive) commonly found on domain-parking pages and
-# placeholder responses. If any appears in the homepage HTML we treat the
-# site as parked rather than a real company website.
+# placeholder responses. If any appears near the top of the homepage HTML we
+# treat the site as parked rather than a real company website. Kept HIGH
+# PRECISION on purpose: bare brand tokens like "godaddy" match real sites built
+# on GoDaddy, and "coming soon" matches legitimate product banners — both were
+# removed because a false "parked" is worse than a missed one.
 _PARKING_MARKERS = (
     "/lander",                       # Bodis / common parking redirect
     "this domain is for sale",
@@ -25,18 +28,29 @@ _PARKING_MARKERS = (
     "domain parking",
     "domain may be for sale",
     "parked domain",
-    "godaddy",
-    "sedo",
+    "sedoparking.com",               # Sedo parking (not bare "sedo")
     "afternic",
     "dan.com",
     "hugedomains",
     "namecheap-host",
     "domainmarket",
     "park-web",
-    "future home of",
-    "coming soon",
+    "future home of",                # classic Apache/cPanel default page
     "site is under construction",
     "default web page",
+    "this account has been suspended",   # cPanel host suspension (effectively dead)
+    "account has been suspended",
+)
+
+# Hydration markers only a real client-rendered web app emits. Used so a JS-app
+# shell — whose server HTML carries little visible text but a large document —
+# is judged "live", not mistaken for an empty/parked page. Deliberately
+# app-specific: NOT bare "<script>", which parking pages also carry for their
+# ad/redirect logic.
+_APP_SHELL_MARKERS = (
+    "__next_data__", 'id="__next"', "id='__next'", 'id="root"', "id='root'",
+    "data-reactroot", "window.__nuxt__", "__remix_context__", "ng-version=",
+    "data-server-rendered", "window.__initial_state__", "data-vite-dev",
 )
 
 
@@ -478,14 +492,21 @@ class SearchProvider:
     @staticmethod
     def domain_status(domain: str) -> DomainStatus:
         """Inspect a company's domain. Returns:
-          * "live"   — server responds AND the homepage has substantive content
-          * "parked" — server responds but the page is a parking/placeholder
-                       (tiny body, parking-page markers, JS-only redirects)
-          * "dead"   — DNS doesn't resolve / connection refused / timeout
+          * "live"   — a server answers (ANY HTTP status, incl. a 4xx/5xx from a
+                       WAF that refuses bots), OR the homepage is a real document
+                       (substantive content or a JS-app shell).
+          * "parked" — a 2xx page that is a parking/placeholder: a parking-page
+                       marker, or a tiny static body with no app shell (e.g.
+                       vertexhealth.org → a 114-byte JS redirect to /lander).
+          * "dead"   — NO server answers on either scheme after one retry: DNS
+                       doesn't resolve / connection refused / timeout.
 
-        A plain HEAD-only liveness check isn't enough: parked domains (e.g.
-        vertexhealth.org → a 114-byte JS redirect to /lander) return 200 OK
-        but have no real company content for the AI to summarize.
+        Reachability and content quality are judged SEPARATELY. A 403/401/429/503
+        means a live server REFUSED us — not that the site is dead; many real
+        company sites sit behind Cloudflare/Akamai bot walls. Content is judged on
+        the FULL document, never a fixed-size window: a modern JS site front-loads
+        a huge <head> (preloads, inline CSS, scripts), so the first few KB strip
+        to almost no visible text even though the site is perfectly live.
 
         Empty domain → "live" (we can't verify, but don't punish on the basis
         of a missing CSV field — enrichment will use other signals).
@@ -498,38 +519,58 @@ class SearchProvider:
                 d = d[len(prefix):]
         d = d.rstrip("/")
 
-        text = None
-        for scheme in ("https", "http"):
+        # Present as a real browser — a default python-httpx UA gets bot pages or
+        # outright blocks from many live sites. Mirrors _site_email_domain().
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+
+        reachable = False   # a server answered with ANY status
+        body = None         # 2xx/3xx HTML we can inspect for parking
+        # https gets one retry (transient throttle/slowness is common); http is a
+        # single fallback shot so a fully-dead domain can't stall for too long.
+        for scheme, attempts in (("https", 2), ("http", 1)):
             url = f"{scheme}://{d}"
-            try:
-                # Use GET (not HEAD) so we can inspect content for parking markers.
-                # Cap response read so giant pages don't slow us down.
-                resp = httpx.get(url, timeout=10, follow_redirects=True)
-                if 200 <= resp.status_code < 400:
-                    text = resp.text[:6000]
+            for attempt in range(attempts):
+                try:
+                    # GET (not HEAD) so we can inspect content for parking markers.
+                    resp = httpx.get(url, timeout=8, follow_redirects=True, headers=headers)
+                except httpx.TransportError:
+                    # DNS/connect/timeout/protocol failure — retry once, then give
+                    # up on this scheme (the server may not exist at all).
+                    if attempt + 1 < attempts:
+                        time.sleep(1.0)
+                        continue
                     break
-            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout):
-                continue
-            except Exception as exc:
-                logger.debug("domain_status %s probe failed: %s", url, exc)
-                continue
+                except Exception as exc:
+                    logger.debug("domain_status %s probe failed: %s", url, exc)
+                    break
+                reachable = True
+                if 200 <= resp.status_code < 400:
+                    body = resp.text
+                break
+            if body is not None:
+                break
 
-        if text is None:
-            return "dead"
+        if not reachable:
+            return "dead"          # nothing answered → genuinely unreachable
+        if body is None:
+            return "live"          # server answered (e.g. 403/503) but won't serve us
 
-        lowered = text.lower()
-        # Parking markers in body (or in a redirect script).
-        if any(marker in lowered for marker in _PARKING_MARKERS):
+        head = body[:20_000].lower()
+        if any(marker in head for marker in _PARKING_MARKERS):
             return "parked"
 
-        # Strip HTML to estimate visible content; tiny bodies are almost always
-        # placeholders. A real company homepage typically has hundreds of words.
-        visible = re.sub(r"<[^>]+>", " ", text)
+        # Bias toward "live": a real site ships a large document and/or a JS-app
+        # shell. Only a small static page with NEITHER a substantial body NOR an
+        # app shell is treated as a parked placeholder.
+        if len(body) >= 1500 or any(m in head for m in _APP_SHELL_MARKERS):
+            return "live"
+        visible = re.sub(r"<[^>]+>", " ", body)
         visible = re.sub(r"\s+", " ", visible).strip()
-        if len(visible) < 200:
-            return "parked"
-
-        return "live"
+        return "parked" if len(visible) < 200 else "live"
 
     # Back-compat alias used by callers that only care about reachability.
     @classmethod
