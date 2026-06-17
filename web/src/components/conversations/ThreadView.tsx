@@ -26,10 +26,30 @@ function stamp(iso: string): string {
   });
 }
 
+/** Strip the quoted reply history mail clients append below a reply ("On <date>,
+ *  X wrote:" + ">"-quoted lines / "Original Message" blocks), so only the prospect's
+ *  actual new text shows. Falls back to the full body if it would strip everything. */
+function stripQuoted(body: string): string {
+  const markers = [
+    body.search(/\n\s*On\b[\s\S]{0,200}?\bwrote:/), // Gmail "On <date>, X wrote:"
+    body.search(/\n\s*>/), // first ">"-quoted line
+    body.search(/\n-{2,}\s*Original Message/i), // Outlook
+    body.search(/\n_{5,}/), // Outlook divider
+  ].filter((i) => i >= 0);
+  if (markers.length === 0) return body.trim();
+  return body.slice(0, Math.min(...markers)).trim() || body.trim();
+}
+
 function MessageBlock({ message, contactName }: { message: ThreadMessage; contactName: string }) {
   const fromUs = message.direction === "us";
+  // Prospect replies carry the quoted thread history — strip it for display.
+  const body = fromUs ? message.body : stripQuoted(message.body);
   return (
-    <li className="px-5 py-4">
+    <li
+      className={`border-l-2 px-5 py-4 ${
+        fromUs ? "border-transparent" : "border-terracotta bg-cream"
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm font-medium text-ink">
           {fromUs ? "You" : contactName || message.author || "Prospect"}
@@ -43,9 +63,7 @@ function MessageBlock({ message, contactName }: { message: ThreadMessage; contac
       {message.subject && (
         <p className="mt-1.5 text-sm font-semibold text-ink">{message.subject}</p>
       )}
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-soft">
-        {message.body}
-      </p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-soft">{body}</p>
     </li>
   );
 }
