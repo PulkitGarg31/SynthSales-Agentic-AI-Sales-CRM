@@ -164,6 +164,10 @@ logged). DuckDuckGo search needs no key.
   shared a copy-pasted check (lookup → expiry → lockout → compare → increment) that had drifted once.
   Extracted `_consume_otp(db, email, code, prefix, lock_label)` in `auth.py`; both endpoints now call it
   and apply only their channel-specific success action. Behavior-preserving; byte-compiled clean.
+- **Typed the admin tree endpoints** (BACKEND-GAPS §1). `GET /api/admin/users/{id}`, `/campaigns/{id}`,
+  and `/companies/{id}` returned raw dicts with no `response_model`, so a field rename would silently
+  break the hand-maintained frontend types. Added Pydantic models mirroring each nested shape exactly
+  (incl. nullability) and attached them as `response_model`s; validated round-trip key-exact.
 
 ### 2026-06-17 (consistency sweep — doc/code mismatch fixes)
 - Ran a repo-wide consistency audit (backend schemas ↔ frontend types, status enums ↔ tone maps,

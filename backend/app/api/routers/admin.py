@@ -49,6 +49,150 @@ class AdminSetFlag(BaseModel):
     value: bool
 
 
+# ---- Nested read shapes (mirror the dicts the tree endpoints return; a response_model
+# makes the contract explicit so a field rename surfaces instead of silently breaking) ----
+
+class AdminUserInfo(BaseModel):
+    id: int
+    name: str
+    email: str
+    is_verified: bool
+    outbound_enabled: bool
+    is_admin: bool
+
+
+class AdminUserTreeContact(BaseModel):
+    id: int
+    name: str
+    role: str
+    email: str
+    verification: str
+    approved: bool | None = None
+
+
+class AdminUserTreeCompany(BaseModel):
+    id: int
+    name: str
+    rank: int
+    ai_score: int
+    status: str
+    domain_status: str
+    contacts: list[AdminUserTreeContact]
+
+
+class AdminUserTreeCampaign(BaseModel):
+    id: int
+    name: str
+    status: str
+    top_n: int
+    companies: list[AdminUserTreeCompany]
+
+
+class AdminUserTree(BaseModel):
+    user: AdminUserInfo
+    campaigns: list[AdminUserTreeCampaign]
+
+
+class AdminCampaignDetailDraft(BaseModel):
+    id: int
+    subject: str
+    state: str
+
+
+class AdminCampaignDetailContact(BaseModel):
+    id: int
+    name: str
+    role: str
+    email: str
+    linkedin: str | None = None
+    verification: str
+    confidence: int
+    approved: bool | None = None
+    drafts: list[AdminCampaignDetailDraft]
+
+
+class AdminCampaignDetailCompany(BaseModel):
+    id: int
+    name: str
+    domain: str
+    industry: str
+    size: str
+    location: str
+    rank: int
+    ai_score: int
+    match_level: str
+    status: str
+    enrichment_confidence: int
+    metric_confidence: dict
+    domain_status: str
+    research_summary: str
+    research_points: list
+    match_explanation: str
+    score_factors: list
+    recent_funding: str | None = None
+    recent_news: str | None = None
+    active_hiring: bool
+    contacts: list[AdminCampaignDetailContact]
+
+
+class AdminCampaignInfo(BaseModel):
+    id: int
+    owner_id: int
+    owner_email: str | None = None
+    name: str
+    product: str
+    status: str
+    tone: str
+    top_n: int
+    icp: str
+    industry_pref: str
+    geography: str
+    company_size: str
+    business_requirements: str
+    ranking_criteria: str
+
+
+class AdminCampaignDetail(BaseModel):
+    campaign: AdminCampaignInfo
+    companies: list[AdminCampaignDetailCompany]
+
+
+class AdminCompanyContact(BaseModel):
+    id: int
+    name: str
+    role: str
+    email: str
+    linkedin: str | None = None
+    verification: str
+    confidence: int
+    approved: bool | None = None
+
+
+class AdminCompanyDetail(BaseModel):
+    id: int
+    campaign_id: int
+    name: str
+    domain: str
+    industry: str
+    size: str
+    location: str
+    rank: int
+    ai_score: int
+    match_level: str
+    status: str
+    enrichment_confidence: int
+    metric_confidence: dict
+    domain_status: str
+    research_summary: str
+    research_points: list
+    match_explanation: str
+    score_factors: list
+    recent_funding: str | None = None
+    recent_news: str | None = None
+    active_hiring: bool
+    contacts: list[AdminCompanyContact]
+
+
 # ---------- Users ----------
 
 @router.get("/users", response_model=list[AdminUserRow])
@@ -77,7 +221,7 @@ def list_users(db: Session = Depends(get_db)):
     return out
 
 
-@router.get("/users/{user_id}")
+@router.get("/users/{user_id}", response_model=AdminUserTree)
 def get_user_tree(user_id: int, db: Session = Depends(get_db)):
     """Full nested view of one user's data — campaigns, companies, contacts."""
     u = db.get(User, user_id)
@@ -193,7 +337,7 @@ def list_all_campaigns(db: Session = Depends(get_db)):
     return out
 
 
-@router.get("/campaigns/{campaign_id}")
+@router.get("/campaigns/{campaign_id}", response_model=AdminCampaignDetail)
 def get_campaign_tree(campaign_id: int, db: Session = Depends(get_db)):
     """Single campaign with everything researched for it: companies (with
     enrichment summary, score, signals, domain status) and contacts (with
@@ -261,7 +405,7 @@ def delete_any_campaign(campaign_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-@router.get("/companies/{company_id}")
+@router.get("/companies/{company_id}", response_model=AdminCompanyDetail)
 def get_any_company(company_id: int, db: Session = Depends(get_db)):
     """Full research record for any user's company. Same payload as the
     owner-scoped GET /api/companies/{id} but bypasses ownership for admins."""

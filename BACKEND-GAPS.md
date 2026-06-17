@@ -20,9 +20,6 @@ known non-blocking gaps and pre-deploy hardening items, kept so they can be acte
 - [ ] No **user-level delete** for companies/contacts (Exclude status or admin delete only).
 - [ ] No **logout / token revocation / refresh** — stateless 7-day JWT; client just drops the token.
 - [ ] `GET /api/conversations/{id}` **marks the thread read as a GET side effect** — consider an explicit PATCH.
-- [ ] **Admin nested-tree endpoints return raw dicts** (no `response_model`) — `GET /api/admin/users/{id}`
-      and `GET /api/admin/campaigns/{id}`; their frontend types are hand-maintained, so schema drift
-      won't be caught by anything. (The flat list endpoints do have models.)
 
 ## 2 · Production-hardening checklist (pre-deploy)
 
