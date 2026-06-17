@@ -130,6 +130,7 @@ function SettingsInner() {
   const providers = useApi(api.authProviders);
 
   const [confirmEnable, setConfirmEnable] = useState(false);
+  const [confirmAuto, setConfirmAuto] = useState(false);
   const [disconnecting, setDisconnecting] = useState<"calendar" | "mailbox" | null>(null);
 
   // ---- tab ↔ URL (one-directional, like the campaign filter chips) ----------
@@ -184,6 +185,17 @@ function SettingsInner() {
           ? "Real sending is on"
           : "Sending paused: nothing reaches a prospect",
       },
+    );
+
+  const setAutonomous = (enabled: boolean) =>
+    run(
+      "autonomous",
+      async () => {
+        await api.setAutonomousReplies(enabled);
+        await refresh();
+        return true;
+      },
+      { success: enabled ? "Autonomous replies on" : "Autonomous replies off" },
     );
 
   // ---- connections -----------------------------------------------------------
@@ -266,6 +278,31 @@ function SettingsInner() {
             </div>
           </div>
 
+          <div className="mt-4 flex items-start justify-between gap-4 border-t border-line pt-4">
+            <div className="min-w-0">
+              <p className="font-medium text-ink">
+                Autonomous replies are {me.autonomous_replies ? "on" : "off"}
+              </p>
+              <p className="mt-1 text-sm text-ink-soft">
+                {me.autonomous_replies
+                  ? "High-confidence replies are answered automatically: interested books a meeting + sends the link, not-interested gets a closing note, answerable questions are answered."
+                  : "Replies are only surfaced for you to handle. Requires real sending to be on."}
+              </p>
+            </div>
+            <div className="pt-1">
+              <Switch
+                checked={me.autonomous_replies}
+                busy={busy === "autonomous"}
+                label="Autonomous replies"
+                onToggle={() =>
+                  me.autonomous_replies
+                    ? void setAutonomous(false)
+                    : setConfirmAuto(true)
+                }
+              />
+            </div>
+          </div>
+
           {emailMode && (
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4 text-sm text-ink-soft">
               <Badge tone={emailMode === "console" ? "amber" : "moss"}>
@@ -337,6 +374,25 @@ function SettingsInner() {
         confirmLabel="Turn on sending"
         onConfirm={async () => {
           const r = await setOutbound(true);
+          if (r === null) throw new Error("enable failed");
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmAuto}
+        onClose={() => setConfirmAuto(false)}
+        title="Turn on autonomous replies?"
+        body={
+          <p>
+            The agent will reply to prospects on its own — booking meetings, sending
+            Meet links, answering questions, and sending closing notes — without asking
+            first. It only acts on high-confidence replies and still respects the
+            outbound switch and do-not-contact. You can turn this off anytime.
+          </p>
+        }
+        confirmLabel="Turn on autonomous replies"
+        onConfirm={async () => {
+          const r = await setAutonomous(true);
           if (r === null) throw new Error("enable failed");
         }}
       />

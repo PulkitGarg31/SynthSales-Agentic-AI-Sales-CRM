@@ -41,6 +41,7 @@ export interface User {
   is_verified: boolean;
   is_admin: boolean;
   outbound_enabled: boolean;
+  autonomous_replies: boolean;
   calendar_connected: boolean;
   mailbox_connected: boolean;
   created_at: string;

@@ -158,6 +158,11 @@ export const api = {
       method: "PATCH",
       body: { outbound_enabled: enabled },
     }),
+  setAutonomousReplies: (enabled: boolean) =>
+    request<User>("/api/auth/me", {
+      method: "PATCH",
+      body: { autonomous_replies: enabled },
+    }),
   connectCalendar: () =>
     request<{ url: string }>("/api/auth/google/calendar/connect"),
   disconnectCalendar: () =>
