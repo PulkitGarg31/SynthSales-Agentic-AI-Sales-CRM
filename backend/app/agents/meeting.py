@@ -25,6 +25,7 @@ class MeetingAgent(Agent):
         link: str | None = None,
         notes: str | None = None,
         duration_minutes: int | None = None,
+        notify: bool = True,
     ) -> Meeting:
         contact = db.get(Contact, thread.contact_id) if thread.contact_id else None
         campaign = db.get(Campaign, thread.campaign_id)
@@ -43,7 +44,8 @@ class MeetingAgent(Agent):
         invite_sent = False
         if not meet_link and calendar_provider.available_for(owner):
             want_invite = bool(
-                owner.outbound_enabled
+                notify
+                and owner.outbound_enabled
                 and contact
                 and contact.email
                 and not contact.do_not_contact
@@ -120,7 +122,8 @@ class MeetingAgent(Agent):
         # (avoid double-emailing), sending is on, we have an address, and the
         # contact isn't suppressed.
         if (
-            not invite_sent
+            notify
+            and not invite_sent
             and owner.outbound_enabled
             and contact
             and contact.email
