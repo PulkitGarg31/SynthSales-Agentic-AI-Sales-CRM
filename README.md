@@ -2,9 +2,9 @@
 
 This repo implements the platform described in
 `AI-Powered B2B Outreach & Lead Generation Platform.pdf` (the PRD).
-The frontend visual design follows the supplied reference image:
-deep teal/navy ink, bold yellow brand accent, warm peach/orange surfaces,
-and heavy condensed display headings.
+The frontend visual design follows the `UI.webp` reference: warm cream editorial
+minimalism — cream/paper surfaces, ink text, hairline borders, a terracotta accent,
+and a Schibsted Grotesk + Instrument Serif (italic display) type pairing.
 
 > **This README is the running context log.** It is updated after each task so work can
 > resume with full context. See the "Progress log" section at the bottom.
@@ -45,8 +45,8 @@ Agentic CRM/
       core/                     # config, database, security (JWT, password hashing)
       models.py  schemas.py     # SQLAlchemy models + Pydantic schemas
       api/routers/              # auth, campaigns, companies, contacts, emails,
-                                #   conversations, meetings, notifications, agents,
-                                #   logs, dashboard, ws (websocket)
+                                #   conversations, meetings, notifications, agents, logs,
+                                #   dashboard, admin, contact (contact_us), ws (websocket)
       agents/                   # 8-agent pipeline + orchestrator (PRD §3)
       providers/                # ai (Gemini→Groq→OpenRouter), search (DuckDuckGo),
                                 #   verification (MX + Verifalia/ZeroBounce), email
@@ -143,10 +143,8 @@ logged). DuckDuckGo search needs no key.
 
 ## Not built yet (future)
 
-- **Frontend ↔ backend wiring** (the agreed next step): replace `web/src/lib/mock.ts` imports
-  with a typed API client hitting `http://127.0.0.1:8000`, plus a real auth/token flow.
-- Optional Admin Panel (frontend Module 18).
-- Alembic migrations, Google Calendar event creation, deployment/CI-CD.
+- Alembic migrations (still using `create_all` + idempotent `ALTER TABLE` on boot).
+- Deployment / CI-CD.
 
 ## Progress log
 
