@@ -91,7 +91,7 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
         add_log(
             db, None, "User",
             f"Registration throttled for {payload.email} from {ip}.",
-            level="warning",
+            level="warn",
         )
         raise HTTPException(status_code=429, detail=THROTTLE_MSG)
     if db.query(User).filter(User.email == payload.email).first():
@@ -136,7 +136,7 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
         add_log(
             db, user.id, "User",
             f"OTP verification locked for {user.email} (too many attempts).",
-            level="warning",
+            level="warn",
         )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
     # Only signup-verification codes ("V" prefix) are valid here: a code issued
@@ -148,7 +148,7 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
             add_log(
                 db, user.id, "User",
                 f"OTP verification locked for {user.email} (too many attempts).",
-                level="warning",
+                level="warn",
             )
             raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
         raise HTTPException(status_code=400, detail="Invalid code")
@@ -180,7 +180,7 @@ def resend_otp(
         add_log(
             db, None, "User",
             f"Resend-OTP throttled for {target or '(blank)'} from {ip}.",
-            level="warning",
+            level="warn",
         )
         raise HTTPException(status_code=429, detail=RESEND_THROTTLE_MSG)
     user = db.query(User).filter(User.email == target).first()
@@ -212,7 +212,7 @@ def forgot_password(
         add_log(
             db, None, "User",
             f"Password-reset throttled for {payload.email} from {ip}.",
-            level="warning",
+            level="warn",
         )
         raise HTTPException(status_code=429, detail=RESET_THROTTLE_MSG)
     user = db.query(User).filter(User.email == payload.email).first()
@@ -241,7 +241,7 @@ def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
         add_log(
             db, user.id, "User",
             f"Password-reset locked for {user.email} (too many attempts).",
-            level="warning",
+            level="warn",
         )
         raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
     # Only password-reset codes ("R" prefix) are valid here: a signup code
@@ -253,7 +253,7 @@ def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
             add_log(
                 db, user.id, "User",
                 f"Password-reset locked for {user.email} (too many attempts).",
-                level="warning",
+                level="warn",
             )
             raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
         raise HTTPException(status_code=400, detail="Invalid code")
