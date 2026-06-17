@@ -153,7 +153,16 @@ class AIProvider:
     def _gemini(self, prompt: str, system: str, max_tokens: int) -> tuple[str, bool]:
         body: dict = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.7},
+            "generationConfig": {
+                "maxOutputTokens": max_tokens,
+                "temperature": 0.7,
+                # gemini-2.5-* are thinking models and their thinking tokens count
+                # against maxOutputTokens — they routinely consume ~1000 tokens and
+                # truncate the real answer (→ invalid JSON / empty completions, then
+                # a silent fallback). These are copywriting/classification tasks that
+                # don't need reasoning, so disable thinking for full, fast, cheap output.
+                "thinkingConfig": {"thinkingBudget": 0},
+            },
         }
         if system:
             body["systemInstruction"] = {"parts": [{"text": system}]}
