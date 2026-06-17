@@ -13,6 +13,7 @@ import {
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import { wsSubscribe } from "@/lib/ws";
+import { emitNotificationsChanged } from "@/lib/notifications-bus";
 import type { AppNotification, NotificationType } from "@/lib/api-types";
 import { Button } from "@/components/ui/Button";
 import { Chips } from "@/components/ui/Chips";
@@ -116,10 +117,17 @@ export default function NotificationsPage() {
 
   const isRead = (n: AppNotification) => n.read || readIds.has(n.id);
 
+  // After a read persists: refresh this list AND signal the header Bell (a
+  // separate fetch instance) so its unread badge re-syncs instead of going stale.
+  const afterRead = () => {
+    reload();
+    emitNotificationsChanged();
+  };
+
   const markRead = async (n: AppNotification) => {
     if (isRead(n)) return;
     setReadIds((prev) => new Set(prev).add(n.id));
-    const r = await run(`read:${n.id}`, () => api.markRead(n.id), { onDone: reload });
+    const r = await run(`read:${n.id}`, () => api.markRead(n.id), { onDone: afterRead });
     // Failure: roll the optimistic flip back (useAction already toasted).
     if (r === null)
       setReadIds((prev) => {
@@ -132,7 +140,7 @@ export default function NotificationsPage() {
   const markAll = () =>
     void run("read-all", api.markAllRead, {
       success: "All notifications marked read",
-      onDone: reload,
+      onDone: afterRead,
     });
 
   const all = data ?? [];

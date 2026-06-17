@@ -739,6 +739,34 @@ ZeroBounce as fallback).
 - 42/42 deterministic logic tests + `npm run build`; **live DuckDuckGo check on HubSpot returned 6
   real sales contacts (CRO/GTM/President/CEO), zero junk**; add-contact route smoke (201 / blank→422).
 
+### Notification bell: unread badge now re-syncs on read (2026-06-17)
+
+**Symptom (reported):** the header bell's unread count was wrong — it never decremented when
+notifications were marked read; it only refreshed on an incoming realtime frame or a hard browser
+refresh. Backend push, `/ws` auth, the captured event loop, and event field names were all verified
+intact first, so this was a client state-sync gap, not a transport break.
+
+**Root cause:** the **Bell** (`shell/Bell.tsx`) and the **notifications page** each call
+`useApi(() => api.notifications(), [])` as *independent* fetch instances with no shared state.
+`mark_read` / `mark_all_read` (`api/routers/notifications.py`) only write the DB — no WS broadcast —
+and the bell only refetches on mount or a `notification` frame, so reads on the page never reached
+the bell. (The 50-row `GET /api/notifications` cap is a separate latent undercount, not in play here
+— the busiest dev account sits at 28/34 unread.)
+
+**Fix (surgical, client-only):**
+- New `web/src/lib/notifications-bus.ts` — a tiny payload-less pub/sub mirroring `ws.ts`
+  (`Set<Listener>`, unsubscribe return, per-listener try/catch isolation).
+- `notifications/page.tsx` — a successful `markRead` / `markAll` now calls `reload()` **and**
+  `emitNotificationsChanged()` (via `useAction`'s `onDone`, so it fires only on success; failures
+  still roll the optimistic flip back).
+- `shell/Bell.tsx` — subscribes via `onNotificationsChanged(reload)` so the badge re-syncs the
+  instant a read fires, plus a `window` `focus` refetch for reads made elsewhere / while the socket
+  was idle.
+
+#### Verified
+- `npm run build` clean (Turbopack compile + TypeScript, 32 routes incl. `/notifications`); only the
+  pre-existing `metadataBase` warnings remain. No backend change.
+
 ### 2026-06-11 (Sellari AI — full frontend rebuild)
 
 Implemented `.claude/specs/07-sellari-frontend-rebuild.md` (27-task plan in `.claude/plans/`).

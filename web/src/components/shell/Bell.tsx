@@ -7,6 +7,7 @@ import { Bell as BellIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { wsSubscribe } from "@/lib/ws";
+import { onNotificationsChanged } from "@/lib/notifications-bus";
 import { useToast } from "@/components/ui/Toast";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 
@@ -41,6 +42,18 @@ export function Bell() {
       }),
     [toast, reload],
   );
+
+  // Read-actions (mark read / mark all) happen on the notifications page, which
+  // fetches separately - subscribe so this badge re-syncs the moment they fire.
+  useEffect(() => onNotificationsChanged(reload), [reload]);
+
+  // Re-sync when the user returns to the tab/window: catches reads made while
+  // away and notifications created while the socket was idle.
+  useEffect(() => {
+    const onFocus = () => reload();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reload]);
 
   // Escape closes the dropdown.
   useEffect(() => {
