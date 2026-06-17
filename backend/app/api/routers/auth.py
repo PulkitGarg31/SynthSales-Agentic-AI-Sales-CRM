@@ -82,6 +82,45 @@ def _dev_otp(otp: str, delivered: bool) -> str | None:
     return None
 
 
+def _consume_otp(db: Session, email: str, code: str, prefix: str, lock_label: str) -> User:
+    """Shared OTP validation ladder for verify-otp and reset-password (they had
+    drifted once before being unified here). Mirrors the prior inline ladders exactly:
+    an unknown email / no active code reads identically to a wrong code (anti-enumeration);
+    expiry self-heals (400 — request a new one); MAX_OTP_ATTEMPTS triggers a logged 429
+    lock; a mismatch increments + commits the attempt counter. On success the OTP is
+    cleared and the counter reset, and the user is returned for the caller to apply its
+    channel-specific action and commit. `prefix` is the channel tag ('V'|'R'); `lock_label`
+    is the audit-log context."""
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.otp_code:
+        raise HTTPException(status_code=400, detail="Invalid code")
+    # Expiry is checked before the lock so an expired code self-heals: the user
+    # is routed to request a new one (resend resets the attempt counter).
+    if user.otp_expires_at and user.otp_expires_at < utcnow():
+        raise HTTPException(status_code=400, detail="Code expired. Request a new code.")
+    if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+        add_log(
+            db, user.id, "User",
+            f"{lock_label} locked for {user.email} (too many attempts).",
+            level="warn",
+        )
+        raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
+    if not secrets.compare_digest(user.otp_code.encode(), (prefix + code).encode()):
+        user.otp_attempts += 1
+        db.commit()
+        if user.otp_attempts >= MAX_OTP_ATTEMPTS:
+            add_log(
+                db, user.id, "User",
+                f"{lock_label} locked for {user.email} (too many attempts).",
+                level="warn",
+            )
+            raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
+        raise HTTPException(status_code=400, detail="Invalid code")
+    user.otp_code = None
+    user.otp_attempts = 0
+    return user
+
+
 @router.post("/register", response_model=RegisterOut, status_code=201)
 def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db)):
     ip = _client_ip(request)
@@ -123,39 +162,10 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
 
 @router.post("/verify-otp", response_model=Token)
 def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    # Unknown email or no active code is reported exactly like a wrong code, so
-    # this endpoint can't be used to enumerate accounts.
-    if not user or not user.otp_code:
-        raise HTTPException(status_code=400, detail="Invalid code")
-    # Expiry is checked before the lock so an expired code self-heals: the user
-    # is routed to request a new one (resend resets the attempt counter).
-    if user.otp_expires_at and user.otp_expires_at < utcnow():
-        raise HTTPException(status_code=400, detail="Code expired. Request a new code.")
-    if user.otp_attempts >= MAX_OTP_ATTEMPTS:
-        add_log(
-            db, user.id, "User",
-            f"OTP verification locked for {user.email} (too many attempts).",
-            level="warn",
-        )
-        raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    # Only signup-verification codes ("V" prefix) are valid here: a code issued
+    # Only signup-verification codes ("V" prefix) are accepted here: a code issued
     # by forgot-password can't flip is_verified (or reach the admin auto-grant).
-    if not secrets.compare_digest(user.otp_code.encode(), ("V" + payload.code).encode()):
-        user.otp_attempts += 1
-        db.commit()
-        if user.otp_attempts >= MAX_OTP_ATTEMPTS:
-            add_log(
-                db, user.id, "User",
-                f"OTP verification locked for {user.email} (too many attempts).",
-                level="warn",
-            )
-            raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-        raise HTTPException(status_code=400, detail="Invalid code")
-    # Correct code — verify, clear the code, and reset the attempt counter.
+    user = _consume_otp(db, payload.email, payload.code, "V", "OTP verification")
     user.is_verified = True
-    user.otp_code = None
-    user.otp_attempts = 0
     # Auto-grant admin if this email is in the configured admin list.
     if user.email.lower() in settings.admin_emails_list:
         user.is_admin = True
@@ -231,35 +241,10 @@ def forgot_password(
 
 @router.post("/reset-password")
 def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    # Mirror verify_otp's anti-enumeration + lockout behavior exactly.
-    if not user or not user.otp_code:
-        raise HTTPException(status_code=400, detail="Invalid code")
-    if user.otp_expires_at and user.otp_expires_at < utcnow():
-        raise HTTPException(status_code=400, detail="Code expired. Request a new code.")
-    if user.otp_attempts >= MAX_OTP_ATTEMPTS:
-        add_log(
-            db, user.id, "User",
-            f"Password-reset locked for {user.email} (too many attempts).",
-            level="warn",
-        )
-        raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-    # Only password-reset codes ("R" prefix) are valid here: a signup code
+    # Only password-reset codes ("R" prefix) are accepted here: a signup code
     # can't be replayed to change the password.
-    if not secrets.compare_digest(user.otp_code.encode(), ("R" + payload.code).encode()):
-        user.otp_attempts += 1
-        db.commit()
-        if user.otp_attempts >= MAX_OTP_ATTEMPTS:
-            add_log(
-                db, user.id, "User",
-                f"Password-reset locked for {user.email} (too many attempts).",
-                level="warn",
-            )
-            raise HTTPException(status_code=429, detail=OTP_LOCKED_MSG)
-        raise HTTPException(status_code=400, detail="Invalid code")
+    user = _consume_otp(db, payload.email, payload.code, "R", "Password-reset")
     user.hashed_password = hash_password(payload.new_password)
-    user.otp_code = None
-    user.otp_attempts = 0
     db.commit()
     add_log(db, user.id, "User", f"Password reset for {user.email}.")
     return {"detail": "Password updated. You can sign in now."}

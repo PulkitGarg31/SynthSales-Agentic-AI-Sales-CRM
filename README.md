@@ -160,6 +160,10 @@ logged). DuckDuckGo search needs no key.
   only saved a `Message` before, so the prospect never received it. It now goes through the same gated
   path as `/send` — respects `outbound_enabled` (403 when paused), skips `do_not_contact`, and emails
   via the provider (subject `Re:`-prefixed). The frontend already handled the 403.
+- **De-duplicated the OTP validation ladder** (BACKEND-GAPS §1). `verify-otp` and `reset-password`
+  shared a copy-pasted check (lookup → expiry → lockout → compare → increment) that had drifted once.
+  Extracted `_consume_otp(db, email, code, prefix, lock_label)` in `auth.py`; both endpoints now call it
+  and apply only their channel-specific success action. Behavior-preserving; byte-compiled clean.
 
 ### 2026-06-17 (consistency sweep — doc/code mismatch fixes)
 - Ran a repo-wide consistency audit (backend schemas ↔ frontend types, status enums ↔ tone maps,
