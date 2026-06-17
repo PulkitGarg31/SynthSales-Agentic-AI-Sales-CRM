@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     # How long a thread must sit unanswered (OUR last message) before an automatic
     # follow-up nudge fires. Decoupled from the poll cadence above, so you can poll
     # often but only nudge after, e.g., 10 days.
-    followup_delay_days: int = 10
+    followup_delay_days: int = 7
     # Max automatic follow-up nudges per thread before it auto-stalls.
     max_follow_ups: int = 3
     # Default generated-meeting length (minutes) for the calendar event end time.

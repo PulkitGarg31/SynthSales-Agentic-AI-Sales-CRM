@@ -38,6 +38,10 @@ class User(Base):
     # Outbound email kill-switch. Starts OFF so no real emails go to prospects
     # until the user explicitly enables sending in Settings.
     outbound_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Autonomous reply kill-switch. Starts OFF: when off the reply-classifier only
+    # surfaces inbound replies (today's behavior). When ON (and outbound_enabled is
+    # also on), high-confidence replies are answered automatically. See the spec.
+    autonomous_replies: Mapped[bool] = mapped_column(Boolean, default=False)
     # Admin role — grants access to the cross-tenant /api/admin/* routes
     # (read or delete any user's data). Bootstrap the first admin by setting
     # this column true directly in the DB (see README / db.ps1).
