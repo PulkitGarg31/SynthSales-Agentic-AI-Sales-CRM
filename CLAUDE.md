@@ -148,7 +148,7 @@ to drive the per-user `agent_configs` status the UI reads.
 ### Outbound email kill-switch (safety — do not bypass)
 
 `User.outbound_enabled` **defaults `False`**. No real email reaches a prospect until the user turns
-sending on in Settings → Email. Gated paths return 403 / skip while paused: conversation send, the
+sending on in Settings → Email. Gated paths return 403 / skip while paused: conversation send and manual replies, the
 tracking agent's auto follow-ups, the meeting agent's contact email, and the autonomous reply
 handlers (`services/auto_reply.py`, additionally gated by `User.autonomous_replies`). **Exempt:** signup OTP and
 "send test" (to self) always work.

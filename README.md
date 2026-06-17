@@ -148,7 +148,7 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
-### 2026-06-17 (functional gaps — meetings cascade on delete)
+### 2026-06-17 (functional gaps)
 - **Fixed orphaned Meetings on delete** (BACKEND-GAPS §1). `Meeting` sat outside the cascade graph
   (only a `campaign_id` FK with `ondelete=SET NULL`), so deleting a campaign *or* a user left ownerless
   meeting rows. Added a `Campaign.meetings` ↔ `Meeting.campaign` relationship with
@@ -156,6 +156,10 @@ logged). DuckDuckGo search needs no key.
   now remove the associated meetings too (ORM-level cascade — no schema migration). Updated the
   `delete_user` docstring; SQLAlchemy mapper config verified. (`CLAUDE.md`'s "all child rows
   cascade-delete from their owner" is now literally true.)
+- **Conversation replies now send for real** (BACKEND-GAPS §1). `POST /api/conversations/{id}/reply`
+  only saved a `Message` before, so the prospect never received it. It now goes through the same gated
+  path as `/send` — respects `outbound_enabled` (403 when paused), skips `do_not_contact`, and emails
+  via the provider (subject `Re:`-prefixed). The frontend already handled the 403.
 
 ### 2026-06-17 (consistency sweep — doc/code mismatch fixes)
 - Ran a repo-wide consistency audit (backend schemas ↔ frontend types, status enums ↔ tone maps,

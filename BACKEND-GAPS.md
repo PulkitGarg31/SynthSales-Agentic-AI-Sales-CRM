@@ -22,11 +22,6 @@ known non-blocking gaps and pre-deploy hardening items, kept so they can be acte
 - [ ] No **user-level delete** for companies/contacts (Exclude status or admin delete only).
 - [ ] No **logout / token revocation / refresh** — stateless 7-day JWT; client just drops the token.
 - [ ] `GET /api/conversations/{id}` **marks the thread read as a GET side effect** — consider an explicit PATCH.
-- [ ] **`POST /api/conversations/{id}/reply` never sends real email** — it only appends a `Message` row
-      (no `outbound_enabled` gate, no `email_provider.send` call), unlike `/send` which does both. The
-      conversations composer therefore "sends" replies that no prospect ever receives. Either wire it
-      through the same gated send path as `/send`, or label it a private note in the UI. (The UI
-      defensively handles a 403 that is currently unreachable.)
 - [ ] **Admin nested-tree endpoints return raw dicts** (no `response_model`) — `GET /api/admin/users/{id}`
       and `GET /api/admin/campaigns/{id}`; their frontend types are hand-maintained, so schema drift
       won't be caught by anything. (The flat list endpoints do have models.)

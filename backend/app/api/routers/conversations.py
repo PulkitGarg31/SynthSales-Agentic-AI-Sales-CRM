@@ -109,11 +109,37 @@ def reply(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Send a manual reply to the prospect on this thread. Same gating as /send:
+    blocked (403) while outbound is paused or the contact is do-not-contact. Records
+    the message either way; emails it when an address is on file."""
     t = _owned(db, user, thread_id)
+    if not user.outbound_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="Outbound sending is paused. Enable it in Settings → Email before sending.",
+        )
+    contact = db.get(Contact, t.contact_id) if t.contact_id else None
+    if contact and contact.do_not_contact:
+        raise HTTPException(
+            status_code=403, detail="This contact is marked do-not-contact."
+        )
+    subject = t.subject or "Following up"
+    if not subject.lower().startswith("re:"):
+        subject = f"Re: {subject}"
     db.add(
-        Message(thread_id=t.id, direction="us", author=user.name, body=payload.body)
+        Message(
+            thread_id=t.id,
+            direction="us",
+            author=user.name,
+            subject=subject,
+            body=payload.body,
+        )
     )
     t.last_activity = utcnow()
+    # Outbound enabled + not suppressed → attempt real delivery. The provider
+    # degrades gracefully (logs + returns False) if SMTP/Gmail isn't configured.
+    if contact and contact.email:
+        email_provider.send(contact.email, subject, payload.body)
     db.commit()
     return get_thread(thread_id, db, user)
 
