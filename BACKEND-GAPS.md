@@ -17,7 +17,6 @@ known non-blocking gaps and pre-deploy hardening items, kept so they can be acte
       poll `GET /api/campaigns/{id}/pipeline` while agents run. Candidate: push per-agent progress over WS.
 - [ ] No **user-level delete** for companies/contacts (Exclude status or admin delete only).
 - [ ] No **logout / token revocation / refresh** — stateless 7-day JWT; client just drops the token.
-- [ ] `GET /api/conversations/{id}` **marks the thread read as a GET side effect** — consider an explicit PATCH.
 
 ## 2 · Production-hardening checklist (pre-deploy)
 

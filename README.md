@@ -171,6 +171,9 @@ logged). DuckDuckGo search needs no key.
 - **Editable display name** (BACKEND-GAPS §1). `PATCH /api/auth/me` now also accepts `name`
   (`UserUpdate` strips + validates 1–120 chars); Settings → Profile got an editable Name field + Save
   (email + member-since stay read-only). Backend validation tested; `web` typechecks (`tsc --noEmit`).
+- **Proper mark-as-read** (BACKEND-GAPS §1). `GET /api/conversations/{id}` no longer mutates read-state;
+  added `POST /api/conversations/{id}/read`, and `ThreadView` now marks the thread read on open (then
+  refreshes the inbox so the unread dot clears). Frontend method is `markThreadRead`. `web` typechecks.
 
 ### 2026-06-17 (consistency sweep — doc/code mismatch fixes)
 - Ran a repo-wide consistency audit (backend schemas ↔ frontend types, status enums ↔ tone maps,

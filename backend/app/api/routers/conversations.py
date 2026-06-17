@@ -92,14 +92,24 @@ def list_threads(
 def get_thread(
     thread_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
+    # A GET no longer mutates read-state — clients mark read via POST /{id}/read.
     t = _owned(db, user, thread_id)
-    t.unread = False
-    db.commit()
     _enrich(db, t)
     out = ThreadDetailOut.model_validate(t)
     out.messages = t.messages  # type: ignore[assignment]
     out.ai_suggestion = tracking_agent.suggestion_for(t)
     return out
+
+
+@router.post("/{thread_id}/read", status_code=204)
+def mark_read(
+    thread_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """Explicitly mark a thread read (read-state is no longer a GET side effect)."""
+    t = _owned(db, user, thread_id)
+    if t.unread:
+        t.unread = False
+        db.commit()
 
 
 @router.post("/{thread_id}/reply", response_model=ThreadDetailOut)

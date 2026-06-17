@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
@@ -102,6 +102,24 @@ export function ThreadView({
   // verbatim as an inline note under the composer (the DraftEditor pattern).
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+
+  // Read-state is no longer a GET side effect — mark this thread read on open and
+  // refresh the inbox so its unread dot clears. Keyed on threadId; the parent
+  // remounts on thread switch, so it fires once per opened thread.
+  const onChangedRef = useRef(onChanged);
+  onChangedRef.current = onChanged;
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .markThreadRead(threadId)
+      .then(() => {
+        if (!cancelled) onChangedRef.current();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId]);
 
   if (detail.error) {
     return <ErrorCard message={detail.error} onRetry={detail.reload} />;

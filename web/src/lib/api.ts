@@ -261,6 +261,8 @@ export const api = {
       `/api/conversations${campaignId ? `?campaign_id=${campaignId}` : ""}`
     ),
   thread: (id: number) => request<ThreadDetail>(`/api/conversations/${id}`),
+  markThreadRead: (id: number) =>
+    request<void>(`/api/conversations/${id}/read`, { method: "POST" }),
   reply: (id: number, body: string) =>
     request<ThreadDetail>(`/api/conversations/${id}/reply`, {
       method: "POST",
