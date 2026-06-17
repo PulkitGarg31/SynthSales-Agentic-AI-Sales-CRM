@@ -140,8 +140,8 @@ async def lifespan(app: FastAPI):
             )
         # Step 03: the former `email_guess` + `verification` agents were merged
         # into a single `email_guess_verification` agent. Drop the stale per-user
-        # rows and back-fill the merged one so existing users see 7 agents (new
-        # users get it from ensure_agents()).
+        # rows and back-fill the merged one for existing users (new users get it
+        # from ensure_agents()).
         conn.execute(
             text("DELETE FROM agent_configs WHERE key IN ('email_guess', 'verification')")
         )
