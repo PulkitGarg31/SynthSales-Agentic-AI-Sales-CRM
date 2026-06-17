@@ -8,6 +8,7 @@ back to surfacing on any error.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, time, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -80,6 +81,24 @@ def _record_us(db: Session, thread: Thread, subject: str, body: str) -> None:
     thread.last_activity = utcnow()
 
 
+def _strip_quoted(body: str) -> str:
+    """Drop the quoted reply history mail clients append, so AI prompts read only
+    the prospect's new text (and don't, e.g., re-parse our own quoted proposed time)."""
+    cuts = [
+        m.start()
+        for p in (
+            re.compile(r"\n\s*On\b[\s\S]{0,200}?\bwrote:"),
+            re.compile(r"\n\s*>"),
+            re.compile(r"\n-{2,}\s*Original Message", re.IGNORECASE),
+            re.compile(r"\n_{5,}"),
+        )
+        if (m := p.search(body or ""))
+    ]
+    if not cuts:
+        return (body or "").strip()
+    return body[: min(cuts)].strip() or (body or "").strip()
+
+
 def _default_slot() -> datetime:
     """Second business day from now at 10:00 UTC (skip Sat/Sun)."""
     d = utcnow().date()
@@ -89,6 +108,43 @@ def _default_slot() -> datetime:
         if d.weekday() < 5:  # Mon-Fri
             added += 1
     return datetime.combine(d, time(10, 0), tzinfo=timezone.utc)
+
+
+def _requested_time(thread: Thread) -> datetime | None:
+    """If the prospect's latest reply names a specific date/time, parse it (via the
+    AI) into a future UTC datetime; otherwise None so the caller uses the default
+    slot. Never invents a time the prospect didn't state."""
+    if not ai.available:
+        return None
+    last_them = next(
+        (m for m in reversed(thread.messages) if m.direction == "them"), None
+    )
+    if not last_them or not (last_them.body or "").strip():
+        return None
+    anchor = last_them.sent_at or utcnow()
+    data = ai.complete_json(
+        prompt=(
+            f"The prospect sent this reply at {anchor:%A, %Y-%m-%d %H:%M} UTC, about "
+            f"scheduling an intro call. If it names a SPECIFIC date and/or time, return it "
+            f"as ISO-8601 UTC (resolve relative terms like 'tomorrow' or 'next Monday' "
+            f"against that send time). If no concrete time is requested, return null. "
+            f"Never invent a time.\n\nReply:\n{_strip_quoted(last_them.body)[:600]}\n\n"
+            'Return JSON only: {"datetime_utc": "YYYY-MM-DDTHH:MM:SSZ" | null}'
+        ),
+        system="You extract a requested meeting time. Output strict JSON only, in UTC.",
+    )
+    if not isinstance(data, dict):
+        return None
+    raw = data.get("datetime_utc")
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt if dt > utcnow() else None
 
 
 def _closing_note(db, owner, thread, contact, campaign, verdict) -> str:
@@ -120,7 +176,9 @@ def _closing_note(db, owner, thread, contact, campaign, verdict) -> str:
 
 
 def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
-    when = _default_slot()
+    # Honor a specific time the prospect asked for (e.g. a reschedule); otherwise
+    # fall back to the default slot.
+    when = _requested_time(thread) or _default_slot()
     # notify=False: create the event + Meet link, suppress Google's invite and
     # book()'s own email; we send one branded email below. book() still sets the
     # thread to Meeting and records the meeting + its confirmation message.
@@ -176,7 +234,7 @@ def _answer_question(db, owner, thread, contact, campaign, verdict) -> str:
         (m for m in reversed(thread.messages) if m.direction == "them"), None
     )
     if last_them:
-        question = last_them.body[:1500]
+        question = _strip_quoted(last_them.body)[:1500]
 
     data = ai.complete_json(
         prompt=(
