@@ -30,11 +30,6 @@ known non-blocking gaps and pre-deploy hardening items, kept so they can be acte
 - [ ] **Admin nested-tree endpoints return raw dicts** (no `response_model`) — `GET /api/admin/users/{id}`
       and `GET /api/admin/campaigns/{id}`; their frontend types are hand-maintained, so schema drift
       won't be caught by anything. (The flat list endpoints do have models.)
-- [ ] **`DELETE /api/admin/users/{id}` does not remove the user's Meetings** — `Meeting` has no owner FK
-      and sits outside the User→Campaign→Company cascade; its only link is `campaign_id`
-      (`ondelete=SET NULL`), so deleting a user nulls each meeting's `campaign_id` and leaves an
-      ownerless `Meeting` row behind. Either give `Meeting` an owner FK with cascade (or delete meetings
-      explicitly in `delete_user`), or adjust the admin UI confirm copy that claims meetings are removed.
 
 ## 2 · Production-hardening checklist (pre-deploy)
 

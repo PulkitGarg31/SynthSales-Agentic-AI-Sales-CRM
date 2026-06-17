@@ -148,6 +148,15 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-17 (functional gaps — meetings cascade on delete)
+- **Fixed orphaned Meetings on delete** (BACKEND-GAPS §1). `Meeting` sat outside the cascade graph
+  (only a `campaign_id` FK with `ondelete=SET NULL`), so deleting a campaign *or* a user left ownerless
+  meeting rows. Added a `Campaign.meetings` ↔ `Meeting.campaign` relationship with
+  `cascade="all, delete-orphan"`, so `DELETE /api/campaigns/{id}` and `DELETE /api/admin/users/{id}`
+  now remove the associated meetings too (ORM-level cascade — no schema migration). Updated the
+  `delete_user` docstring; SQLAlchemy mapper config verified. (`CLAUDE.md`'s "all child rows
+  cascade-delete from their owner" is now literally true.)
+
 ### 2026-06-17 (consistency sweep — doc/code mismatch fixes)
 - Ran a repo-wide consistency audit (backend schemas ↔ frontend types, status enums ↔ tone maps,
   config ↔ docs ↔ `.env.example`, agent registry, branding, models ↔ migration ALTERs, endpoints ↔

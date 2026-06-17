@@ -122,8 +122,7 @@ def delete_user(
 ):
     """Hard-delete a user and (via CASCADE) all their data:
     campaigns, companies, contacts, email_drafts, threads, messages,
-    notifications, logs, agent_configs. Meetings are kept but orphaned
-    (campaign_id set to NULL) since they may represent real calendar events.
+    meetings, notifications, logs, agent_configs.
     """
     if user_id == me.id:
         raise HTTPException(400, "Admins can't delete their own account here")

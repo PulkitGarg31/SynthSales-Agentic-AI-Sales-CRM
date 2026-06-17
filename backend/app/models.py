@@ -119,6 +119,9 @@ class Campaign(Base):
     companies: Mapped[list[Company]] = relationship(
         back_populates="campaign", cascade="all, delete-orphan"
     )
+    meetings: Mapped[list[Meeting]] = relationship(
+        back_populates="campaign", cascade="all, delete-orphan"
+    )
 
 
 class Company(Base):
@@ -323,6 +326,8 @@ class Meeting(Base):
     status: Mapped[str] = mapped_column(String(20), default="Upcoming")
     link: Mapped[str] = mapped_column(String(400), default="")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    campaign: Mapped[Campaign | None] = relationship(back_populates="meetings")
 
 
 class Notification(Base):
