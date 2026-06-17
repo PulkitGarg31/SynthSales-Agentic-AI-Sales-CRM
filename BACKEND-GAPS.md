@@ -45,3 +45,22 @@ known non-blocking gaps and pre-deploy hardening items, kept so they can be acte
 - [ ] **Seeding always creates** `jordan@apexcloud.com` — gate it by environment.
 - [ ] `ENVIRONMENT` must not be `development` in prod (it gates `dev_otp` exposure at signup).
 - [ ] `SECRET_KEY` still has a dev default — must be overridden in prod.
+
+## 3 · Deferred naming / cosmetic consistency (revisit at deploy)
+
+Intentionally left in place for now (verified 2026-06-17); none are user-facing bugs.
+
+- [ ] **Internal "Reachly" identifiers** — the backend deliberately keeps the old name:
+      - *Needs a data migration* (do at deploy, if at all): `docker-compose.yml` container
+        `reachly_postgres`, `POSTGRES_USER`/`POSTGRES_DB` `reachly`, volume `reachly_pgdata`, and the
+        matching `DATABASE_URL` (db `reachly`) in `config.py` / `.env.example`.
+      - *Cosmetic, no migration:* `config.py` `APP_NAME="Reachly API"` (only surfaces in `/health` JSON
+        + Swagger title), the `main.py` logger name `"reachly"`, the `.env.example:2` header comment
+        ("# Reachly backend configuration"), and the `models.py:1` module docstring
+        ("…for the Reachly platform"). Safe to rename to SynthSales anytime.
+- [ ] **Demo seed data** — `services/seed.py` activity-log row reads `"ZeroBounce: … → Unknown."`;
+      ZeroBounce is now the *fallback* (Verifalia preferred). Update the demo entry to lead with the
+      preferred provider for consistency.
+- [ ] **README progress log** — the dated `## Progress log` entries still mention old names/state
+      ("Sellari AI", "Reachly", "Claude", "ZeroBounce-only", "7-agent"). Kept as a timestamped record;
+      if a clean public README is wanted at launch, archive or trim the log.
