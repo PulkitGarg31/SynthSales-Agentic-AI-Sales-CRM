@@ -87,8 +87,21 @@ class UserOut(ORMModel):
 
 
 class UserUpdate(BaseModel):
+    name: str | None = None
     outbound_enabled: bool | None = None
     autonomous_replies: bool | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _clean_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Name can't be empty")
+        if len(v) > 120:
+            raise ValueError("Name is too long (max 120 characters)")
+        return v
 
 
 class RegisterOut(UserOut):

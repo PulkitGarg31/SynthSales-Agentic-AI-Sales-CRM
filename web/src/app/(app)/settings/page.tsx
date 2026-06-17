@@ -10,6 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Field, Input } from "@/components/ui/Field";
 import { ErrorCard } from "@/components/ui/ErrorCard";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { SkeletonRows } from "@/components/ui/Skeleton";
@@ -132,6 +133,7 @@ function SettingsInner() {
   const [confirmEnable, setConfirmEnable] = useState(false);
   const [confirmAuto, setConfirmAuto] = useState(false);
   const [disconnecting, setDisconnecting] = useState<"calendar" | "mailbox" | null>(null);
+  const [name, setName] = useState(me.name);
 
   // ---- tab ↔ URL (one-directional, like the campaign filter chips) ----------
   const rawTab = search.get("tab");
@@ -207,6 +209,20 @@ function SettingsInner() {
       { onDone: (r) => window.location.assign(r.url) },
     );
 
+  // ---- profile (name only; email stays immutable) ----------------------------
+  const trimmedName = name.trim();
+  const nameDirty = trimmedName !== "" && trimmedName !== me.name;
+  const saveName = () =>
+    run(
+      "profile",
+      async () => {
+        await api.updateName(trimmedName);
+        await refresh();
+        return true;
+      },
+      { success: "Name updated" },
+    );
+
   const memberSince = new Date(me.created_at).toLocaleDateString("en-US", {
     month: "short",
     year: "numeric",
@@ -228,14 +244,29 @@ function SettingsInner() {
       {tab === "profile" && (
         <>
           <Card title="Profile">
-            <dl className="divide-y divide-line">
-              <ProfileRow label="Name" value={me.name} />
-              <ProfileRow label="Email" value={me.email} />
-              <ProfileRow label="Member since" value={memberSince} />
-            </dl>
-            <p className="mt-3 text-xs text-ink-faint">
-              Profile editing isn&apos;t available yet.
-            </p>
+            <div className="space-y-4">
+              <Field label="Name" htmlFor="profile-name">
+                <Input
+                  id="profile-name"
+                  value={name}
+                  maxLength={120}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
+              <dl className="divide-y divide-line border-t border-line">
+                <ProfileRow label="Email" value={me.email} />
+                <ProfileRow label="Member since" value={memberSince} />
+              </dl>
+              <div className="flex justify-end">
+                <Button
+                  busy={busy === "profile"}
+                  disabled={!nameDirty}
+                  onClick={() => void saveName()}
+                >
+                  Save changes
+                </Button>
+              </div>
+            </div>
           </Card>
 
           <Card title="Reset password">

@@ -285,6 +285,9 @@ def update_me(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if payload.name is not None:
+        user.name = payload.name  # stripped + length-checked by UserUpdate
+        add_log(db, user.id, "User", f"Display name updated to '{user.name}'.")
     if payload.outbound_enabled is not None:
         user.outbound_enabled = payload.outbound_enabled
         add_log(

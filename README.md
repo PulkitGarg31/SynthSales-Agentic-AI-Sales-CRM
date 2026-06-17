@@ -168,6 +168,9 @@ logged). DuckDuckGo search needs no key.
   and `/companies/{id}` returned raw dicts with no `response_model`, so a field rename would silently
   break the hand-maintained frontend types. Added Pydantic models mirroring each nested shape exactly
   (incl. nullability) and attached them as `response_model`s; validated round-trip key-exact.
+- **Editable display name** (BACKEND-GAPS §1). `PATCH /api/auth/me` now also accepts `name`
+  (`UserUpdate` strips + validates 1–120 chars); Settings → Profile got an editable Name field + Save
+  (email + member-since stay read-only). Backend validation tested; `web` typechecks (`tsc --noEmit`).
 
 ### 2026-06-17 (consistency sweep — doc/code mismatch fixes)
 - Ran a repo-wide consistency audit (backend schemas ↔ frontend types, status enums ↔ tone maps,

@@ -9,8 +9,6 @@ known non-blocking gaps and pre-deploy hardening items, kept so they can be acte
 - [ ] **`email_sent` is a soft enumeration oracle** on `POST /forgot-password` when real SMTP is
       configured (known email → true, unknown → false). Register already leaks existence, so no new
       info today — but in production consider always returning `email_sent: true` outside development.
-- [ ] No **profile update** endpoint — name/email are immutable; only `outbound_enabled` /
-      `autonomous_replies` are PATCHable. Settings → Profile stays read-only until this exists.
 - [ ] No **pagination** on list endpoints — companies (`campaigns.py:121`), contacts (`contacts.py:19`),
       emails (`emails.py:25`), and conversations (`conversations.py:74`) still return all rows.
       (`notifications` now takes a `limit` ≤500, and `/api/logs` already did.) Fine at demo scale; will
