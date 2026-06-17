@@ -47,11 +47,12 @@ Agentic CRM/
       api/routers/              # auth, campaigns, companies, contacts, emails,
                                 #   conversations, meetings, notifications, agents,
                                 #   logs, dashboard, ws (websocket)
-      agents/                   # 7-agent pipeline + orchestrator (PRD §3)
-      providers/                # ai (Claude), search (DuckDuckGo), verification
-                                #   (ZeroBounce REST), email (Gmail/SMTP/console)
+      agents/                   # 8-agent pipeline + orchestrator (PRD §3)
+      providers/                # ai (Gemini→Groq→OpenRouter), search (DuckDuckGo),
+                                #   verification (MX + Verifalia/ZeroBounce), email
+                                #   (Gmail/SMTP/console), calendar, inbound (reply reader)
       services/                 # events (logs+notifications), serializers, seed
-      workers/scheduler.py      # APScheduler — 15-min follow-up polling
+      workers/scheduler.py      # APScheduler — follow-up + inbound reply polling
       realtime/ws.py            # in-process WebSocket hub
 ```
 
@@ -91,9 +92,10 @@ Then restart the backend. Once a password is present the provider switches to `s
 emails the code for real, and stops surfacing `dev_otp`.
 
 To enable other integrations, fill the blank keys in `backend/.env`
-(`ANTHROPIC_API_KEY`, `ZEROBOUNCE_API_KEY`, Gmail/SMTP). Without them the
-app still runs: AI/ZeroBounce degrade gracefully and email uses "console" mode
-(messages are logged). DuckDuckGo search needs no key.
+(`GEMINI_API_KEY`/`GROQ_API_KEY`/`OPENROUTER_API_KEY`, `VERIFALIA_*` or
+`ZEROBOUNCE_API_KEY`, Gmail/SMTP). Without them the app still runs: AI and paid
+email-verification degrade gracefully and email uses "console" mode (messages are
+logged). DuckDuckGo search needs no key.
 
 ## PRD frontend modules → implementation status
 
@@ -105,34 +107,34 @@ app still runs: AI/ZeroBounce degrade gracefully and email uses "console" mode
 | 4 | Campaign Creation Form | `/campaigns/new` | ✅ Done (4-step wizard, CSV upload + sample download) |
 | 5 | Company Research & Ranking | `/research`, `/research/[id]` | ✅ Done (ranked table + detail w/ scoring breakdown) |
 | 6 | Contact Discovery Review | `/contacts` | ✅ Done (approve/reject/edit per contact) |
-| 7 | Email Draft Review & Editor | `/email-review` | ✅ Done (editor + live preview, regenerate, send test) |
+| 7 | Email Draft Review & Editor | `/outreach` | ✅ Done (editor + live preview, regenerate, send test) |
 | 8 | Conversation / Inbox | `/conversations` | ✅ Done (thread view + AI reply suggestions) |
 | 9 | Meeting Management | `/meetings` | ✅ Done (upcoming/history, notes, join links) |
 | 10 | Notifications Center | `/notifications` | ✅ Done (filter, mark read) + topbar bell dropdown |
 | 11 | Agents Section | `/agents` | ✅ Done (pipeline strip + per-agent toggle/config) |
 | 12 | Settings | `/settings` | ✅ Done (Profile / Email / AI / Security tabs) |
-| 13 | Billing & Subscription | `/billing` | ✅ Done (usage, plans, payment history) |
+| 13 | Billing & Subscription | — | ❌ Dropped in the 2026-06 rebuild |
 | 14 | Integrations | `/integrations` | ✅ Done (email/calendar/verification/CRM) |
-| 15 | Activity Logs & Audit | `/logs` | ✅ Done (category filter, leveled entries) |
+| 15 | Activity Logs & Audit | `/activity` | ✅ Done (category filter, leveled entries) |
 | 16 | Support Pages | `/about`, `/contact` | ✅ Done (mission/team + support form/FAQ) |
 | 17 | Error Handling & Empty States | `not-found.tsx`, `EmptyState`, CSV validation | ✅ Partial |
-| 18 | Admin Panel (optional) | — | Not started (optional) |
+| 18 | Admin Panel (optional) | `/admin` | ✅ Done (cross-tenant user/campaign drill-downs) |
 
 ## PRD backend (Tech Stack §1–8) → implementation status
 
 | PRD area | Status |
 |---|---|
-| FastAPI services + REST layer | ✅ 39 endpoints across 12 routers, OpenAPI at `/docs` |
+| FastAPI services + REST layer | ✅ 72 endpoints across 14 routers, OpenAPI at `/docs` |
 | Database (PostgreSQL) | ✅ Postgres 16 in Docker; SQLAlchemy 2.0 models; tables auto-created on boot |
 | Authentication | ✅ JWT, password hashing (pbkdf2), register + OTP email verify + login + `/me` |
-| Multi-agent architecture (7 agents) | ✅ Enrichment, Scoring, Employee Finder, Email Guessing & Verification, Outreach, Tracking/Follow-up, Meeting Coordination — sequential orchestrator |
+| Multi-agent architecture (8 agents) | ✅ Enrichment, Scoring, Employee Finder, Email Guessing & Verification, Outreach, Tracking/Follow-up, Meeting Coordination, Reply Detection & Intent — sequential orchestrator |
 | Email infrastructure | ✅ Provider with Gmail API / SMTP / console fallback |
-| AI layer | ✅ Anthropic Claude provider (graceful fallback when no key) |
+| AI layer | ✅ Gemini→Groq→OpenRouter chain via httpx REST with 429 failover (graceful fallback when no key) |
 | Search + scraping | ✅ DuckDuckGo (ddgs) provider, no key required |
-| Email verification | ✅ ZeroBounce via REST (httpx); returns Verified/Risky/Invalid/Unknown |
+| Email verification | ✅ Free MX/syntax layer + Verifalia/ZeroBounce (httpx); returns Verified/Risky/Invalid/Unknown |
 | WebSocket / realtime | ✅ `/ws?token=…` pushes notification + log events |
-| Background jobs | ✅ APScheduler polls follow-ups every 15 min (PRD Phase 7) |
-| Gmail + Calendar integration | ⚙️ Email send wired; Calendar event creation is a stub (meeting links captured/stored) |
+| Background jobs | ✅ APScheduler: follow-up polling (15 min) + inbound reply polling (5 min) (PRD Phase 7) |
+| Gmail + Calendar integration | ✅ Email send wired; per-user Google Calendar creates real Meet links on booking (falls back to a user-supplied link) |
 | Migrations (Alembic) | ⏳ Using `create_all` on boot for dev; Alembic is the production follow-up |
 | Deployment / CI-CD | ⏳ Not done (future) |
 
