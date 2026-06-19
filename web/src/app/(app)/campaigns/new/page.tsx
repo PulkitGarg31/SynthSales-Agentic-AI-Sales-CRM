@@ -438,7 +438,7 @@ export default function NewCampaignPage() {
                 label="Top companies to pursue"
                 required
                 htmlFor="cw-topn"
-                hint={`Up to ${maxTop} — 15% of your ${companyCount} ${companyCount === 1 ? "company" : "companies"}.`}
+                hint={`Up to ${maxTop} (15% of your ${companyCount} ${companyCount === 1 ? "company" : "companies"}).`}
                 error={
                   draft.top_n > maxTop ? `Maximum ${maxTop} (15% of ${companyCount})` : undefined
                 }

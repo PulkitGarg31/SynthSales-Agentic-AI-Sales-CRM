@@ -415,8 +415,8 @@ function SettingsInner() {
         title="Turn on autonomous replies?"
         body={
           <p>
-            The agent will reply to prospects on its own — booking meetings, sending
-            Meet links, answering questions, and sending closing notes — without asking
+            The agent will reply to prospects on its own, booking meetings, sending
+            Meet links, answering questions, and sending closing notes, without asking
             first. It only acts on high-confidence replies and still respects the
             outbound switch and do-not-contact. You can turn this off anytime.
           </p>
