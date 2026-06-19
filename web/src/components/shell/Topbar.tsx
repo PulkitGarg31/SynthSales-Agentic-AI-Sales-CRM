@@ -9,7 +9,15 @@ import { Badge } from "@/components/ui/Badge";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { eyebrowFor } from "@/lib/nav";
+import { useDemo } from "@/lib/demo";
 import { Bell } from "./Bell";
+
+/** Persistent "this account is read-only" marker shown only in the demo. */
+function DemoChip() {
+  const demo = useDemo();
+  if (!demo) return null;
+  return <Badge tone="amber">Demo · read-only</Badge>;
+}
 
 function OutboundChip() {
   const { me } = useAuth();
@@ -129,6 +137,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
       </div>
       <div className="flex items-center gap-3">
+        <DemoChip />
         <OutboundChip />
         <ThemeToggle />
         <Bell />

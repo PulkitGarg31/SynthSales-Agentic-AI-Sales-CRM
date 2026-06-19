@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAction } from "@/lib/hooks";
+import { useDemo } from "@/lib/demo";
 import type { CampaignCreate } from "@/lib/api-types";
 import { BackLink } from "@/components/ui/BackLink";
 import { Button } from "@/components/ui/Button";
@@ -222,6 +223,7 @@ function StepRail({
 export default function NewCampaignPage() {
   const router = useRouter();
   const { busy, run } = useAction();
+  const demo = useDemo();
 
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(INITIAL);
@@ -540,7 +542,7 @@ export default function NewCampaignPage() {
                 Next
               </Button>
             ) : (
-              <Button variant="accent" busy={busy === "create"} disabled={!stepValid} onClick={finish}>
+              <Button variant="accent" busy={busy === "create"} disabled={!stepValid || demo} title={demo ? "Disabled in the demo" : undefined} onClick={finish}>
                 Create campaign
               </Button>
             )}

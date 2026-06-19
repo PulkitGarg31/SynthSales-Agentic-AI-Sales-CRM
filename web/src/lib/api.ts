@@ -30,10 +30,17 @@ import type {
   User,
 } from "./api-types";
 
+import { resolveDemo } from "./demo-fixtures";
+
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 const TOKEN_KEY = "sellari_token";
+// Read-only demo account: a flag + a sentinel token so the existing auth guards
+// pass without special-casing. In demo mode `request()` serves static fixtures
+// for reads and blocks every mutation — no network call leaves the browser.
+const DEMO_KEY = "synthsales_demo";
+const DEMO_TOKEN = "demo";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -41,9 +48,36 @@ export function getToken(): string | null {
 }
 export function setToken(token: string) {
   window.localStorage.setItem(TOKEN_KEY, token);
+  // A real token always ends demo mode (e.g. logging into an actual account).
+  window.localStorage.removeItem(DEMO_KEY);
 }
 export function clearToken() {
   window.localStorage.removeItem(TOKEN_KEY);
+}
+
+export function isDemo(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(DEMO_KEY) === "1";
+}
+/** Enter the read-only demo: set the flag + sentinel token, then route to /dashboard. */
+export function enterDemo() {
+  window.localStorage.setItem(DEMO_KEY, "1");
+  window.localStorage.setItem(TOKEN_KEY, DEMO_TOKEN);
+}
+/** Leave the demo: clear the flag, sentinel token, and the per-session welcome. */
+export function exitDemo() {
+  window.localStorage.removeItem(DEMO_KEY);
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.sessionStorage.removeItem("synthsales_demo_welcomed");
+}
+
+/** Thrown by `request()` for any mutation attempted in demo mode; useAction
+ *  turns it into a friendly "create an account" toast instead of an error. */
+export class DemoError extends Error {
+  constructor() {
+    super("demo");
+    this.name = "DemoError";
+  }
 }
 
 // Full-page entry point for the Google OAuth flow. It's a browser navigation
@@ -70,6 +104,15 @@ type FetchOpts = {
 
 async function request<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const { method = "GET", body, auth = true, form } = opts;
+
+  // Demo mode intercepts authenticated app traffic (reads → fixtures, writes →
+  // blocked) but lets public auth calls (login/register/etc., auth:false) reach
+  // the real backend so the escape hatch into a real account always works.
+  if (isDemo() && auth) {
+    if (method === "GET") return resolveDemo<T>(path);
+    throw new DemoError();
+  }
+
   const headers: Record<string, string> = {};
   if (auth) {
     const token = getToken();

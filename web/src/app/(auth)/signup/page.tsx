@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ApiError, googleStartUrl, setToken } from "@/lib/api";
+import { api, ApiError, enterDemo, googleStartUrl, setToken } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { DevOtpNote, OtpInput } from "@/components/auth/OtpInput";
@@ -208,6 +208,26 @@ export default function SignupPage() {
           </Button>
         </>
       )}
+
+      <div className="flex items-center gap-3" aria-hidden>
+        <div className="h-px flex-1 bg-line" />
+        <span className="text-xs text-ink-faint">or</span>
+        <div className="h-px flex-1 bg-line" />
+      </div>
+      <Button
+        type="button"
+        variant="secondary"
+        className="w-full"
+        onClick={() => {
+          enterDemo();
+          router.replace("/dashboard");
+        }}
+      >
+        View live demo
+      </Button>
+      <p className="text-center text-xs text-ink-faint">
+        A read-only tour with sample data &mdash; nothing sends.
+      </p>
 
       <p className="text-sm text-ink-soft">
         Already have an account?{" "}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Copy, Loader2, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
+import { useDemo } from "@/lib/demo";
 import type { Campaign } from "@/lib/api-types";
 import { CAMPAIGN_TONE } from "@/lib/constants";
 import { Badge } from "@/components/ui/Badge";
@@ -216,6 +217,7 @@ export default function CampaignsPage() {
   const router = useRouter();
   const campaigns = useApi(api.campaigns);
   const { busy, run } = useAction();
+  const demo = useDemo();
 
   const [status, setStatus] = useState("All");
   const [query, setQuery] = useState("");
@@ -259,7 +261,12 @@ export default function CampaignsPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="display text-3xl sm:text-4xl">Campaigns</h1>
-        <Button variant="accent" onClick={() => router.push("/campaigns/new")}>
+        <Button
+          variant="accent"
+          disabled={demo}
+          title={demo ? "Disabled in the demo" : undefined}
+          onClick={() => router.push("/campaigns/new")}
+        >
           New campaign
         </Button>
       </header>

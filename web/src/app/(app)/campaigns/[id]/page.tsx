@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
+import { useDemo } from "@/lib/demo";
 import { usePipeline } from "@/lib/usePipeline";
 import { useAuth } from "@/components/AuthProvider";
 import type { Campaign } from "@/lib/api-types";
@@ -201,6 +202,7 @@ function CampaignDetailInner() {
   const snapshot = useApi(() => api.campaignSnapshot(id), [id]);
   const { busy, run } = useAction();
   const { me } = useAuth();
+  const demo = useDemo();
   const hasAccess = me.is_admin || me.access_status === "approved";
 
   // ?fresh=1 (set by the wizard) opens the run-all confirm exactly once:
@@ -292,7 +294,8 @@ function CampaignDetailInner() {
             <Button
               variant="accent"
               busy={busy === "run-all"}
-              disabled={anyRunning}
+              disabled={anyRunning || demo}
+              title={demo ? "Disabled in the demo" : undefined}
               onClick={() => setRunAllOpen(true)}
             >
               {anyRunning ? "Pipeline running…" : "Run all agents"}

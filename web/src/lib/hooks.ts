@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError } from "./api";
+import { ApiError, DemoError } from "./api";
 import { useToast } from "@/components/ui/Toast";
 
 interface ApiState<T> {
@@ -90,6 +90,11 @@ export function useAction() {
         opts?.onDone?.(r);
         return r;
       } catch (e) {
+        // Demo mode: every mutation is inert — nudge toward a real account.
+        if (e instanceof DemoError) {
+          toast("This is a demo — create an account to run this for real.");
+          return null;
+        }
         // Access-required 403s are handled by the global AccessRequiredModal.
         if (e instanceof ApiError && e.accessRequired) return null;
         toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.", "error");

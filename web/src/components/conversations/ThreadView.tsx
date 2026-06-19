@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, DemoError } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
+import { useDemo } from "@/lib/demo";
 import { useToast } from "@/components/ui/Toast";
 import type { Contact, ThreadMessage } from "@/lib/api-types";
 import { INTENT_TONE, STAGE_TONE, THREAD_STAGES } from "@/lib/constants";
@@ -84,6 +85,7 @@ export function ThreadView({
 }) {
   const { toast } = useToast();
   const { busy, run } = useAction();
+  const demo = useDemo();
 
   const detail = useApi(() => api.thread(threadId), [threadId]);
   // ThreadDetail doesn't carry do_not_contact - join it from the campaign's
@@ -168,7 +170,9 @@ export function ThreadView({
       setComposer("");
       refetch();
     } catch (e) {
-      if (e instanceof ApiError && e.status === 403) {
+      if (e instanceof DemoError) {
+        toast("This is a demo — create an account to send replies.");
+      } else if (e instanceof ApiError && e.status === 403) {
         setReplyError(e.message);
       } else {
         toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.", "error");
@@ -180,7 +184,8 @@ export function ThreadView({
 
   const suggestion = t.ai_suggestion ?? null;
   // One mutation at a time across the header actions AND an in-flight reply.
-  const locked = busy !== null || sending;
+  // In the demo every action is inert, so lock them all.
+  const locked = busy !== null || sending || demo;
 
   return (
     <div className="space-y-4">
@@ -321,7 +326,8 @@ export function ThreadView({
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
             busy={sending}
-            disabled={!composer.trim() || busy !== null}
+            disabled={!composer.trim() || busy !== null || demo}
+            title={demo ? "Disabled in the demo" : undefined}
             onClick={() => void sendReply()}
           >
             Send

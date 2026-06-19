@@ -146,6 +146,21 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (read-only demo account — frontend-only, static fixtures)
+Added a one-click **"View live demo"** button on the **signup** page that drops a visitor into a
+**read-only demo account** showing the full product with dummy data for every agent — and where
+**nothing works**. Pure frontend, no backend: a `synthsales_demo` localStorage flag + sentinel token
+makes the existing auth guards pass, and `api.ts::request()` intercepts authenticated traffic — GETs
+resolve from static fixtures (`lib/demo-fixtures.ts`, mirroring `seed.py`), every mutation throws a
+`DemoError` that `useAction` turns into a friendly "create an account" toast (no network leaves the
+browser). On entry a centered **once-per-session** warning modal (`DemoWelcomeModal`, mounted in
+`AuthProvider`) explains it's static, with **OK** and **Create account** (→ signup) buttons. A persistent
+**"Demo · read-only"** Topbar badge plus greyed-out primary buttons (Run all agents, New/Create campaign,
+Send, Book meeting) reinforce it. Public auth endpoints (`auth:false`) bypass the demo so logging into a
+real account always works; `signOut`/"Create account" call `exitDemo()`. New code uses `synthsales_*`
+keys (legacy `sellari_*` left as-is). Verified: `npm run build` passes; new demo files lint clean (no new
+errors). Design doc: `.claude/plans/2026-06-19-demo-account-design.md`.
+
 ### 2026-06-19 (preview cap refinement — free agents runnable, not blocked)
 Refined the non-approved tier per testing feedback: the **free** agents now stay **runnable but capped**
 (per-agent and via "Run all", repeatable) instead of disabled. `orchestrator._run_agent_capped` caps a

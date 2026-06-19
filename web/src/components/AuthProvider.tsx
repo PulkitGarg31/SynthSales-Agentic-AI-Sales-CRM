@@ -11,11 +11,12 @@ import {
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { api, ApiError, clearToken, getToken } from "@/lib/api";
+import { api, ApiError, clearToken, exitDemo, getToken, isDemo } from "@/lib/api";
 import type { User } from "@/lib/api-types";
 import { useAction } from "@/lib/hooks";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { DemoWelcomeModal } from "@/components/DemoWelcomeModal";
 
 interface AuthCtx {
   /** The signed-in user - non-null everywhere inside the provider. */
@@ -67,6 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const signOut = useCallback(() => {
+    // Demo mode has no server session — just clear the demo flag/token locally.
+    if (isDemo()) {
+      exitDemo();
+      setMe(null);
+      router.replace("/login");
+      return;
+    }
     // Best-effort server-side revocation; never block the redirect on it
     // (offline / already-expired tokens just fail silently).
     void api.logout().catch(() => {});
@@ -104,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{ me, refresh, signOut }}>
       {children}
       <AccessRequiredModal />
+      <DemoWelcomeModal />
     </Ctx.Provider>
   );
 }
