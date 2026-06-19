@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { FAQ } from "@/lib/copy";
 
@@ -20,7 +20,11 @@ export function Faq() {
                 {item.q}
                 <Plus
                   aria-hidden
-                  className="size-4 shrink-0 text-ink-faint transition group-open:rotate-45"
+                  className="size-4 shrink-0 text-ink-faint transition group-open:hidden"
+                />
+                <Minus
+                  aria-hidden
+                  className="hidden size-4 shrink-0 text-ink-faint transition group-open:block"
                 />
               </summary>
               <p className="mt-3 text-sm leading-relaxed text-ink-soft">{item.a}</p>

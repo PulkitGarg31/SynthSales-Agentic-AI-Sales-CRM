@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Mail, Plus } from "lucide-react";
+import { Mail, Minus, Plus } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { ContactForm } from "@/components/marketing/ContactForm";
 
@@ -35,7 +35,7 @@ export default function ContactPage() {
             Talk to a <em>human</em>.
           </h1>
           <p className="text-base leading-relaxed text-ink-soft md:text-lg">
-            No ticket portal, no chatbot maze. Send a message and a person will reply.
+            No ticket portal, no chatbot maze. Send a message and we will reply.
           </p>
         </div>
 
@@ -73,7 +73,11 @@ export default function ContactPage() {
                   {item.q}
                   <Plus
                     aria-hidden
-                    className="size-4 shrink-0 text-ink-faint transition group-open:rotate-45"
+                    className="size-4 shrink-0 text-ink-faint transition group-open:hidden"
+                  />
+                  <Minus
+                    aria-hidden
+                    className="hidden size-4 shrink-0 text-ink-faint transition group-open:block"
                   />
                 </summary>
                 <p className="mt-3 text-sm leading-relaxed text-ink-soft">{item.a}</p>
