@@ -9,6 +9,8 @@ the flag on other users through the API.
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_admin
 from app.core.database import get_db
 from app.models import Campaign, Company, Contact, EmailDraft, User
+from app.services.events import add_log, add_notification
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -29,6 +32,7 @@ class AdminUserRow(BaseModel):
     is_verified: bool
     outbound_enabled: bool
     is_admin: bool
+    access_status: str
     campaigns: int
     companies: int
     contacts: int
@@ -215,7 +219,7 @@ def list_users(db: Session = Depends(get_db)):
         out.append(AdminUserRow(
             id=u.id, name=u.name, email=u.email,
             is_verified=u.is_verified, outbound_enabled=u.outbound_enabled,
-            is_admin=u.is_admin,
+            is_admin=u.is_admin, access_status=u.access_status,
             campaigns=len(u.campaigns), companies=companies, contacts=contacts,
         ))
     return out
@@ -296,7 +300,7 @@ def set_admin_flag(
     return AdminUserRow(
         id=u.id, name=u.name, email=u.email,
         is_verified=u.is_verified, outbound_enabled=u.outbound_enabled,
-        is_admin=u.is_admin,
+        is_admin=u.is_admin, access_status=u.access_status,
         campaigns=len(u.campaigns),
         companies=db.query(Company).join(Campaign).filter(Campaign.owner_id == u.id).count(),
         contacts=(
@@ -305,6 +309,86 @@ def set_admin_flag(
             .join(Campaign, Campaign.id == Company.campaign_id)
             .filter(Campaign.owner_id == u.id)
             .count()
+        ),
+    )
+
+
+# ---------- Access requests ----------
+
+class AccessRequestRow(BaseModel):
+    id: int
+    name: str
+    email: str
+    note: str | None = None
+    requested_at: datetime | None = None
+
+
+class AccessDecision(BaseModel):
+    decision: str  # "approve" | "reject"
+    note: str | None = None
+
+
+@router.get("/access-requests", response_model=list[AccessRequestRow])
+def list_access_requests(db: Session = Depends(get_db)):
+    """Pending access requests, oldest first (the review queue)."""
+    rows = (
+        db.query(User)
+        .filter(User.access_status == "pending")
+        .order_by(User.access_requested_at)
+        .all()
+    )
+    return [
+        AccessRequestRow(
+            id=u.id, name=u.name, email=u.email,
+            note=u.access_note, requested_at=u.access_requested_at,
+        )
+        for u in rows
+    ]
+
+
+@router.post("/users/{user_id}/access", response_model=AdminUserRow)
+def decide_access(
+    user_id: int,
+    payload: AccessDecision,
+    db: Session = Depends(get_db),
+    me: User = Depends(require_admin),
+):
+    """Approve or reject (or revoke) a user's access. Reject/revoke also forces
+    outbound sending off so a previously-approved user stops sending."""
+    if payload.decision not in ("approve", "reject"):
+        raise HTTPException(400, "decision must be 'approve' or 'reject'")
+    u = db.get(User, user_id)
+    if not u:
+        raise HTTPException(404, "User not found")
+    if payload.decision == "approve":
+        u.access_status = "approved"
+    else:
+        u.access_status = "rejected"
+        u.outbound_enabled = False  # revoke any in-flight sending
+    u.access_review_note = payload.note
+    db.commit()
+    db.refresh(u)
+    add_notification(
+        db, u.id, "system",
+        "Access approved" if payload.decision == "approve" else "Access request declined",
+        payload.note
+        or (
+            "You can now use outreach and outbound sending."
+            if payload.decision == "approve"
+            else "An admin declined your access request."
+        ),
+    )
+    add_log(db, me.id, "User", f"{payload.decision.title()}d access for {u.email}.")
+    return AdminUserRow(
+        id=u.id, name=u.name, email=u.email, is_verified=u.is_verified,
+        outbound_enabled=u.outbound_enabled, is_admin=u.is_admin,
+        access_status=u.access_status,
+        campaigns=len(u.campaigns),
+        companies=db.query(Company).join(Campaign).filter(Campaign.owner_id == u.id).count(),
+        contacts=(
+            db.query(Contact).join(Company, Company.id == Contact.company_id)
+            .join(Campaign, Campaign.id == Company.campaign_id)
+            .filter(Campaign.owner_id == u.id).count()
         ),
     )
 
