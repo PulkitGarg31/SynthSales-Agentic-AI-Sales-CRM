@@ -955,3 +955,25 @@ path (nothing to research). Removed the now-orphaned `_mark_parked_domain`.
 ✅ Verified 16/16: live network panel (7 sites now "live", dead control still "dead") + synthetic
 branch tests (lander/cPanel/tiny → parked; app-shell/large body/403/503 → correct; connect-fail →
 dead). ✅ Both modules import + `py_compile` clean.
+
+## Landing & auth polish (user change-list)
+
+A round of UI/copy refinements off a user-supplied change list:
+- **Hero** — the headline's full stop now renders in terracotta; the long paragraph sub was
+  replaced with one line ("Your next customer is already in the spreadsheet.").
+- **Top nav** — the active link now underlines (terracotta). Route match for `/about` and
+  `/contact`; IntersectionObserver scroll-spy for the `#how` / `#features` sections. New client
+  component `MarketingNav` replaces the server-rendered desktop nav (mobile menu unchanged).
+- **Accordions** (landing FAQ + contact) — the open state shows a Minus icon instead of a
+  rotated Plus (which read as an ×): `Plus group-open:hidden` + `Minus hidden group-open:block`.
+- **About** — dropped the `01–03` eyebrow numbering. (The crew-card `01–08` enumeration of the
+  eight agents was left as-is — only the quoted eyebrow was removed.)
+- **Em dashes** — removed from the 3 user-facing strings (autonomous-replies confirm copy, the
+  campaign-wizard top-N hint); the only remaining `—` are 2 non-rendered code comments.
+- **Dashboard** — Upcoming meetings moved to the top, above the stat numerals (most actionable).
+- **Signup** — added "Continue with Google", mirroring login (`api.authProviders()` gate +
+  `googleStartUrl()`). No backend change needed: `/google/callback` already creates Google users
+  with a random unguessable hash, so a Google sign-up implies Google-only sign-in.
+
+✅ `npm run build` green (32/32 routes). ✅ Visually verified hero, about (numbering + nav
+underline), and signup (Google button) via headless screenshots.
