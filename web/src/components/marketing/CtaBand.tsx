@@ -7,7 +7,8 @@ export function CtaBand() {
       <div className="flex flex-col items-center gap-6 rounded-3xl border border-line bg-paper px-6 py-16 text-center md:py-20">
         <Eyebrow>Start in minutes</Eyebrow>
         <h2 className="display max-w-3xl text-3xl md:text-5xl">
-          Your next customer is already <em>in the spreadsheet</em>.
+          Your next customer is already <em>in the spreadsheet</em>
+          <span className="text-terracotta">.</span>
         </h2>
         <p className="max-w-xl text-base leading-relaxed text-ink-soft">
           Upload the list, describe what you sell, and let the agents do the reading. Nothing sends

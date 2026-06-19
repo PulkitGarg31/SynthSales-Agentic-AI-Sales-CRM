@@ -12,10 +12,6 @@ export function Hero() {
           <em>{HERO.headline.em}</em>
           <span className="text-terracotta">{HERO.headline.post}</span>
         </h1>
-        <p className="font-serif text-xl italic text-ink md:text-2xl">
-          {HERO.tagline.replace(/\.$/, "")}
-          <span className="text-terracotta">.</span>
-        </p>
         <p className="max-w-2xl text-base leading-relaxed text-ink-soft md:text-lg">{HERO.sub}</p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
           <Link
