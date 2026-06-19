@@ -41,7 +41,7 @@ export const DEMO_USER: User = {
 };
 
 const CAMPAIGNS: Campaign[] = [
-  { id: 1, name: "Apex Cloud — Q2 Enterprise Push", product: "Apex Cloud Data Platform", status: "Running", tone: "consultative", top_n: 50, created_at: "2026-04-10T09:00:00Z", companies_uploaded: 18, companies_researched: 18, emails_sent: 6, replies_received: 2, meetings_booked: 3 },
+  { id: 1, name: "Apex Cloud — Q2 Enterprise Push", product: "Apex Cloud Data Platform", status: "Running", tone: "consultative", top_n: 50, created_at: "2026-04-10T09:00:00Z", companies_uploaded: 18, companies_researched: 18, emails_sent: 6, replies_received: 2, meetings_booked: 4 },
   { id: 2, name: "FinTech Mid-Market Expansion", product: "LedgerOne Payments API", status: "Running", tone: "professional", top_n: 40, created_at: "2026-04-22T09:00:00Z", companies_uploaded: 24, companies_researched: 24, emails_sent: 9, replies_received: 3, meetings_booked: 1 },
   { id: 3, name: "HealthOps Pilot Outreach", product: "HealthOps Scheduling Suite", status: "Paused", tone: "friendly", top_n: 30, created_at: "2026-05-01T09:00:00Z", companies_uploaded: 12, companies_researched: 12, emails_sent: 4, replies_received: 1, meetings_booked: 0 },
   { id: 4, name: "Retail Analytics — Spring", product: "ShelfIQ Analytics", status: "Completed", tone: "concise", top_n: 60, created_at: "2026-03-05T09:00:00Z", companies_uploaded: 40, companies_researched: 40, emails_sent: 22, replies_received: 7, meetings_booked: 4 },
@@ -108,7 +108,8 @@ const THREAD_DETAILS: Record<number, ThreadDetail> = {
 const MEETINGS: Meeting[] = [
   { id: 1, campaign_id: 1, company: "Cedar Clinics", contact: "Dr. Amelia Ross", scheduled_at: "2026-05-29T19:00:00Z", status: "Upcoming", link: "https://meet.google.com/demo-cedar-apex", notes: "Focus on scheduling no-show reduction." },
   { id: 2, campaign_id: 1, company: "Northwind Logistics", contact: "Dana Whitfield", scheduled_at: "2026-05-30T19:00:00Z", status: "Upcoming", link: "https://meet.google.com/demo-northwind-apex", notes: "Tailor to route + warehouse data." },
-  { id: 3, campaign_id: 1, company: "Summit Retail Group", contact: "Greg Hollis", scheduled_at: "2026-05-19T17:30:00Z", status: "Completed", link: "https://meet.google.com/demo-summit", notes: "Budget frozen until Q3." },
+  { id: 3, campaign_id: 1, company: "Brightwave Manufacturing", contact: "Tom Schaefer", scheduled_at: "2026-06-03T16:00:00Z", status: "Upcoming", link: "https://meet.google.com/demo-brightwave-apex", notes: "Technical demo — tailor to their telemetry pipeline and predictive maintenance." },
+  { id: 4, campaign_id: 1, company: "Summit Retail Group", contact: "Greg Hollis", scheduled_at: "2026-05-19T17:30:00Z", status: "Completed", link: "https://meet.google.com/demo-summit", notes: "Budget frozen until Q3." },
 ];
 
 const NOTIFICATIONS: AppNotification[] = [
