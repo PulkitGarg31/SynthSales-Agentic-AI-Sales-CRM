@@ -996,3 +996,7 @@ underline), and signup (Google button) via headless screenshots.
 
 ✅ `npm run build` green (32/32). ✅ Verified nav order + Home underline, orange tagline stop,
 and the login (form-right) / signup (form-left) slide end-states via headless screenshots.
+
+**Follow-up:** the hero tagline was then removed — the line reads better appearing once, as the
+CTA-band heading ("Your next customer is already *in the spreadsheet*.") — and that heading's full
+stop is now the terracotta one. The hero is back to headline + paragraph.
