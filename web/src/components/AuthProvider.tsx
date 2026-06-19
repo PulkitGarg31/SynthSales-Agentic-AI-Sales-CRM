@@ -65,6 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const signOut = useCallback(() => {
+    // Best-effort server-side revocation; never block the redirect on it
+    // (offline / already-expired tokens just fail silently).
+    void api.logout().catch(() => {});
     clearToken();
     wsDisconnect();
     setMe(null);

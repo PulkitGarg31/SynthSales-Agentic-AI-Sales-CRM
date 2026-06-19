@@ -153,6 +153,7 @@ export const api = {
   contactUs: (data: { name: string; email: string; message: string }) =>
     request<{ detail: string }>("/api/contact", { method: "POST", auth: false, body: data }),
   me: () => request<User>("/api/auth/me"),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   updateName: (name: string) =>
     request<User>("/api/auth/me", { method: "PATCH", body: { name } }),
   setOutbound: (enabled: boolean) =>
