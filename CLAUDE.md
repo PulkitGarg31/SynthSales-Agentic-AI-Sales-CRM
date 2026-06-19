@@ -166,13 +166,13 @@ two layers; `services/access.py` holds the agent-key partition + the `require_ac
   sending**. The outbound setter (`PATCH /api/auth/me outbound_enabled=true`), `POST /api/conversations/sync`,
   and book-meeting all `require_access`; the scheduler skips non-approved users; outbound stays the user's
   own kill-switch once approved.
-- **Credit-capped preview (non-approved):** "Run all" runs `orchestrator._run_preview_pipeline` — enrich +
-  score only the first `PREVIEW_COMPANIES` (2) companies, then ONE contact + email for the top one (the
-  full pipeline runs only for approved users). It's **one-time** (`POST /campaigns/{id}/run` 403s once any
-  company is scored) and the per-agent re-trigger paths are disabled (`run-agent`,
-  `companies/{id}/enrich`, `companies/{id}/find-contacts` → `require_access`). The web **research +
-  contacts** pages show the 2 / 1 preview rows clear and a blurred `<LockedPreview>` panel (with a
-  Request-access button) for the rest; the gated 403 anywhere pops a centered Request-access modal.
+- **Credit-capped (non-approved):** the **free** agents stay runnable but capped — both "Run all"
+  (`orchestrator._run_preview_pipeline`) and per-agent runs (`_run_agent_capped`) enrich + score only the
+  first `PREVIEW_COMPANIES` (2) companies and resolve ONE contact + email for the top one;
+  `companies/{id}/find-contacts` is capped to one contact. Runs are repeatable (capped = cheap). Only the
+  **gated** agents 403 (`run-agent` on a gated key → the access modal). The web **research + contacts**
+  pages show the 2 / 1 preview rows clear and a blurred `<LockedPreview>` panel (with a Request-access
+  button) for the rest; in the pipeline rail only the gated agents show "Requires access".
 
 A user requests access via `POST /api/access/request` (→ pending); an admin approves/rejects from the
 control room (`GET /api/admin/access-requests`, `POST /api/admin/users/{id}/access`). Existing users were

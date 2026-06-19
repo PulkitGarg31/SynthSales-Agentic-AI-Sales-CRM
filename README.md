@@ -146,6 +146,15 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (preview cap refinement — free agents runnable, not blocked)
+Refined the non-approved tier per testing feedback: the **free** agents now stay **runnable but capped**
+(per-agent and via "Run all", repeatable) instead of disabled. `orchestrator._run_agent_capped` caps a
+per-agent run to 2 companies / 1 contact (factored `_preview_companies` + `_find_one_contact`, shared with
+`_run_preview_pipeline`); `companies/{id}/find-contacts` is capped to one contact. Only the **gated**
+agents 403 (`run-agent` on a gated key), and the pipeline rail shows "Requires access" on those only; the
+one-time run limit was dropped. Verified: TestClient — non-approved free agents (scoring/finder) → 200,
+gated (outreach/tracking) → 403, approved → 200.
+
 ### 2026-06-19 (non-approved preview cap + paywall blur)
 Tightened the non-approved tier from "full research, no outreach" to a **credit-capped preview** shown
 behind a blur. Plan: `.claude/plans/2026-06-19-non-approved-preview-cap.md`.
