@@ -157,6 +157,21 @@ tracking agent's auto follow-ups, the meeting agent's contact email, and the aut
 handlers (`services/auto_reply.py`, additionally gated by `User.autonomous_replies`). **Exempt:** signup OTP and
 "send test" (to self) always work.
 
+### Access gating (anti-abuse — do not bypass)
+
+New accounts can research + build lists but can't reach out until an admin approves them.
+`User.access_status` (`none|pending|approved|rejected`) + `User.has_access` (admin **or** approved) gate
+the **outreach / tracking / meeting / reply_classifier** agents and **outbound sending**; the free agents
+(enrichment / scoring / employee_finder / email_guess_verification) run for anyone. The partition + a
+`require_access()` 403 guard live in `services/access.py`. Enforcement: `run_campaign_pipeline` skips the
+outreach phase for a non-approved owner (research still runs); `POST /campaigns/{id}/run-agent` 403s on a
+gated key; the outbound setter (`PATCH /api/auth/me outbound_enabled=true`), `POST /api/conversations/sync`,
+and book-meeting all `require_access`; the scheduler skips non-approved users. A user requests via
+`POST /api/access/request` (→ pending); an admin approves/rejects from the control room
+(`GET /api/admin/access-requests`, `POST /api/admin/users/{id}/access`). Approval is a prerequisite to
+outbound — the user still owns their send kill-switch. Existing users were grandfathered to `approved`;
+admins are always approved.
+
 ### Data model & status lifecycles
 
 `backend/app/models.py` — Users, Campaigns, Companies, Contacts, EmailDrafts, Threads+Messages,
@@ -174,6 +189,8 @@ rows cascade-delete from their owner. Key status fields the UI depends on:
   with no address). `EmailDraft.state`, `Thread.stage`.
   `Contact.do_not_contact` is set by `reply_classifier` on a high-confidence not-interested reply (and
   cleared by the human reopen control); `Message.intent` holds the classified reply intent.
+- `User.access_status`: `none|pending|approved|rejected` — the anti-abuse gate (see Access gating above);
+  `User.has_access` is `is_admin or approved`.
 
 ### Schema migrations
 
@@ -229,6 +246,10 @@ shared `api/pagination.py::Page` dependency (responses stay plain arrays; an omi
 ceiling). User-level delete exists for companies (`DELETE /api/companies/{id}`) and contacts
 (`DELETE /api/contacts/{id}`) — owner-scoped, children cascade, blocked `409` if a live conversation exists
 unless `?force=true`.
+
+Access gating endpoints (2026-06-19): `POST /api/access/request` (user → pending); admin control room
+`GET /api/admin/access-requests` + `POST /api/admin/users/{id}/access` (`{decision: approve|reject, note?}`).
+See "Access gating" above.
 
 Frontend wiring (`web/src/lib/`): `api.ts` is the typed client (token in `localStorage["sellari_token"]`,
 authenticated 401s auto-redirect to `/login`), `api-types.ts` mirrors backend schemas, `hooks.ts` has

@@ -146,6 +146,26 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (access gating — anti-abuse approval for outreach + outbound)
+New accounts can research and build contact lists, but the powerful features — the outreach / tracking /
+meeting / reply_classifier agents and outbound sending — now require an admin-approved access grant.
+Plan: `.claude/plans/2026-06-19-access-gating.md`.
+- **Model:** `User.access_status` (`none|pending|approved|rejected`) + `User.has_access` (admin or
+  approved), via Alembic migration `1b9cd2d2b2ee` (existing users grandfathered to `approved`; demo user
+  seeded approved).
+- **Gate:** `services/access.py` holds the free/gated agent-key partition + `require_access()`. Enforced in
+  `run_campaign_pipeline` (skips outreach for non-approved owners — research still runs), the run-agent
+  endpoint (403 on gated keys), the outbound setter, `conversations/sync` + book-meeting, and the scheduler
+  (skips non-approved users).
+- **Flow:** `POST /api/access/request` (→ pending, notifies admins); the control room gains an **Access**
+  tab — `GET /api/admin/access-requests` queue + `POST /api/admin/users/{id}/access` approve/reject (reject
+  revokes outbound and lets the user see the reason + re-request). Settings → Sending locks the toggles
+  behind a Request-access panel until approved. Approval is a prerequisite; the user keeps their own send
+  kill-switch.
+- Verified: end-to-end TestClient smoke — a fresh non-approved user gets 403 on outbound/sync/outreach but
+  200 on the free scoring agent; request → pending → admin approve → outbound + outreach unlock.
+  `alembic check` clean; `npm run build` passes.
+
 ### 2026-06-19 (schema: score_factors + payload → JSONB)
 Standardized the last two generic-`JSON` columns (`companies.score_factors`, `pipeline_snapshots.payload`)
 to `JSONB`, matching the other document columns — the first change authored through the new Alembic
