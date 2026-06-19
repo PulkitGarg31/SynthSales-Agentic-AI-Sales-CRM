@@ -24,7 +24,7 @@ export function Features() {
     <section id="features" className="scroll-mt-20 border-t border-line">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
         <div className="max-w-2xl space-y-4">
-          <Eyebrow index="03">What’s built in</Eyebrow>
+          <Eyebrow>What’s built in</Eyebrow>
           <h2 className="display text-3xl md:text-4xl">
             Careful by <em>construction</em>.
           </h2>

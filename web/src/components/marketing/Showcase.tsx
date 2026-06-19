@@ -32,7 +32,7 @@ export function Showcase() {
   return (
     <section className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
       <div className="max-w-2xl space-y-4">
-        <Eyebrow index="01">Inside the product</Eyebrow>
+        <Eyebrow>Inside the product</Eyebrow>
         <h2 className="display text-3xl md:text-4xl">
           No Black Box, <em>just proof</em>.
         </h2>

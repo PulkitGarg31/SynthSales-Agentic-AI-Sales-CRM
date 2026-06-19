@@ -6,7 +6,7 @@ export function Testimonials() {
     <section className="bg-band">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
       <div className="max-w-2xl space-y-4">
-        <Eyebrow index="04">Early users</Eyebrow>
+        <Eyebrow>Early users</Eyebrow>
         <h2 className="display text-3xl text-ink md:text-4xl">
           Quiet pipelines, <em>loud results</em>.
         </h2>

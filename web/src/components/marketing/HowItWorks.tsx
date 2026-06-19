@@ -6,7 +6,7 @@ export function HowItWorks() {
     <section id="how" className="scroll-mt-20 border-t border-line">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
         <div className="max-w-2xl space-y-4">
-          <Eyebrow index="02">How it works</Eyebrow>
+          <Eyebrow>How it works</Eyebrow>
           <h2 className="display text-3xl md:text-4xl">
             From spreadsheet <em>to handshake</em>.
           </h2>

@@ -8,7 +8,7 @@ export function Faq() {
     <section className="border-t border-line">
       <div className="mx-auto w-full max-w-3xl px-6 py-20 md:py-24">
         <div className="space-y-4">
-          <Eyebrow index="05">Questions</Eyebrow>
+          <Eyebrow>Questions</Eyebrow>
           <h2 className="display text-3xl md:text-4xl">
             Asked, <em>answered</em>.
           </h2>
