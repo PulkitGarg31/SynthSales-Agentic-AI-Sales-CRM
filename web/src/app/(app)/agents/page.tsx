@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { ErrorCard } from "@/components/ui/ErrorCard";
-import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 
 // Status dot, matching AGENT_STATUS_TONE (Idle faint / Running terracotta /
@@ -71,13 +70,11 @@ function Switch({
 
 function AgentRow({
   agent,
-  index,
   busy,
   onEnable,
   onRequestDisable,
 }: {
   agent: Agent;
-  index: number;
   busy: boolean;
   onEnable: () => void;
   onRequestDisable: () => void;
@@ -85,10 +82,6 @@ function AgentRow({
   const name = label(agent);
   return (
     <li className="flex items-start gap-4 px-5 py-4">
-      <div className="pt-0.5">
-        <Eyebrow>{String(index + 1).padStart(2, "0")}</Eyebrow>
-      </div>
-
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <p className="font-medium text-ink">{name}</p>
@@ -158,11 +151,10 @@ export default function AgentsPage() {
       ) : (
         <Card flush className={agents.loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
           <ul className="divide-y divide-line">
-            {rows.map((agent, i) => (
+            {rows.map((agent) => (
               <AgentRow
                 key={agent.id}
                 agent={agent}
-                index={i}
                 busy={busy === `toggle:${agent.id}`}
                 onEnable={() => void setEnabled(agent, true)}
                 onRequestDisable={() => setDisabling(agent)}
