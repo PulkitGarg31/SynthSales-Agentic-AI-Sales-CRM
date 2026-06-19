@@ -165,6 +165,10 @@ configurable backend chain (`SEARCH_ORDER`, default `ddgs,serper`):
   to gather 8 candidates it then discards.
 - `/health` `search` is now a string (`"ddgs → serper(3 keys)"` / `"none"`) instead of a bool; admin
   System-health row + `HealthOut` type updated to match (mirrors `email_finder`/`email_mode`).
+- **Deploy requirement:** because `ddgs` fails from datacenter IPs, **`SERPER_API_KEYS` is now required for
+  a non-dev deploy** (added to the CLAUDE.md deploy checklist) — without it the pipeline runs blind (no
+  research, no contacts). Local dev still works key-free (ddgs, residential IP). Verified end-to-end:
+  Serper-only finds real contacts at ~1 credit each, and the breaker trips after 3 empties then skips ddgs.
 
 ### 2026-06-19 (read-only demo account — frontend-only, static fixtures)
 Added a one-click **"View live demo"** button on the **signup** page that drops a visitor into a
