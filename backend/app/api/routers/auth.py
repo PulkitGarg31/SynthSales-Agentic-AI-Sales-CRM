@@ -227,8 +227,11 @@ def forgot_password(
         raise HTTPException(status_code=429, detail=RESET_THROTTLE_MSG)
     user = db.query(User).filter(User.email == payload.email).first()
     generic = {"detail": "If that account exists, a reset code was sent."}
+    # Outside development, never reveal whether the account exists: always report
+    # email_sent=true and withhold dev_otp. (In dev we keep the real values + OTP.)
+    is_dev = settings.environment == "development"
     if not user:
-        return {**generic, "email_sent": False, "dev_otp": None}
+        return {**generic, "email_sent": False if is_dev else True, "dev_otp": None}
     otp = _new_otp()
     user.otp_code = "R" + otp  # provenance tag: password-reset channel
     user.otp_expires_at = utcnow() + timedelta(minutes=15)
@@ -236,7 +239,11 @@ def forgot_password(
     db.commit()
     delivered = _send_otp(user.email, otp, purpose="reset")
     add_log(db, user.id, "User", f"Password-reset code issued for {user.email}.")
-    return {**generic, "email_sent": delivered, "dev_otp": _dev_otp(otp, delivered)}
+    return {
+        **generic,
+        "email_sent": delivered if is_dev else True,
+        "dev_otp": _dev_otp(otp, delivered),  # already None outside dev
+    }
 
 
 @router.post("/reset-password")
