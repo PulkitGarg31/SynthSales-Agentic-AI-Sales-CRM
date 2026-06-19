@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
-import { wsSubscribe } from "@/lib/ws";
 import { emitNotificationsChanged, onNotificationsChanged } from "@/lib/notifications-bus";
 import type { AppNotification, NotificationType } from "@/lib/api-types";
 import { Button } from "@/components/ui/Button";
@@ -97,23 +96,13 @@ function NotificationRow({
 // ---- page ------------------------------------------------------------------
 
 export default function NotificationsPage() {
-  const { data, loading, error, reload } = useApi(() => api.notifications(), []);
+  const { data, loading, error, reload } = useApi(() => api.notifications(), [], 30_000);
   const { busy, run } = useAction();
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [types, setTypes] = useState<string[]>([]);
   // Optimistic overlay: ids marked read locally before the server confirms.
   // A later refetch returns them as read anyway, so the set never goes stale.
   const [readIds, setReadIds] = useState<ReadonlySet<number>>(new Set());
-
-  // Notification frames carry no id/read/created_at - refetch the list instead
-  // of constructing rows from the frame (the Bell pattern).
-  useEffect(
-    () =>
-      wsSubscribe((e) => {
-        if (e.event === "notification") reload();
-      }),
-    [reload],
-  );
 
   // Reads from the bell dropdown emit on the bus; refetch so this list reflects
   // them too (the bell and this page are independent fetches).

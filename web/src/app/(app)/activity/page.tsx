@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   Megaphone,
   Pause,
@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
-import { wsSubscribe } from "@/lib/ws";
 import { AGENT_LABELS, LOG_CATEGORIES } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -23,10 +22,7 @@ import { SkeletonRows } from "@/components/ui/Skeleton";
 
 // ---- helpers ---------------------------------------------------------------
 
-const MAX_ROWS = 500;
-
-// One unified row shape for fetched logs and live WS frames (frames carry no
-// timestamp - we stamp them with client receive time, the dashboard pattern).
+// Row shape for the activity feed (rows come from GET /api/logs).
 interface ActivityItem {
   key: string;
   time: Date;
@@ -154,85 +150,27 @@ function LogRow({ item }: { item: ActivityItem }) {
 
 export default function ActivityPage() {
   const [category, setCategory] = useState<string>("All");
-  // Server-side filter: refetch (latest 200) whenever the chip changes.
-  const logs = useApi(() => api.logs(category, 200), [category]);
-
-  const [live, setLive] = useState<ActivityItem[]>([]);
   const [paused, setPaused] = useState(false);
-  const [buffered, setBuffered] = useState(0);
-  // While paused, incoming frames accumulate here (oldest first) and flush to
-  // the top on resume. A ref keeps the listener lint-safe; `buffered` mirrors
-  // its length purely for the button label.
-  const bufferRef = useRef<ActivityItem[]>([]);
-  const seq = useRef(0);
-
-  useEffect(
-    () =>
-      wsSubscribe((e) => {
-        if (e.event !== "log") return;
-        // Keep the stream consistent with the fetched filter: when a category
-        // chip is active, drop non-matching frames (case-insensitive - fetched
-        // categories are TitleCase, frames echo whatever the backend logged).
-        if (
-          category !== "All" &&
-          e.data.category.toLowerCase() !== category.toLowerCase()
-        )
-          return;
-        const row: ActivityItem = {
-          key: `live-${++seq.current}`,
-          time: new Date(),
-          category: e.data.category,
-          message: e.data.message,
-          level: e.data.level,
-        };
-        if (paused) {
-          bufferRef.current.push(row);
-          // Cap the buffer like the rendered list - only the newest 500 could
-          // survive the flush anyway, so don't hoard older frames in memory.
-          if (bufferRef.current.length > MAX_ROWS) bufferRef.current.shift();
-          setBuffered(bufferRef.current.length);
-        } else {
-          setLive((prev) => [row, ...prev].slice(0, MAX_ROWS));
-        }
-      }),
-    [category, paused],
-  );
+  // Server-side filter: refetch (latest 200) on category change, and poll every
+  // 5s while not paused so the feed stays current without a realtime socket.
+  const logs = useApi(() => api.logs(category, 200), [category], paused ? null : 5000);
 
   const togglePaused = () => {
-    if (!paused) {
-      setPaused(true);
-      return;
-    }
-    // Resume: flush the buffer to the top, newest first, then go live.
-    const buffer = bufferRef.current;
-    bufferRef.current = [];
-    setBuffered(0);
-    if (buffer.length > 0) {
-      const newestFirst = [...buffer].reverse();
-      setLive((prev) => [...newestFirst, ...prev].slice(0, MAX_ROWS));
-    }
-    setPaused(false);
+    setPaused((p) => !p);
+    if (paused) logs.reload(); // was paused → resuming: refresh immediately
   };
 
   const pickCategory = (value: string) => {
-    if (value === category) return;
-    setCategory(value);
-    // Live + buffered rows belong to the previous filter - drop them.
-    setLive([]);
-    bufferRef.current = [];
-    setBuffered(0);
+    if (value !== category) setCategory(value);
   };
 
-  const rows: ActivityItem[] = [
-    ...live,
-    ...(logs.data ?? []).map((l) => ({
-      key: `log-${l.id}`,
-      time: new Date(l.created_at),
-      category: l.category as string,
-      message: l.message,
-      level: l.level as string,
-    })),
-  ].slice(0, MAX_ROWS);
+  const rows: ActivityItem[] = (logs.data ?? []).map((l) => ({
+    key: `log-${l.id}`,
+    time: new Date(l.created_at),
+    category: l.category as string,
+    message: l.message,
+    level: l.level as string,
+  }));
 
   // Group consecutive rows by day (rows are already newest-first) so the feed
   // reads as Today / Yesterday / dated sections.
@@ -261,7 +199,7 @@ export default function ActivityPage() {
           ) : (
             <Pause aria-hidden className="size-4" />
           )}
-          {paused ? `Resume${buffered > 0 ? ` (${buffered})` : ""}` : "Pause stream"}
+          {paused ? "Resume" : "Pause refresh"}
         </Button>
       </header>
 
@@ -274,17 +212,7 @@ export default function ActivityPage() {
       {initialLoad ? (
         <SkeletonRows n={8} />
       ) : logs.error ? (
-        <ErrorCard
-          message={logs.error}
-          onRetry={() => {
-            // Drop live + buffered rows too, or a retried fetch would re-list
-            // messages that already arrived over the socket.
-            setLive([]);
-            bufferRef.current = [];
-            setBuffered(0);
-            logs.reload();
-          }}
-        />
+        <ErrorCard message={logs.error} onRetry={() => logs.reload()} />
       ) : rows.length === 0 ? (
         <p className="py-10 text-center font-serif italic text-ink-soft">
           Quiet so far. Agents will report here.

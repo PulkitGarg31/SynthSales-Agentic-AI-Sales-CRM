@@ -11,8 +11,16 @@ interface ApiState<T> {
   reload: () => void;
 }
 
-/** Runs an async API call on mount (and when `deps` change). */
-export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []): ApiState<T> {
+/**
+ * Runs an async API call on mount (and when `deps` change). Pass `pollMs` to
+ * also re-run on an interval — used in place of realtime push for lists that
+ * should stay fresh (notifications, activity log). `null`/0 disables polling.
+ */
+export function useApi<T>(
+  fn: () => Promise<T>,
+  deps: unknown[] = [],
+  pollMs: number | null = null,
+): ApiState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +50,15 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []): ApiState<
   }, [memoFn, nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  // Optional polling: a positive pollMs re-runs the fetch on that cadence;
+  // null/0 disables. Self-clears on unmount or when the cadence changes.
+  useEffect(() => {
+    if (!pollMs || pollMs <= 0) return;
+    const t = setInterval(reload, pollMs);
+    return () => clearInterval(t);
+  }, [pollMs, reload]);
+
   return { data, loading, error, reload };
 }
 

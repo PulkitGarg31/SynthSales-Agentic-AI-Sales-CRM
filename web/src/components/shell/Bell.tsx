@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell as BellIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import type { AppNotification } from "@/lib/api-types";
 import { useApi, useAction } from "@/lib/hooks";
-import { wsSubscribe } from "@/lib/ws";
 import { onNotificationsChanged, emitNotificationsChanged } from "@/lib/notifications-bus";
 import { useToast } from "@/components/ui/Toast";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -36,18 +35,35 @@ export function Bell() {
     setOpen(false);
   }
   // One fetch feeds both numbers: unread count = filter, dropdown = newest 5.
-  const { data, reload } = useApi(() => api.notifications(), []);
+  // Polls every 30s (replaces the old WS push); the window-focus refetch below
+  // catches updates the moment the user returns to the tab.
+  const { data, reload } = useApi(() => api.notifications(), [], 30_000);
 
-  useEffect(
-    () =>
-      wsSubscribe((e) => {
-        if (e.event !== "notification") return;
-        const { type, title, detail } = e.data;
-        toast(detail ? `${title} · ${detail}` : title, type === "error" ? "error" : "success");
-        reload(); // refetch count + list; the frame has no row to merge locally
-      }),
-    [toast, reload],
-  );
+  // Toast notifications newer than the last batch we saw. The first load only
+  // primes the high-water mark, so the existing backlog never toasts.
+  const seenIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const maxId = data.reduce((m, n) => Math.max(m, n.id), 0);
+    if (seenIdRef.current === null) {
+      seenIdRef.current = maxId;
+      return;
+    }
+    if (maxId > seenIdRef.current) {
+      const cutoff = seenIdRef.current;
+      seenIdRef.current = maxId;
+      // Oldest-first so the newest notification is the last toast shown.
+      data
+        .filter((n) => n.id > cutoff)
+        .reverse()
+        .forEach((n) =>
+          toast(
+            n.detail ? `${n.title} · ${n.detail}` : n.title,
+            n.type === "error" ? "error" : "success",
+          ),
+        );
+    }
+  }, [data, toast]);
 
   // Read-actions (mark read / mark all) happen on the notifications page, which
   // fetches separately - subscribe so this badge re-syncs the moment they fire.

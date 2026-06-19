@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import { usePipeline } from "@/lib/usePipeline";
-import { wsSubscribe } from "@/lib/ws";
 import type { Campaign } from "@/lib/api-types";
 import { CAMPAIGN_TONE } from "@/lib/constants";
 import { BackLink } from "@/components/ui/BackLink";
@@ -52,25 +51,15 @@ const LEVEL_TEXT: Record<string, string> = {
 
 // ---- local components ------------------------------------------------------
 
-/** Live agent chatter from the shared WS hub - newest at top, capped at 200. */
+/** Recent agent chatter, polled from GET /api/logs every 5s - newest at top. */
 function LiveLogPanel() {
-  const [rows, setRows] = useState<LiveLog[]>([]);
-  const seq = useRef(0);
-
-  useEffect(
-    () =>
-      wsSubscribe((e) => {
-        if (e.event !== "log") return;
-        const row: LiveLog = {
-          key: `l${++seq.current}`,
-          time: new Date(),
-          message: e.data.message,
-          level: e.data.level,
-        };
-        setRows((prev) => [row, ...prev].slice(0, 200));
-      }),
-    [],
-  );
+  const { data } = useApi(() => api.logs("All", 200), [], 5000);
+  const rows: LiveLog[] = (data ?? []).map((l) => ({
+    key: `l${l.id}`,
+    time: new Date(l.created_at),
+    message: l.message,
+    level: l.level as string,
+  }));
 
   return (
     <Card title="Live log" flush className="self-start">

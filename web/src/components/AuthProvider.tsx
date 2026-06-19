@@ -13,7 +13,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { api, ApiError, clearToken, getToken } from "@/lib/api";
 import type { User } from "@/lib/api-types";
-import { wsDisconnect } from "@/lib/ws";
 
 interface AuthCtx {
   /** The signed-in user - non-null everywhere inside the provider. */
@@ -69,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // (offline / already-expired tokens just fail silently).
     void api.logout().catch(() => {});
     clearToken();
-    wsDisconnect();
     setMe(null);
     router.replace("/login");
   }, [router]);
