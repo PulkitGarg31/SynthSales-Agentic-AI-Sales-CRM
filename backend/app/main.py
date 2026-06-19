@@ -53,13 +53,6 @@ def _run_migrations() -> None:
 async def lifespan(app: FastAPI):
     _assert_production_config()
 
-    import asyncio
-
-    from app.realtime.ws import set_main_loop
-
-    # Capture the running loop so threadpool request handlers can broadcast.
-    set_main_loop(asyncio.get_running_loop())
-
     # Bring the database schema to the latest Alembic revision. Single-worker
     # deploy, so migrating on boot is safe (no multi-worker race): a fresh DB is
     # built from scratch, an existing one gets new revisions, an up-to-date one
@@ -133,7 +126,6 @@ from app.api.routers import (  # noqa: E402
     logs,
     meetings,
     notifications,
-    ws,
 )
 
 for module in (
@@ -150,7 +142,6 @@ for module in (
     agents,
     logs,
     dashboard,
-    ws,
 ):
     app.include_router(module.router)
 

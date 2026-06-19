@@ -1,8 +1,11 @@
-"""Helpers to record audit logs and notifications, and push them over WS."""
+"""Helpers to record audit logs and notifications.
+
+These persist the rows; the UI reads them via REST polling (GET /api/logs,
+GET /api/notifications) — there is no WebSocket push.
+"""
 from sqlalchemy.orm import Session
 
 from app.models import Log, Notification
-from app.realtime.ws import notify
 
 
 def add_log(
@@ -18,12 +21,6 @@ def add_log(
     if commit:
         db.commit()
         db.refresh(log)
-    if owner_id is not None:
-        notify(
-            owner_id,
-            "log",
-            {"category": category, "message": message, "level": level},
-        )
     return log
 
 
@@ -40,5 +37,4 @@ def add_notification(
     if commit:
         db.commit()
         db.refresh(n)
-    notify(owner_id, "notification", {"type": ntype, "title": title, "detail": detail})
     return n
