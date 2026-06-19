@@ -173,10 +173,22 @@ status fields the UI depends on:
 
 ### Schema migrations
 
-**No Alembic yet.** `main.py::lifespan` runs `Base.metadata.create_all` on boot, followed by a block
-of **idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`** statements for columns added after a table
-already existed (`create_all` never alters existing tables). When you add a column to an existing model,
-add the matching idempotent ALTER there or existing dev databases won't pick it up.
+**Alembic** owns the schema (adopted 2026-06-19). `main.py::lifespan` runs `alembic upgrade head` on boot
+(`_run_migrations()`), so a fresh DB is built from the migrations and an existing one is brought current —
+the old `create_all` + idempotent `ALTER TABLE` block is gone. Running migrations on boot is safe because
+the deploy is single-worker.
+
+- Migration scripts live in `backend/alembic/versions/`; `backend/alembic/env.py` pulls the DB URL +
+  target metadata from `app.core.config.settings` + `app.models`, so autogenerate diffs against the live
+  models and migrations always hit the same DB the app uses.
+- **When you change a model** (add/alter a column, table, or index), author a migration:
+  `cd backend; .\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "<what changed>"`, review
+  the generated file in `alembic/versions/`, then apply it with `... -m alembic upgrade head` (or just
+  restart the app — it upgrades on boot). Confirm there's no drift with `... -m alembic check`
+  ("No new upgrade operations detected").
+- The baseline revision (`ab18fda68ae2`) captures the pre-Alembic schema; existing dev/prod DBs were
+  `alembic stamp`-ed to it. The runtime admin auto-grant (`ADMIN_EMAILS`) stays in `lifespan` — it's
+  config-driven, not schema.
 
 ### Realtime & cross-cutting services
 

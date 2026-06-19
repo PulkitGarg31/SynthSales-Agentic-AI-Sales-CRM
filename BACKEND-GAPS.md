@@ -30,9 +30,12 @@ why.
 
 ## 2 · Production-hardening checklist (pre-deploy)
 
-- [ ] **Alembic migrations** — *deferred this pass.* Still `create_all` + the idempotent `ALTER TABLE`
-      block in `main.py::lifespan` (`alembic` is a dependency but unused). Fine for now; adopt when schema
-      churn or a team makes raw ALTERs risky.
+- [x] **Alembic migrations** — adopted 2026-06-19. `main.py::lifespan` runs `alembic upgrade head` on boot
+      (`_run_migrations()`); `create_all` + the idempotent `ALTER TABLE` block are gone. Baseline revision
+      `ab18fda68ae2` captures the prior schema (existing DBs `stamp`-ed to it); `alembic/env.py` pulls URL +
+      metadata from app settings/models. Adopting it also fixed a latent missing `ix_users_google_sub`
+      index (the old ALTER retrofit added the column but never its index). *Optional follow-up:* standardize
+      `companies.score_factors` + `pipeline_snapshots.payload` from `JSON` to `JSONB` (one clean migration).
 - [ ] **WS hub is in-process** (`realtime/ws.py`) — *deferred: moot at single-worker.* A multi-worker /
       multi-instance deploy would need Redis pub/sub (and would also need the in-process APScheduler moved
       to a single leader, or it double-fires follow-ups + inbound polls). Revisit only if scaling out.
