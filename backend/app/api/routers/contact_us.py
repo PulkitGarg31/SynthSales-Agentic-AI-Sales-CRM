@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from app.core.config import settings
-from app.core.ratelimit import limiter
+from app.core.ratelimit import client_ip, limiter
 from app.providers.email import email_provider
 
 router = APIRouter(prefix="/api/contact", tags=["contact"])
@@ -24,15 +24,9 @@ class ContactIn(BaseModel):
     message: str = Field(min_length=10, max_length=5000)
 
 
-def _client_ip(request: Request) -> str:
-    # No reverse proxy fronts the app today, so X-Forwarded-For would be
-    # attacker-controlled — trust only the direct peer address.
-    return request.client.host if request.client else "unknown"
-
-
 @router.post("", status_code=202)
 def contact_us(payload: ContactIn, request: Request):
-    ip = _client_ip(request)
+    ip = client_ip(request)
     if not limiter.check(f"contact:ip:{ip}", 3, _RL_WINDOW):
         raise HTTPException(status_code=429, detail=THROTTLE_MSG)
 

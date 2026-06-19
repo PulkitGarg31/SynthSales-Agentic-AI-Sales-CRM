@@ -1,4 +1,4 @@
-"""SQLAlchemy models for the Reachly platform.
+"""SQLAlchemy models for the SynthSales platform.
 
 Core tables (per PRD §4 DB design): Users, Campaigns, Companies, Contacts,
 Email Threads + Messages, Email Drafts, Meetings, Notifications, Logs, Agents.

@@ -17,9 +17,9 @@ email-validator
 pyjwt
 passlib
 
-# Realtime / background
+# Background jobs + shared abuse-control state
 apscheduler
-websockets
+redis                  # optional rate-limiter backend (REDIS_URL); in-memory fallback
 
 # HTTP
 httpx

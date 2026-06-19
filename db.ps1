@@ -21,9 +21,9 @@ param(
     [Parameter(Position = 2)] [string] $arg2 = ""
 )
 
-$Container = "reachly_postgres"
-$DbUser    = "reachly"
-$DbName    = "reachly"
+$Container = "synthsales_postgres"
+$DbUser    = "synthsales"
+$DbName    = "synthsales"
 
 function Invoke-Sql([string] $sql, [switch] $Expanded) {
     $flags = @("-U", $DbUser, "-d", $DbName)

@@ -1,34 +1,27 @@
 # Backend gaps & follow-ups
 
 Originally compiled 2026-06-10 while auditing the backend for the **SynthSales** frontend rebuild;
-**last reviewed 2026-06-19.** Per this file's convention, resolved items are removed once done — the
-2026-06-19 deployment-hardening pass closed every functional gap, the config/security checklist, and the
-`JSON`→`JSONB` schema polish (see the README progress log for the details).
+**last reviewed 2026-06-19.** Per this file's convention, resolved items are removed once done.
 
-Everything below is what **remains**: all non-blocking and deferred by choice, each with a note on why
-and when to revisit.
+The **2026-06-19 deployment pass** closed the last remaining items (see the README progress log):
 
-## 1 · Multi-worker / horizontal scale (moot at single-worker)
+- **Rate limiter** — `core/ratelimit.py` now has an optional Redis backend (`REDIS_URL`) behind the
+  same `check()`/`reset()` interface, with graceful fallback to the in-memory limiter. Buckets are
+  shared across workers/instances when Redis is configured, so a multi-worker / multi-instance deploy
+  is correct; the auth/contact limiter also became proxy-aware (`TRUST_PROXY` → keys on the
+  `X-Forwarded-For` client IP behind a PaaS proxy).
+- **"Reachly" → "SynthSales" rename** — fully retired the old name: `APP_NAME`, `DATABASE_URL`
+  (db/user `synthsales`), the docker-compose container/user/db/volume, `db.ps1`, `.env`/`.env.example`,
+  the `main.py` logger, and the `models.py` docstring. No internal "reachly" identifier remains.
+- **Demo seed label** — the `services/seed.py` verification log row now leads with Verifalia (the
+  preferred provider) instead of ZeroBounce.
+- **Deployment / CI-CD** — production `backend/Dockerfile` + `web/Dockerfile` (Next.js standalone),
+  a Render `render.yaml` blueprint (api + web + Postgres + Redis), and `DEPLOY.md`. The managed-Postgres
+  `postgresql://` scheme is auto-normalized to the `+psycopg` driver in `config.py`.
 
-- [ ] **Rate limiter is in-memory per-process** (`core/ratelimit.py`) — the buckets live in memory, so
-      they reset on restart and, under multiple workers, each process keeps its own (the effective limit is
-      multiplied by the worker count). Fine at the current single-worker target; back it with Redis for a
-      multi-process deploy. This is now the *only* remaining per-process concern — the WebSocket hub was
-      removed and the scheduler's action jobs are advisory-locked.
+## Remaining (intentional, non-blocking)
 
-## 2 · Naming / cosmetic consistency (revisit at deploy)
-
-- [ ] **Internal "Reachly" identifiers** — the backend deliberately keeps the old name:
-      - *Needs a data migration* (do at deploy, if at all): `docker-compose.yml` container
-        `reachly_postgres`, `POSTGRES_USER`/`POSTGRES_DB` `reachly`, volume `reachly_pgdata`, and the
-        matching `DATABASE_URL` (db `reachly`) in `config.py` / `.env.example`.
-      - *Cosmetic, no migration:* `config.py` `APP_NAME="Reachly API"` (only surfaces in `/health` JSON
-        + Swagger title), the `main.py` logger name `"reachly"`, the `.env.example:2` header comment
-        ("# Reachly backend configuration"), and the `models.py:1` module docstring
-        ("…for the Reachly platform"). Safe to rename to SynthSales anytime.
-- [ ] **Demo seed data** — `services/seed.py` activity-log row reads `"ZeroBounce: … → Unknown."`;
-      ZeroBounce is now the *fallback* (Verifalia preferred). Update the demo entry to lead with the
-      preferred provider for consistency.
 - [ ] **README progress log** — the dated `## Progress log` entries still mention old names/state
-      ("Sellari AI", "Reachly", "Claude", "ZeroBounce-only", "7-agent"). Kept as a timestamped record;
-      if a clean public README is wanted at launch, archive or trim the log.
+      ("Sellari AI", "Reachly", "Claude", "ZeroBounce-only", "7-agent"). **Kept deliberately** as a
+      timestamped running record (the README is the context log). If a clean public README is wanted at
+      launch, archive or trim the historical log — purely cosmetic, no code impact.

@@ -8,9 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 drafts personalized outreach → tracks replies till they are ready for a meetings or reject the deal -> Fix meeting if they are ready -> Send a Google Meet link -> reads inbound replies & classifies intent. 
 Two independent apps in one repo:
 
-- `backend/` — FastAPI + PostgreSQL (SQLAlchemy 2.0). Internals still carry the old name ("Reachly API",
-  container `reachly_postgres`) — kept deliberately (renaming the container/db/volume forces a data
-  migration for zero functional gain; revisit at deploy time).
+- `backend/` — FastAPI + PostgreSQL (SQLAlchemy 2.0). Branding is now **SynthSales** throughout (the
+  old "Reachly" name was fully retired in the 2026-06-19 deploy pass — container `synthsales_postgres`,
+  db/user `synthsales`, `APP_NAME="SynthSales API"`).
 - `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). All user-facing branding is **SynthSales**;
   no "reachly" string may appear in `web/src`. Talks to the backend over REST (polling for live data).
 
@@ -24,7 +24,7 @@ Two terminals. **Postgres runs on host port 5433** (not 5432 — a local Postgre
 ```powershell
 # Backend (terminal 1)
 cd "C:\My Work\Agentic CRM\backend"
-docker compose up -d                                          # Postgres 16, container "reachly_postgres"
+docker compose up -d                                          # Postgres 16, container "synthsales_postgres"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 #   API http://127.0.0.1:8000 · Swagger /docs · /health shows which integrations are live
 
@@ -274,7 +274,7 @@ Access gating endpoints (2026-06-19): `POST /api/access/request` (user → pendi
 `GET /api/admin/access-requests` + `POST /api/admin/users/{id}/access` (`{decision: approve|reject, note?}`).
 See "Access gating" above.
 
-Frontend wiring (`web/src/lib/`): `api.ts` is the typed client (token in `localStorage["sellari_token"]`,
+Frontend wiring (`web/src/lib/`): `api.ts` is the typed client (token in `localStorage["synthsales_token"]`,
 authenticated 401s auto-redirect to `/login`), `api-types.ts` mirrors backend schemas, `hooks.ts` has
 `useApi` (fetch) + `useAction` (keyed mutations with toasts). `components/AuthProvider.tsx` wraps the
 `(app)` route group and guards routes (`useAuth() → {me, refresh, signOut}`). App pages run on live API
@@ -303,9 +303,10 @@ login) clears the demo flag, and `signOut`/the modal's "Create account" call `ex
 - `components/DemoWelcomeModal.tsx` — centered once-per-session warning (OK / Create account), mounted in
   `AuthProvider`. A "Demo · read-only" Topbar badge + greyed-out primary buttons (Run all agents, New/Create
   campaign, Send, Book meeting, all gated on `useDemo()`) reinforce that it's inert.
-- New demo code uses `synthsales_*` localStorage keys; the legacy `sellari_*` keys (token, theme) are left
-  as-is. The Integrations page reads `/health` (a public `auth:false` GET) so it shows real backend status
-  even in demo — harmless.
+- All localStorage keys are now `synthsales_*` — `synthsales_token` (JWT), `synthsales_theme` (dark-mode),
+  and the demo flags (`synthsales_demo`, `synthsales_demo_welcomed`); the legacy `sellari_*` keys were
+  retired in the 2026-06-19 deploy pass. The Integrations page reads `/health` (a public `auth:false` GET)
+  so it shows real backend status even in demo — harmless.
 
 ## Frontend gotcha — Next.js 16 is not the Next.js you know
 

@@ -1,0 +1,130 @@
+# SynthSales — Render Blueprint (Infrastructure as Code).
+#
+# One-click deploy: push this repo to GitHub, then in Render → "New +" →
+# "Blueprint" and point it at the repo. Render provisions everything below.
+# Works the same on Railway/Fly conceptually — see DEPLOY.md for those.
+#
+# After the first deploy, fill the `sync: false` secrets in each service's
+# Environment tab (Render won't sync them from the blueprint). If Render had to
+# suffix a service name (because `synthsales-api`/`synthsales-web` were taken),
+# update the hardcoded onrender.com URLs below + the Google redirect URIs to
+# match the real hostnames.
+
+databases:
+  - name: synthsales-db
+    databaseName: synthsales
+    user: synthsales
+    plan: free # 30-day expiry on free; upgrade for anything real.
+
+services:
+  # ── Shared rate-limiter state (Render "Key Value", Redis-compatible) ──
+  # Optional: the limiter falls back to in-memory if this is removed, but it's
+  # required for the limit to hold across >1 web instance. (`type: keyvalue` is
+  # current; older Render accounts may call it `type: redis`.)
+  - type: keyvalue
+    name: synthsales-redis
+    plan: free
+    ipAllowList: [] # internal connections only — no public access.
+
+  # ── Backend API (FastAPI) ──
+  - type: web
+    name: synthsales-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production # turns off /docs + demo seed; enforces a strong SECRET_KEY.
+      - key: SECRET_KEY
+        generateValue: true # Render generates a strong random value.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: synthsales-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: synthsales-redis
+          property: connectionString
+      - key: TRUST_PROXY
+        value: "true" # Render fronts the app with a proxy → trust X-Forwarded-For.
+      - key: CORS_ORIGINS
+        value: https://synthsales-web.onrender.com
+      - key: FRONTEND_URL
+        value: https://synthsales-web.onrender.com
+      - key: ENABLE_SCHEDULER
+        value: "true"
+      # — Web search (REQUIRED in prod: ddgs is blocked from datacenter IPs) —
+      - key: SEARCH_ORDER
+        value: serper,ddgs # try Serper first in prod; ddgs is the blocked fallback.
+      - key: SERPER_API_KEYS
+        sync: false
+      # — AI provider chain —
+      - key: AI_PROVIDERS
+        value: gemini,groq,openrouter
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      # — Email verification (paid layer; free MX/syntax always runs) —
+      - key: VERIFALIA_USERNAME
+        sync: false
+      - key: VERIFALIA_PASSWORD
+        sync: false
+      - key: ZEROBOUNCE_API_KEY
+        sync: false
+      - key: HUNTER_API_KEY
+        sync: false
+      # — Email sending (SMTP) —
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      # — Google OAuth + per-user Calendar/Gmail. Register these exact redirect
+      #   URIs in the Google Cloud OAuth client. —
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://synthsales-api.onrender.com/api/auth/google/callback
+      - key: GOOGLE_CALENDAR_REDIRECT_URI
+        value: https://synthsales-api.onrender.com/api/auth/google/calendar/callback
+      - key: GOOGLE_MAILBOX_REDIRECT_URI
+        value: https://synthsales-api.onrender.com/api/auth/google/mailbox/callback
+      # — Inbound reply reader IMAP fallback (optional) —
+      - key: IMAP_HOST
+        sync: false
+      - key: IMAP_USERNAME
+        sync: false
+      - key: IMAP_PASSWORD
+        sync: false
+      # — Admin auto-grant + contact-form inbox —
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: CONTACT_INBOX
+        sync: false
+
+  # ── Frontend (Next.js 16, standalone) ──
+  - type: web
+    name: synthsales-web
+    runtime: docker
+    dockerfilePath: ./web/Dockerfile
+    dockerContext: ./web
+    plan: free
+    envVars:
+      # Inlined into the client bundle at BUILD time. Render exposes service env
+      # vars to the Docker build as build args, which the Dockerfile reads via
+      # `ARG NEXT_PUBLIC_API_URL`. Must be the backend's public URL.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://synthsales-api.onrender.com

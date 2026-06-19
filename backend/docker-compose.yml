@@ -1,22 +1,22 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: reachly_postgres
+    container_name: synthsales_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: reachly
-      POSTGRES_PASSWORD: reachly_dev_pw
-      POSTGRES_DB: reachly
+      POSTGRES_USER: synthsales
+      POSTGRES_PASSWORD: synthsales_dev_pw
+      POSTGRES_DB: synthsales
     ports:
       # Host 5433 → container 5432 (host 5432 is taken by a local Postgres install)
       - "5433:5432"
     volumes:
-      - reachly_pgdata:/var/lib/postgresql/data
+      - synthsales_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U reachly -d reachly"]
+      test: ["CMD-SHELL", "pg_isready -U synthsales -d synthsales"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  reachly_pgdata:
+  synthsales_pgdata:

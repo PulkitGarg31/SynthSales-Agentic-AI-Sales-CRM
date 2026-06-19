@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+.git/
+.gitignore
+npm-debug.log*
+
+# Local env — NEXT_PUBLIC_API_URL is passed as a build arg, not baked from here.
+.env
+.env.*
+!.env.example
+
+*.md

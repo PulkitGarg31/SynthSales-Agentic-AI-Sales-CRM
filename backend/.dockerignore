@@ -1,0 +1,21 @@
+# Local Python environment & caches
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets & local config — set these as platform env vars, never bake them in.
+.env
+.env.*
+!.env.example
+
+# Local DB volume / docker compose (dev only)
+docker-compose.yml
+
+# VCS & editor noise
+.git/
+.gitignore
+*.md

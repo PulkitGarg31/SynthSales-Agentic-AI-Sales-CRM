@@ -135,16 +135,63 @@ logged). DuckDuckGo search needs no key.
 | Background jobs | ✅ APScheduler: follow-up polling (15 min) + inbound reply polling (5 min) (PRD Phase 7) |
 | Gmail + Calendar integration | ✅ Email send wired; per-user Google Calendar creates real Meet links on booking (falls back to a user-supplied link) |
 | Migrations (Alembic) | ✅ Alembic owns the schema; `alembic upgrade head` runs on boot |
-| Deployment / CI-CD | ⏳ Not done (future) |
+| Deployment / CI-CD | ✅ Production Dockerfiles (backend + web standalone) + Render `render.yaml` blueprint (api + web + Postgres + Redis); see `DEPLOY.md` |
 
 > All external integrations **degrade gracefully** without keys, so the API runs end-to-end
 > out of the box. Fill `backend/.env` to switch them on.
 
 ## Not built yet (future)
 
-- Deployment / CI-CD.
+- CI pipeline (automated build/test on push) — the deploy artifacts exist (`DEPLOY.md`), but there is
+  no GitHub Actions / CI workflow yet (and still no automated test suite to run in one).
 
 ## Progress log
+
+### 2026-06-19 (retire the last `sellari_*` localStorage keys)
+Final naming cleanup after the backend rename: the frontend still stored its JWT under
+`localStorage["sellari_token"]` and the dark-mode preference under `sellari_theme` (deliberately left
+during the 2026-06-16 rebrand to avoid logging existing users out). With a fresh deploy and no prod users
+to disrupt, renamed both to **`synthsales_token`** / **`synthsales_theme`** (`web/src/lib/api.ts`,
+`app/layout.tsx` theme-boot, `components/ui/ThemeToggle.tsx`) so every localStorage key is now
+`synthsales_*` (consistent with the demo's `synthsales_demo`). `web/src` now has **zero** `sellari`/
+`reachly` strings. CLAUDE.md updated to match. Existing local sessions will need a one-time re-login
+(theme resets to default) — expected, harmless. Left untouched (historical records, not product): this
+progress log's older dated entries and the `.claude/plans` + `.claude/specs` planning docs. Verified:
+`npm run build` passes.
+
+### 2026-06-19 (deployment artifacts + Redis rate limiter + full SynthSales rename)
+Closed the last `backend-gaps.md` items for a real deploy (scope agreed with the user: PaaS target,
+full rename, Redis limiter, cosmetics). The app was already functionally deploy-ready (the earlier
+hardening pass); this adds the packaging and finishes the naming.
+- **Deployment artifacts (PaaS).** Production `backend/Dockerfile` (`python:3.12-slim`, non-root,
+  binds `$PORT`; Alembic still upgrades on boot so there's no separate migrate step) and `web/Dockerfile`
+  (multi-stage Next.js 16 **standalone** — `output: "standalone"` added to `next.config.ts`, runs
+  `node server.js`). A Render **`render.yaml`** blueprint wires api + web + managed Postgres + Redis
+  ("Key Value"), generating `SECRET_KEY`, wiring `DATABASE_URL`/`REDIS_URL`, and defaulting
+  `TRUST_PROXY=true` + `SEARCH_ORDER=serper,ddgs` for prod; secrets are `sync:false`. **`DEPLOY.md`** is
+  the full guide (Render blueprint + Railway/Fly notes + local prod-parity smoke test + the build-time
+  `NEXT_PUBLIC_API_URL` / CORS wiring rules). `.dockerignore` for both apps.
+- **Redis rate limiter (was `backend-gaps.md` §1).** `core/ratelimit.py` gained a `RedisRateLimiter`
+  (atomic sliding-window Lua over a sorted set) behind the same `check()`/`reset()` interface as the
+  in-memory one; `REDIS_URL` selects it, and **any Redis error degrades gracefully** to a per-process
+  in-memory fallback. The duplicated `_client_ip` in `auth.py`/`contact_us.py` became one shared,
+  proxy-aware `client_ip()` honoring `X-Forwarded-For` when `TRUST_PROXY` is set (every PaaS fronts the
+  app with a proxy). New `redis_url` + `trust_proxy` settings; `redis` added to `requirements.txt`.
+- **Full Reachly→SynthSales rename (was `backend-gaps.md` §2).** Retired the old name everywhere it
+  still lived: `APP_NAME` (`SynthSales API`), `DATABASE_URL` (db/user/password `synthsales`),
+  docker-compose container `synthsales_postgres`/user/db/volume/healthcheck, `db.ps1`, `.env` +
+  `.env.example`, the `main.py` logger (`synthsales`), and the `models.py` docstring. `CLAUDE.md` updated
+  to say the rename is done; zero internal "reachly" identifiers remain. **Note for existing dev DBs:**
+  the volume rename means `docker compose down && docker compose up -d` recreates Postgres fresh on the
+  new names (demo data auto-re-seeds in dev); the old `reachly_pgdata` volume is orphaned and prunable.
+- **Managed-Postgres driver fix.** `config.py` now normalizes a bare `postgres://` / `postgresql://`
+  `DATABASE_URL` (what Render/Railway/Heroku hand out) to `postgresql+psycopg://`, so the platform's
+  connection string works verbatim with the psycopg-v3 driver we ship.
+- **Cosmetic.** `services/seed.py` verification log row now leads with Verifalia (the preferred
+  provider) instead of ZeroBounce.
+- Verified: changed backend files byte-compile; `Settings` driver-normalization + in-memory limiter +
+  `client_ip` proxy logic unit-checked; `import app.main` OK (`title="SynthSales API"`); `npm run build`
+  passes (35 routes) and emits `.next/standalone/server.js`.
 
 ### 2026-06-19 (deploy-ready web search — Serper backend + ddgs circuit breaker)
 The pipeline's only web-search backend was DuckDuckGo via the `ddgs` scraper, which gets rate-limited

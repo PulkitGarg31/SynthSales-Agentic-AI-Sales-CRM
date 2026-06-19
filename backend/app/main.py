@@ -15,7 +15,7 @@ from app.providers.verification import verification
 from app.workers.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("reachly")
+logger = logging.getLogger("synthsales")
 
 
 def _assert_production_config() -> None:

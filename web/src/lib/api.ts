@@ -35,7 +35,7 @@ import { resolveDemo } from "./demo-fixtures";
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-const TOKEN_KEY = "sellari_token";
+const TOKEN_KEY = "synthsales_token";
 // Read-only demo account: a flag + a sentinel token so the existing auth guards
 // pass without special-casing. In demo mode `request()` serves static fixtures
 // for reads and blocks every mutation — no network call leaves the browser.

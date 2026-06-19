@@ -27,7 +27,7 @@ export const viewport: Viewport = {
 // Runs before anything paints (parser-blocking, first in <body>): saved choice
 // wins, otherwise the OS preference. Keeps a dark-mode user from getting a
 // cream flash on every load.
-const themeBoot = `(function(){try{var t=localStorage.getItem("sellari_theme");if(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`;
+const themeBoot = `(function(){try{var t=localStorage.getItem("synthsales_theme");if(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

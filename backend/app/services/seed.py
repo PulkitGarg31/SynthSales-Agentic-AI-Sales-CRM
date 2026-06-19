@@ -169,7 +169,7 @@ def seed_demo(db: Session) -> None:
         [
             Log(owner_id=user.id, category="Email", level="info", message="Reply detected from dana.whitfield@northwind.com."),
             Log(owner_id=user.id, category="AI", level="info", message="Scoring agent ranked 5 companies for Apex Cloud."),
-            Log(owner_id=user.id, category="Verification", level="warn", message="ZeroBounce: greg.hollis@summitretail.com → Unknown."),
+            Log(owner_id=user.id, category="Verification", level="warn", message="Verifalia: greg.hollis@summitretail.com → Unknown."),
             Log(owner_id=user.id, category="Campaign", level="info", message="Enrichment completed for Apex Cloud."),
         ]
     )

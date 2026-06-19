@@ -14,7 +14,7 @@ export function ThemeToggle() {
       onClick={() => {
         const dark = document.documentElement.classList.toggle("dark");
         try {
-          localStorage.setItem("sellari_theme", dark ? "dark" : "light");
+          localStorage.setItem("synthsales_theme", dark ? "dark" : "light");
         } catch {
           /* private mode: the theme just won't persist */
         }

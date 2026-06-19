@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,7 +10,7 @@ class Settings(BaseSettings):
     )
 
     # App
-    app_name: str = "Reachly API"
+    app_name: str = "SynthSales API"
     environment: str = "development"
     # In production (environment != "development") the demo user is NOT seeded.
     # Set true to force the demo seed in a non-dev environment (e.g. a staging demo).
@@ -25,8 +26,18 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = (
-        "postgresql+psycopg://reachly:reachly_dev_pw@localhost:5433/reachly"
+        "postgresql+psycopg://synthsales:synthsales_dev_pw@localhost:5433/synthsales"
     )
+
+    # Abuse-control rate limiter (core/ratelimit.py). Leave `redis_url` blank to
+    # use the in-memory limiter (correct at single-worker; resets on restart).
+    # Set it to a Redis URL (e.g. redis://host:6379/0) to share buckets across
+    # workers/instances — required for a correct multi-worker deploy. `trust_proxy`
+    # makes the auth limiter key on the X-Forwarded-For client IP instead of the
+    # direct peer; turn it ON only when a trusted reverse proxy fronts the app
+    # (every PaaS does), OFF in local dev where XFF is attacker-controlled.
+    redis_url: str = ""
+    trust_proxy: bool = False
 
     # AI provider selection.
     # `ai_providers` is a comma-separated priority list with automatic failover
@@ -115,6 +126,24 @@ class Settings(BaseSettings):
     # role. Applied at startup (sweeps existing users) and when a new user
     # finishes email verification. Case-insensitive.
     admin_emails: str = ""
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_db_driver(cls, v: str) -> str:
+        """Force SQLAlchemy onto the installed psycopg (v3) driver.
+
+        Managed-Postgres providers (Render, Railway, Heroku, …) hand out URLs
+        with a bare ``postgresql://`` (or legacy ``postgres://``) scheme, which
+        SQLAlchemy resolves to psycopg2 — a driver we don't ship. Rewrite both to
+        ``postgresql+psycopg://`` so the platform's connection string works
+        verbatim with no manual editing. URLs that already name a driver
+        (``postgresql+psycopg``, ``+asyncpg``, …) are left untouched.
+        """
+        if v.startswith("postgres://"):
+            v = "postgresql://" + v[len("postgres://"):]
+        if v.startswith("postgresql://"):
+            v = "postgresql+psycopg://" + v[len("postgresql://"):]
+        return v
 
     @property
     def cors_origin_list(self) -> list[str]:

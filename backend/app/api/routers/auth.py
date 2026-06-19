@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.agents.orchestrator import ensure_agents
 from app.api.deps import get_current_user, oauth2_scheme
 from app.core.database import get_db
-from app.core.ratelimit import limiter
+from app.core.ratelimit import client_ip, limiter
 from app.core.security import (
     create_access_token,
     decode_access_token,
@@ -52,12 +52,6 @@ RESET_THROTTLE_MSG = (
     "Too many reset requests. Please wait a few minutes before trying again."
 )
 OTP_LOCKED_MSG = "Too many incorrect codes. Request a new code to continue."
-
-
-def _client_ip(request: Request) -> str:
-    # No reverse proxy fronts the app today, so X-Forwarded-For would be
-    # attacker-controlled — trust only the direct peer address.
-    return request.client.host if request.client else "unknown"
 
 
 def _new_otp() -> str:
@@ -124,7 +118,7 @@ def _consume_otp(db: Session, email: str, code: str, prefix: str, lock_label: st
 
 @router.post("/register", response_model=RegisterOut, status_code=201)
 def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db)):
-    ip = _client_ip(request)
+    ip = client_ip(request)
     if not limiter.check(f"register:ip:{ip}", 5, _RL_WINDOW) or not limiter.check(
         f"register:email:{payload.email.lower()}", 3, _RL_WINDOW
     ):
@@ -182,7 +176,7 @@ def resend_otp(
     db: Session = Depends(get_db),
 ):
     target = (email or (payload.email if payload else "")).strip()
-    ip = _client_ip(request)
+    ip = client_ip(request)
     # Throttle before the DB lookup: this both blunts email enumeration and caps
     # how many real OTP emails a single inbox can be made to receive.
     if not limiter.check(f"resend:ip:{ip}", 5, _RL_WINDOW) or not limiter.check(
@@ -214,7 +208,7 @@ def resend_otp(
 def forgot_password(
     payload: ForgotPasswordIn, request: Request, db: Session = Depends(get_db)
 ):
-    ip = _client_ip(request)
+    ip = client_ip(request)
     # Throttle before the lookup. Anti-enumeration: the existence check returns the
     # same generic 200 body whether or not the account exists (the throttle path 429s).
     if not limiter.check(f"reset:ip:{ip}", 5, _RL_WINDOW) or not limiter.check(
