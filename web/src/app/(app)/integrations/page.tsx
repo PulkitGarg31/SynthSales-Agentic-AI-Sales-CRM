@@ -80,14 +80,9 @@ export default function IntegrationsPage() {
         <StatusCard
           icon={Inbox}
           name="Mailbox"
-          chip={me.mailbox_connected ? "Connected" : "Not connected"}
-          tone={me.mailbox_connected ? "moss" : "faint"}
-          line={
-            me.mailbox_connected
-              ? "The reply reader syncs your inbox and classifies inbound replies."
-              : "Not connected: inbound replies aren't ingested or classified."
-          }
-          manageHref="/settings?tab=connections"
+          chip="Upcoming"
+          tone="amber"
+          line="Connecting your own mailbox is coming soon. For now, inbound replies are read from the shared sending mailbox."
         />
       </div>
     </div>

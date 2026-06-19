@@ -80,6 +80,7 @@ function ConnectionCard({
   busy,
   onConnect,
   onRequestDisconnect,
+  upcoming = false,
 }: {
   icon: LucideIcon;
   name: string;
@@ -88,6 +89,7 @@ function ConnectionCard({
   busy: boolean;
   onConnect: () => void;
   onRequestDisconnect: () => void;
+  upcoming?: boolean;
 }) {
   return (
     <section className="rounded-2xl border border-line bg-paper p-5">
@@ -98,13 +100,17 @@ function ConnectionCard({
           </span>
           <p className="truncate font-medium text-ink">{name}</p>
         </div>
-        <Badge tone={connected ? "moss" : "faint"}>
-          {connected ? "Connected" : "Not connected"}
+        <Badge tone={upcoming ? "amber" : connected ? "moss" : "faint"}>
+          {upcoming ? "Upcoming" : connected ? "Connected" : "Not connected"}
         </Badge>
       </div>
       <p className="mt-3 text-sm text-ink-soft">{line}</p>
       <div className="mt-4">
-        {connected ? (
+        {upcoming ? (
+          <Button variant="secondary" disabled>
+            Coming soon
+          </Button>
+        ) : connected ? (
           <Button variant="secondary" busy={busy} onClick={onRequestDisconnect}>
             Disconnect
           </Button>
@@ -375,10 +381,11 @@ function SettingsInner() {
               icon={Inbox}
               name="Mailbox"
               connected={me.mailbox_connected}
-              line="Lets the Reply reader ingest prospect replies."
+              line="Connecting your own mailbox for reply reading is coming soon. For now, replies are read from the shared sending mailbox."
               busy={busy === "connect:mailbox"}
               onConnect={() => connect("mailbox")}
               onRequestDisconnect={() => setDisconnecting("mailbox")}
+              upcoming
             />
           </div>
         ) : (
