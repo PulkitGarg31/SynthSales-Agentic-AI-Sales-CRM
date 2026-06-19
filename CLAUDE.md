@@ -159,18 +159,24 @@ handlers (`services/auto_reply.py`, additionally gated by `User.autonomous_repli
 
 ### Access gating (anti-abuse — do not bypass)
 
-New accounts can research + build lists but can't reach out until an admin approves them.
-`User.access_status` (`none|pending|approved|rejected`) + `User.has_access` (admin **or** approved) gate
-the **outreach / tracking / meeting / reply_classifier** agents and **outbound sending**; the free agents
-(enrichment / scoring / employee_finder / email_guess_verification) run for anyone. The partition + a
-`require_access()` 403 guard live in `services/access.py`. Enforcement: `run_campaign_pipeline` skips the
-outreach phase for a non-approved owner (research still runs); `POST /campaigns/{id}/run-agent` 403s on a
-gated key; the outbound setter (`PATCH /api/auth/me outbound_enabled=true`), `POST /api/conversations/sync`,
-and book-meeting all `require_access`; the scheduler skips non-approved users. A user requests via
-`POST /api/access/request` (→ pending); an admin approves/rejects from the control room
-(`GET /api/admin/access-requests`, `POST /api/admin/users/{id}/access`). Approval is a prerequisite to
-outbound — the user still owns their send kill-switch. Existing users were grandfathered to `approved`;
-admins are always approved.
+New accounts can *preview* the product but can't run it at scale until an admin approves them.
+`User.access_status` (`none|pending|approved|rejected`) + `User.has_access` (admin **or** approved) drive
+two layers; `services/access.py` holds the agent-key partition + the `require_access()` 403 guard.
+- **Approved-only:** the **outreach / tracking / meeting / reply_classifier** agents and **outbound
+  sending**. The outbound setter (`PATCH /api/auth/me outbound_enabled=true`), `POST /api/conversations/sync`,
+  and book-meeting all `require_access`; the scheduler skips non-approved users; outbound stays the user's
+  own kill-switch once approved.
+- **Credit-capped preview (non-approved):** "Run all" runs `orchestrator._run_preview_pipeline` — enrich +
+  score only the first `PREVIEW_COMPANIES` (2) companies, then ONE contact + email for the top one (the
+  full pipeline runs only for approved users). It's **one-time** (`POST /campaigns/{id}/run` 403s once any
+  company is scored) and the per-agent re-trigger paths are disabled (`run-agent`,
+  `companies/{id}/enrich`, `companies/{id}/find-contacts` → `require_access`). The web **research +
+  contacts** pages show the 2 / 1 preview rows clear and a blurred `<LockedPreview>` panel (with a
+  Request-access button) for the rest; the gated 403 anywhere pops a centered Request-access modal.
+
+A user requests access via `POST /api/access/request` (→ pending); an admin approves/rejects from the
+control room (`GET /api/admin/access-requests`, `POST /api/admin/users/{id}/access`). Existing users were
+grandfathered to `approved`; admins are always approved.
 
 ### Data model & status lifecycles
 

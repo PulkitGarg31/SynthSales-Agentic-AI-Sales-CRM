@@ -146,6 +146,20 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (non-approved preview cap + paywall blur)
+Tightened the non-approved tier from "full research, no outreach" to a **credit-capped preview** shown
+behind a blur. Plan: `.claude/plans/2026-06-19-non-approved-preview-cap.md`.
+- **Backend:** a non-approved user's "Run all" runs `orchestrator._run_preview_pipeline` — enrich + score
+  only the first 2 companies (`PREVIEW_COMPANIES`), then find ONE contact + email for the top one
+  (`scoring_agent.run` gained an optional `companies=` subset arg; the finder is called with `count=1`).
+  It's one-time (`POST /campaigns/{id}/run` 403s once a company is scored), and the per-agent re-trigger
+  paths (`run-agent`, `companies/{id}/enrich`, `companies/{id}/find-contacts`) now `require_access`.
+- **Frontend:** a reusable `<LockedPreview>` blurred panel + Request-access button. Research and contacts
+  show the 2-company / 1-contact preview clear and the panel for the rest; the campaign "Run all" disables
+  after the preview; the per-agent Run/Re-run buttons are disabled for non-approved users.
+- Verified: TestClient — a non-approved user's repeat-run + run-agent + enrich + find-contacts all 403;
+  `npx tsc --noEmit` clean.
+
 ### 2026-06-19 (access gating — anti-abuse approval for outreach + outbound)
 New accounts can research and build contact lists, but the powerful features — the outreach / tracking /
 meeting / reply_classifier agents and outbound sending — now require an admin-approved access grant.
