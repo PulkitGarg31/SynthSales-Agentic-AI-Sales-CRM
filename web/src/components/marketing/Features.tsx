@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { StreamingText } from "@/components/marketing/StreamingText";
 import { FEATURES, type FeatureIcon } from "@/lib/copy";
 
 const ICONS: Record<FeatureIcon, LucideIcon> = {
@@ -38,7 +39,10 @@ export function Features() {
                 <h3 className="mt-4 text-base font-semibold tracking-tight text-ink">
                   {feature.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-soft">{feature.line}</p>
+                <StreamingText
+                  text={feature.line}
+                  className="mt-2 text-sm leading-relaxed text-ink-soft"
+                />
               </div>
             );
           })}

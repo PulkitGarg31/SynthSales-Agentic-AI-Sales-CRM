@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { StreamingText } from "@/components/marketing/StreamingText";
 import { AGENT_LABELS } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "About" };
@@ -116,7 +117,10 @@ export default function AboutPage() {
                 <h3 className="mt-3 text-base font-semibold tracking-tight text-ink">
                   {AGENT_LABELS[agent.key]}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-soft">{agent.duty}</p>
+                <StreamingText
+                  text={agent.duty}
+                  className="mt-2 text-sm leading-relaxed text-ink-soft"
+                />
               </div>
             ))}
           </div>
