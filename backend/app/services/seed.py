@@ -40,6 +40,7 @@ def seed_demo(db: Session) -> None:
         email=DEMO_EMAIL,
         hashed_password=hash_password("password123"),
         is_verified=True,
+        access_status="approved",
     )
     db.add(user)
     db.commit()

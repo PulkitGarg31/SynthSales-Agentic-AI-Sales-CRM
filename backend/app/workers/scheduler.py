@@ -54,6 +54,8 @@ def _poll_followups() -> None:
         db = SessionLocal()
         try:
             for user in db.query(User).all():
+                if not user.has_access:
+                    continue
                 try:
                     tracking_agent.run(db, user.id)
                 except Exception as exc:  # pragma: no cover
@@ -69,6 +71,8 @@ def _poll_inbound() -> None:
         db = SessionLocal()
         try:
             for user in db.query(User).all():
+                if not user.has_access:
+                    continue
                 if not inbound_provider.available_for(user):
                     continue
                 try:
