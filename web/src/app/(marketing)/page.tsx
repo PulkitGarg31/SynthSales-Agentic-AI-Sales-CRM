@@ -6,18 +6,34 @@ import { Features } from "@/components/marketing/Features";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { Faq } from "@/components/marketing/Faq";
 import { CtaBand } from "@/components/marketing/CtaBand";
+import { Reveal } from "@/components/marketing/Reveal";
 
 export default function LandingPage() {
   return (
     <>
+      {/* Hero is above the fold - shown immediately, no scroll reveal. */}
       <Hero />
-      <StatBand />
-      <Showcase />
-      <HowItWorks />
-      <Features />
-      <Testimonials />
-      <Faq />
-      <CtaBand />
+      <Reveal>
+        <StatBand />
+      </Reveal>
+      <Reveal>
+        <Showcase />
+      </Reveal>
+      <Reveal>
+        <HowItWorks />
+      </Reveal>
+      <Reveal>
+        <Features />
+      </Reveal>
+      <Reveal>
+        <Testimonials />
+      </Reveal>
+      <Reveal>
+        <Faq />
+      </Reveal>
+      <Reveal>
+        <CtaBand />
+      </Reveal>
     </>
   );
 }
