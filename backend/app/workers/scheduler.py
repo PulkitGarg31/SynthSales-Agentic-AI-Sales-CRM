@@ -57,6 +57,23 @@ def _purge_snapshots() -> None:
         db.close()
 
 
+def _purge_revoked_tokens() -> None:
+    db = SessionLocal()
+    try:
+        from app.models import RevokedToken, utcnow
+
+        n = (
+            db.query(RevokedToken)
+            .filter(RevokedToken.expires_at < utcnow())
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        if n:
+            logger.info("Purged %s expired revoked token(s)", n)
+    finally:
+        db.close()
+
+
 def start_scheduler() -> None:
     global _scheduler
     if not settings.enable_scheduler or _scheduler is not None:
@@ -85,6 +102,12 @@ def start_scheduler() -> None:
         id="snapshot_purge",
         # first run is one interval out (interval trigger's default) — not on boot.
         # NOTE: passing next_run_time=None here would PAUSE the job (it never runs).
+    )
+    _scheduler.add_job(
+        _purge_revoked_tokens,
+        "interval",
+        minutes=60,
+        id="revoked_token_purge",
     )
     _scheduler.start()
     logger.info(

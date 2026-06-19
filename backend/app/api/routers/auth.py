@@ -8,16 +8,17 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.agents.orchestrator import ensure_agents
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, oauth2_scheme
 from app.core.database import get_db
 from app.core.ratelimit import limiter
 from app.core.security import (
     create_access_token,
     decode_access_token,
+    decode_token,
     hash_password,
     verify_password,
 )
-from app.models import User, utcnow
+from app.models import RevokedToken, User, utcnow
 from app.core.config import settings
 from app.providers.email import email_provider
 from app.providers.email_templates import otp_email
@@ -314,6 +315,24 @@ def update_me(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Revoke the presented token (server-side logout). Idempotent — re-logging
+    out the same token is a no-op."""
+    payload = decode_token(token) or {}
+    jti = payload.get("jti")
+    if jti and not db.query(RevokedToken.id).filter(RevokedToken.jti == jti).first():
+        exp = payload.get("exp")
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc) if exp else utcnow()
+        db.add(RevokedToken(jti=jti, user_id=user.id, expires_at=expires_at))
+        db.commit()
+    add_log(db, user.id, "User", "Signed out.")
 
 
 # --- Google OAuth ---------------------------------------------------------

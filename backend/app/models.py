@@ -369,3 +369,16 @@ class AgentConfig(Base):
     last_run: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class RevokedToken(Base):
+    """Logout / revocation blocklist. A token's jti lands here on logout;
+    get_current_user rejects any token whose jti is present. Rows past
+    `expires_at` are purged hourly by the scheduler (the token is dead anyway)."""
+    __tablename__ = "revoked_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    jti: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
