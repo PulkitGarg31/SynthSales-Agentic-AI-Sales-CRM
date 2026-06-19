@@ -43,6 +43,11 @@ const RESULTS: Record<string, { path: string; noun: string }> = {
   meeting: { path: "/meetings", noun: "meetings" },
 };
 
+/** The meeting scheduler's order, so the reply reader can be placed just above it. */
+function meetingOrder(agents: PipelineAgent[]): number {
+  return agents.find((a) => a.key === "meeting")?.order ?? Infinity;
+}
+
 function resultsLink(key: string, campaignId: number): { href: string; noun: string } | null {
   const dest = RESULTS[key];
   if (!dest) return null;
@@ -201,9 +206,13 @@ export function PipelineTimeline({
   // Show the reply reader in the pipeline rail, not the follow-up tracker: the
   // tracker fires on its own scheduler cadence (no user step here), while the
   // reply reader is the inbound half users care to see. Both reach Conversations.
+  // Display the reply reader just above the meeting scheduler (the backend orders
+  // it last); inbound classification precedes booking, so it reads better there.
+  const displayOrder = (a: PipelineAgent) =>
+    a.key === "reply_classifier" ? meetingOrder(agents) - 0.5 : a.order;
   const sorted = [...agents]
     .filter((a) => a.key !== "tracking")
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => displayOrder(a) - displayOrder(b));
 
   const start = (agent: PipelineAgent, force: boolean) =>
     run(
