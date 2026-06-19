@@ -8,7 +8,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     DateTime,
     Float,
@@ -153,7 +152,7 @@ class Company(Base):
     # consumers (outreach prompt, pipeline stats, admin debug, seed) keep working.
     research_points: Mapped[list] = mapped_column(JSONB, default=list)
     match_explanation: Mapped[str] = mapped_column(Text, default="")
-    score_factors: Mapped[list] = mapped_column(JSON, default=list)
+    score_factors: Mapped[list] = mapped_column(JSONB, default=list)
     recent_funding: Mapped[str | None] = mapped_column(String(200), nullable=True)
     recent_news: Mapped[str | None] = mapped_column(Text, nullable=True)
     active_hiring: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -255,7 +254,7 @@ class PipelineSnapshot(Base):
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     trigger: Mapped[str] = mapped_column(String(40), default="")
     label: Mapped[str] = mapped_column(String(120), default="")
-    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
