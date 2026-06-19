@@ -99,8 +99,12 @@ function ResearchInner() {
   const rows = companies.data ?? [];
   const { me } = useAuth();
   const hasAccess = me.is_admin || me.access_status === "approved";
-  // Non-approved users only got the first 2 companies enriched/scored — show those, lock the rest.
-  const display = hasAccess ? rows : rows.filter((c) => c.ai_score > 0);
+  // Non-approved users only get the first 2 companies in the preview — show the ones
+  // that were researched (or scored) and lock the rest. Enrichment alone leaves
+  // ai_score at 0, so key off research_summary, not the score.
+  const display = hasAccess
+    ? rows
+    : rows.filter((c) => (c.research_summary || "").trim() !== "" || c.ai_score > 0);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
