@@ -52,6 +52,9 @@ export const googleStartUrl = () => `${API_URL}/api/auth/google/start`;
 
 export class ApiError extends Error {
   status: number;
+  // True for gated-feature 403s ("…needs access approval…"): a global modal
+  // handles them, so callers (useAction) skip the usual error toast.
+  accessRequired = false;
   constructor(status: number, message: string) {
     super(message);
     this.status = status;
@@ -104,7 +107,16 @@ async function request<T>(path: string, opts: FetchOpts = {}): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new ApiError(res.status, String(detail));
+    const err = new ApiError(res.status, String(detail));
+    // Gated-feature 403s surface a centered "Request access" prompt app-wide
+    // (AuthProvider's AccessRequiredModal) instead of a transient toast.
+    if (res.status === 403 && /access approval/i.test(String(detail))) {
+      err.accessRequired = true;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("access-required"));
+      }
+    }
+    throw err;
   }
 
   if (res.status === 204) return undefined as T;

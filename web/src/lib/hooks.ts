@@ -90,6 +90,8 @@ export function useAction() {
         opts?.onDone?.(r);
         return r;
       } catch (e) {
+        // Access-required 403s are handled by the global AccessRequiredModal.
+        if (e instanceof ApiError && e.accessRequired) return null;
         toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.", "error");
         return null;
       } finally {
