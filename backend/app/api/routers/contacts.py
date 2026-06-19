@@ -6,6 +6,8 @@ from app.api.pagination import Page, paginate
 from app.core.database import get_db
 from app.models import Campaign, Company, Contact, User
 from app.schemas import ContactOut, ContactUpdate
+from app.services.events import add_log
+from app.services.pipeline_locks import is_locked
 
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 
@@ -48,3 +50,24 @@ def update_contact(
     db.commit()
     db.refresh(ct)
     return ct
+
+
+@router.delete("/{contact_id}", status_code=204)
+def delete_contact(
+    contact_id: int,
+    force: bool = False,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete a contact and its drafts (cascade). Blocked with 409 if the contact
+    has a live conversation (a sent Thread), unless force=true."""
+    ct = _owned(db, user, contact_id)
+    if not force and is_locked(db, ct):
+        raise HTTPException(
+            status_code=409,
+            detail="This contact has a live conversation. Pass force=true to delete it anyway.",
+        )
+    name = ct.name
+    db.delete(ct)
+    db.commit()
+    add_log(db, user.id, "Campaign", f"Deleted contact '{name}'.")

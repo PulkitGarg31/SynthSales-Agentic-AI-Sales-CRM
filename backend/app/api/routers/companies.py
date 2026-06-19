@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.agents.employee_finder import employee_finder_agent
@@ -6,7 +7,7 @@ from app.agents.enrichment import enrichment_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.models import Company, Contact, User
+from app.models import Company, Contact, Thread, User
 from app.schemas import (
     CompanyDetailOut,
     CompanyMailDomainUpdate,
@@ -118,3 +119,30 @@ def add_contact(
     db.commit()
     add_log(db, user.id, "Campaign", f"Manually added contact '{payload.name}' to {c.name}.")
     return get_company(company_id, db, user)
+
+
+@router.delete("/{company_id}", status_code=204)
+def delete_company(
+    company_id: int,
+    force: bool = False,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete a company and its contacts/drafts (cascade). Blocked with 409 if it
+    has a live conversation (a sent Thread on the company or any of its contacts),
+    unless force=true. Threads themselves are SET NULL, not deleted."""
+    c = _owned(db, user, company_id)
+    if not force:
+        contact_ids = [ct.id for ct in c.contacts]
+        conds = [Thread.company_id == c.id]
+        if contact_ids:
+            conds.append(Thread.contact_id.in_(contact_ids))
+        if db.query(Thread.id).filter(or_(*conds)).first():
+            raise HTTPException(
+                status_code=409,
+                detail="This company has a live conversation. Pass force=true to delete it anyway.",
+            )
+    name = c.name
+    db.delete(c)
+    db.commit()
+    add_log(db, user.id, "Campaign", f"Deleted company '{name}'.")
