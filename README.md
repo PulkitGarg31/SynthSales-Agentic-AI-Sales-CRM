@@ -1005,3 +1005,15 @@ stop is now the terracotta one. The hero is back to headline + paragraph.
 streaming tokens (`StreamingPoints`): on scroll-into-view it reveals characters bullet-by-bullet
 with a terracotta caret at the writing head. The un-typed remainder stays in the layout but
 transparent, so the card never reflows while it types; honours `prefers-reduced-motion` (instant).
+Later extended to single paragraphs (`StreamingText`) — the Features ("What's built in") cards and
+the About → The Crew agent descriptions. StatBand numbers animate too (`CountUp`, ease-out
+count-from-zero on scroll-in); both use `setInterval` (rAF doesn't advance under headless
+virtual-time, which also makes them screenshot-verifiable). The illustrative stats were halved.
+
+**Mailbox model — single shared mailbox; per-user connect deferred.** Decision: outbound sending is
+a single operator-configured account (`SMTP_*` / Gmail token in `email.py`, not per-user), so replies
+land in that one inbox and are read by the global IMAP path (`inbound.py`). The per-user "connect your
+mailbox" integration (gmail.readonly) only pairs with per-user *sending*, which isn't built — so it's
+been marked **Upcoming** and disabled in the UI (Settings → Connections shows a "Coming soon"/disabled
+button; Integrations shows an "Upcoming" chip). The OAuth endpoints stay intact but dormant for when
+per-user sending is added. Google Calendar (genuinely per-user) is unchanged.
