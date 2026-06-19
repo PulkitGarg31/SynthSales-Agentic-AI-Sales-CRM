@@ -18,6 +18,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -150,7 +151,7 @@ class Company(Base):
     # 5–8 bullet research profile — the new primary narrative shown to the user.
     # research_summary is auto-derived from these (space-joined) so existing
     # consumers (outreach prompt, pipeline stats, admin debug, seed) keep working.
-    research_points: Mapped[list] = mapped_column(JSON, default=list)
+    research_points: Mapped[list] = mapped_column(JSONB, default=list)
     match_explanation: Mapped[str] = mapped_column(Text, default="")
     score_factors: Mapped[list] = mapped_column(JSON, default=list)
     recent_funding: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -165,7 +166,7 @@ class Company(Base):
     # location, recent_funding, recent_news, active_hiring, summary). Scoring
     # DISCOUNTS individual factors by these; the overall enrichment_confidence
     # stays the final ceiling. Empty {} on legacy/heuristic rows → no discount.
-    metric_confidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    metric_confidence: Mapped[dict] = mapped_column(JSONB, default=dict)
     # "live" | "parked" | "dead" | "unknown" — explicit website status surfaced
     # to the UI so users can see at a glance when a CSV domain is broken.
     domain_status: Mapped[str] = mapped_column(String(20), default="unknown")
