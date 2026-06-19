@@ -1,0 +1,339 @@
+SynthSales — AI-Powered B2B Outreach & Lead Generation Platform
+System Specification (AS-BUILT)
+================================================================
+
+About this document
+-------------------
+This is the *as-built* spec: it describes the system as actually implemented,
+not just as originally proposed. It mirrors the structure of the original PRD so
+the two stay traceable, but every section has been corrected to match the
+shipped code and the empty design sections (tech stack, architecture, DB,
+deployment, folder structure) have been filled in.
+
+The original verbatim PRD is preserved unchanged as
+"AI-Powered B2B Outreach & Lead Generation Platform.pdf" in extra/ (gitignored).
+CLAUDE.md is the authoritative day-to-day engineering reference; this file is the
+high-level system overview. Notable divergences from the PRD are called out as
+"PRD → as-built" notes.
+
+Product name: SynthSales (internally formerly "Reachly"; fully renamed).
+
+
+1. Product Overview
+===================
+Objective: an AI-powered outreach + lead-generation platform that automates the
+full cycle while keeping the human in the loop with review checkpoints:
+
+  company research → lead scoring/ranking → contact discovery →
+  email guess + verification → personalized outreach drafting →
+  send + reply tracking → follow-up automation → meeting scheduling
+  (real Google Meet link) → inbound reply reading + intent classification.
+
+It runs as an end-to-end sales assistant but never sends to a prospect until the
+user turns sending on, and gates the powerful features behind admin approval
+(anti-abuse). Every external integration degrades gracefully, so the app boots
+and runs end-to-end with zero credentials.
+
+Repo = two independent apps:
+  - backend/  FastAPI + PostgreSQL (SQLAlchemy 2.0), 8-agent pipeline.
+  - web/      Next.js 16 + React 19 + Tailwind v4 (App Router), REST + polling.
+
+
+2. User Inputs
+==============
+Collected through the 4-step campaign-creation wizard:
+
+  - Company target data: CSV of target companies (name, domain, etc.).
+    A downloadable sample CSV + format validation are provided.
+  - Product information: product/service description, value proposition,
+    industry category, key differentiators.
+  - Target customer requirements: ideal customer profile, industry preference,
+    geography (optional), company-size preference, business requirements,
+    top-N selection count.
+  - Outreach configuration: optional email template, footer/signature, tone.
+
+PRD → as-built: ranking/buying-signal criteria are decided by the system (a
+fixed, explainable scoring model), not entered as free-form weights by the user.
+
+
+3. Backend Workflow — the 8-agent pipeline
+==========================================
+Agents live in backend/app/agents/, registered in base.py::AGENT_REGISTRY
+(order matters). agents/orchestrator.py is the only place that sequences them.
+
+Registry order:
+  enrichment → scoring → employee_finder → email_guess_verification →
+  outreach → tracking → meeting → reply_classifier
+
+Two entry points:
+  - run_campaign_pipeline()  — the full "Run all agents" run (Phases 1–6). Before
+    mutating, it snapshots the campaign's pipeline output for a one-level, 24h
+    undo (services/snapshots.py; POST /campaigns/{id}/restore consumes it).
+  - run_agent_for_campaign(key, force) — runs one stage on demand. A forced
+    re-run snapshots, then clears that agent's downstream outputs (clear_successors)
+    — except locked contacts (any contact with a sent Thread) and meetings, which
+    are never deleted (services/pipeline_locks.py). RUNNABLE_KEYS excludes
+    `meeting` (it fires only when a user books) and `reply_classifier` (inbound).
+
+Phase 1 — Company intake & research (enrichment):
+  parse/validate/dedupe CSV; detect parked/dead domains (domain_status); AI
+  collects a company profile/summary with a confidence score. Parked/dead domains
+  get honest low-confidence summaries instead of hallucinated profiles.
+
+Phase 2 — Scoring & ranking (scoring):
+  explainable weighted score; enrichment_confidence caps the score (a parked/dead
+  domain can't display "Strong"). Top-N → Qualified, rest → Reviewed.
+
+Phase 3 — Contact discovery (employee_finder):
+  escalating, role-gated site:linkedin.com/in/ search (precise → high-recall →
+  founder/CEO fallback), reading SERP titles only. Keeps only commercial roles
+  (_is_commercial_role). Returns REAL profiles or zero contacts — never fabricates.
+  _walk_for_contactable(): if a Qualified company yields no real contacts, demote
+  it to Reviewed and promote the next-best company into the top-N slot.
+
+Phase 4 — Email discovery & verification (email_guess_verification, MERGED):
+  PRD → as-built: PRD listed "Email Guessing" and "Email Verification" as two
+  agents; they are implemented as ONE merged agent that guesses likely addresses
+  then verifies them in a single pass. Stores a confirmed `Verified` address, or
+  on a catch-all server the best guess marked `Risky` (one credit per catch-all
+  domain). When HUNTER_API_KEY is set it does one Hunter.io lookup per company
+  first. Already-`Verified` addresses are preserved across forced re-runs.
+
+Phase 5 — Outreach generation (outreach):
+  AI-personalized subject + body from product details, company research, contact
+  role, and footer; tone-consistent, recipient-specific.
+
+Phase 6 — Outreach execution + tracking (tracking):
+  send via the email provider (gated by the outbound kill-switch); store thread
+  history. The scheduler auto-sends follow-ups after FOLLOWUP_DELAY_DAYS of no
+  reply, up to MAX_FOLLOW_UPS, then auto-advances the thread to `Stalled`.
+
+Phase 7 — Inbound reply reading & intent (reply_classifier):
+  PRD → as-built: this is a dedicated 8th-agent half of engagement, NOT part of
+  run_campaign_pipeline. Runs via POST /api/conversations/sync and a scheduler job
+  (INBOUND_POLL_MINUTES, default 5). Reads replies (providers/inbound.py), de-dupes
+  by Message.external_id, classifies intent via AI, and acts: high-confidence
+  not-interested → do_not_contact + Thread "Closed"; interested/meeting-ready →
+  Negotiating + surface; else surface only.
+
+Phase 8 — Meeting coordination (meeting):
+  books a meeting, creates a real Google Calendar event + Google Meet link on the
+  user's connected calendar (falls back to a user-supplied link; never fabricates),
+  notifies both sides, maintains meeting history.
+
+Autonomous replies (off by default): when User.autonomous_replies (and
+outbound_enabled) is on, reply_classifier routes high-confidence actionable replies
+through services/auto_reply.py, which composes and sends a real email (warm close
+on not-interested, auto-book on interested, answer-from-product on questions).
+Every gate is enforced by gates_pass().
+
+
+4. Frontend Modules (as-built status)
+======================================
+App Router route groups: (marketing), (auth), (app).
+
+  1  Authentication      /login, /signup (+OTP), /forgot-password, /oauth-callback   done
+  2  Dashboard           /dashboard                                                  done
+  3  Campaign management  /campaigns (filters, pause/resume/duplicate/archive/delete) done
+  4  Campaign creation   /campaigns/new (4-step wizard, CSV upload + sample)         done
+  5  Company research    /research, /research/[id] (ranked table + scoring detail)   done
+  6  Contact discovery   /contacts (approve/reject/edit)                             done
+  7  Email draft editor  /outreach (editor + live preview, regenerate, send test)    done
+  8  Conversations       /conversations (threads + AI reply suggestions)             done
+  9  Meetings            /meetings (upcoming/history, notes, join links)             done
+  10 Notifications       /notifications + topbar bell                                done
+  11 Agents              /agents (pipeline strip + per-agent run/config)             done
+  12 Settings            /settings (Profile / Email / AI / Security)                 done
+  13 Billing             —                                  PRD → as-built: DROPPED
+  14 Integrations        /integrations (email/calendar/verification/CRM)             done (new)
+  15 Activity logs       /activity (category filter, leveled entries)                done (new)
+  16 Support pages       /about, /contact                                            done
+  17 Error/empty states  not-found.tsx, EmptyState, CSV validation                   done
+  18 Admin panel         /admin (cross-tenant drill-downs + access control room)     done
+
+Per-campaign pipeline view (/campaigns/[id]) shows all 8 agents as a timeline with
+status, progress, run/re-run, and deep links to each stage's results.
+
+
+5. End-to-End Workflow Summary
+==============================
+Sign up → create campaign → upload companies → research → AI scoring → contact
+discovery → email guess+verify → email review → outreach → conversation tracking →
+follow-up automation → inbound reply classification → meeting scheduling →
+notifications. Human review/approval available at every stage.
+
+
+6. Navigation Structure (as-built)
+==================================
+Sidebar: Dashboard, Campaigns (with a campaigns dropdown — each opens its
+pipeline; Research/Contacts/Outreach are reached through a campaign's pipeline
+agents, not as top-level items), Conversations, Meetings, Notifications, Agents,
+Integrations, Activity, Settings, Admin. Marketing site: landing/about/contact/
+changelog/docs/privacy/terms.
+
+
+7. Final Tech Stack  (PRD placeholder → filled in)
+==================================================
+Frontend:  Next.js 16 (App Router), React 19, Tailwind v4 (@theme tokens),
+           TypeScript, lucide-react. Design = warm cream editorial minimalism
+           (Schibsted Grotesk + Instrument Serif italic display).
+Backend:   FastAPI, uvicorn, SQLAlchemy 2.0, psycopg (v3), Alembic, Pydantic v2 +
+           pydantic-settings, pyjwt, passlib (pbkdf2), APScheduler, httpx.
+Database:  PostgreSQL 16 (Docker locally on host port 5433).
+Auth:      JWT (7-day) with logout/revocation (jti blocklist), OTP email verify,
+           forgot/reset-password, optional Google OAuth sign-in.
+AI layer:  ordered chain Gemini → Groq → OpenRouter via OpenAI-style REST (httpx),
+           429 failover with 60s cooldown. No SDKs.
+Search:    web search behind one chokepoint, backend chain ddgs → Serper
+           (SEARCH_ORDER). ddgs (free, rate-limited from datacenter IPs) +
+           Serper.io (real Google results, key pool drained one key at a time) +
+           a ddgs circuit breaker. Serper is REQUIRED for a non-dev deploy.
+Verify:    free layer (syntax → role → disposable → MX DNS) always on; paid layer
+           Verifalia (preferred) or ZeroBounce; optional Hunter.io email finder.
+           No SMTP probing (reputation-safe).
+Email:     Gmail API / SMTP / console fallback. Outbound OFF by default per user.
+Calendar:  per-user Google Calendar → real Google Meet links on booking.
+Inbound:   per-user Gmail read (gmail.readonly) + global IMAP fallback.
+Realtime:  PRD → as-built: NO WebSocket layer (removed). REST polling instead
+           (notifications 30s, activity/live-log 5s, pipeline view 3s).
+Rate limit: in-memory per-process by default; optional Redis backend (REDIS_URL)
+           shares buckets across workers for a multi-worker deploy.
+Hosting:   Docker (backend image + Next.js standalone web image) + Render
+           blueprint (render.yaml). See section 13 and DEPLOY.md.
+Free-tier: Gemini/Groq/OpenRouter free tiers, Serper free credits, ZeroBounce/
+           Verifalia/Hunter free tiers, Render free plans.
+
+
+8. System Architecture
+======================
+Browser → web (Next.js) → backend (FastAPI/REST) → PostgreSQL; backend → Redis
+(optional). The frontend is a thin client over a typed REST API; it polls for live
+data (no push). All external I/O is wrapped behind provider interfaces
+(providers/) that degrade gracefully when keys are absent — so a request never
+hard-fails on a missing integration; it falls back (AI → heuristics, paid verify
+→ Unknown, search → [], email → console). Cross-cutting concerns: services/events.py
+(single path for logs + notifications), services/access.py (gating), APScheduler
+worker for background jobs.
+
+Request lifecycle: JWT auth (api/deps.py::get_current_user, rejects revoked
+tokens) → owner-scoped DB query → Pydantic response models. Long pipeline runs are
+kicked off in the background; the UI polls /pipeline (every 3s) for progress.
+
+
+9. Multi-Agent Architecture
+===========================
+Eight agents (section 3), each extends agents/base.py::Agent and calls
+self.mark(db, owner_id, "Running"|"Idle"|"Error") to drive the per-user
+agent_configs status the UI reads. They communicate sequentially through the
+database (each reads the prior stage's rows), orchestrated by orchestrator.py.
+PRD → as-built: the PRD's 8 agents were "Enrichment, Scoring, Employee Finder,
+Email Guessing, Email Verification, Outreach, Tracking, Meeting"; the shipped 8
+merge Guessing+Verification into one and add Reply Detection & Intent
+(reply_classifier).
+
+
+10. Database Design  (SQLAlchemy 2.0, models.py)
+================================================
+Core tables: Users, Campaigns, Companies, Contacts, EmailDrafts,
+Threads + Messages, Meetings, Notifications, Logs, AgentConfigs.
+Added beyond the PRD:
+  - VerifiedContact   — global cross-tenant verified-contact directory (keyed by
+                        company domain/name; finder + guess-verify reuse it to
+                        skip re-finding and paid re-verification).
+  - PipelineSnapshot  — per-campaign one-level 24h undo buffer.
+  - RevokedToken      — JWT logout/revocation blocklist (by token jti).
+All child rows cascade-delete from their owner. Key status fields:
+  Company.status: Researching → Qualified | Reviewed | Excluded/Approved/Contacted
+  Company.domain_status: live|parked|dead|unknown; enrichment_confidence (0–100)
+  Contact.verification: Verified|Risky|Unknown|Invalid; Contact.do_not_contact
+  EmailDraft.state; Thread.stage; Message.intent
+  User.outbound_enabled (kill-switch); User.access_status (none|pending|approved|
+  rejected) + has_access; User.autonomous_replies
+Schema is owned by Alembic (backend/alembic/versions/); main.py::lifespan runs
+`alembic upgrade head` on boot (safe at single-worker).
+
+
+11. API & Backend Design
+========================
+Routers in backend/app/api/routers/, all prefixed /api/<name>: auth, access,
+admin, campaigns, companies, contacts, contact_us, emails, conversations, meetings,
+notifications, agents, logs, dashboard. Cross-tenant /api/admin/* requires
+require_admin. List endpoints support limit/offset pagination (api/pagination.py,
+500-row ceiling). User-level delete for companies/contacts (owner-scoped, cascade,
+409 if a live conversation exists unless ?force=true).
+Background jobs (workers/scheduler.py, APScheduler): follow-up poll every
+FOLLOWUP_INTERVAL_MINUTES (default 15) + inbound reply poll every
+INBOUND_POLL_MINUTES (default 5); both action jobs take a Postgres advisory lock
+per tick so they never double-fire under multiple workers. Hourly purge jobs for
+snapshots + revoked tokens.
+PRD → as-built: no WebSocket layer; "GET /api/logs" + "GET /api/notifications"
+polling replaced it.
+Health: GET /health reports which integrations are live. /docs is dev-only.
+
+
+12. Frontend Architecture
+=========================
+Next.js 16 App Router, route groups (marketing)/(auth)/(app). web/src/lib/:
+api.ts (typed client; JWT in localStorage["synthsales_token"]; 401 → /login),
+api-types.ts (mirrors backend schemas), hooks.ts (useApi fetch + optional pollMs;
+useAction keyed mutations with toasts), constants.ts (status→tone maps +
+AGENT_LABELS), nav.ts. components/AuthProvider.tsx wraps (app) and guards routes.
+Design system = Tailwind v4 @theme tokens in globals.css. A frontend-only,
+read-only "View live demo" mode (localStorage synthsales_demo + static fixtures)
+shows the full product with dummy data and blocks every mutation.
+
+
+13. Deployment & DevOps  (PRD placeholder → filled in)
+======================================================
+Containerized, two services + Postgres + optional Redis:
+  - backend/Dockerfile  — python:3.12-slim, non-root, binds $PORT; migrations run
+                          on boot (no separate migrate step).
+  - web/Dockerfile      — multi-stage Next.js 16 standalone (node server.js).
+  - render.yaml         — Render Blueprint: api + web + managed Postgres + Redis;
+                          auto-generates SECRET_KEY, wires DATABASE_URL/REDIS_URL,
+                          defaults TRUST_PROXY=true and SEARCH_ORDER=serper,ddgs.
+  - DEPLOY.md           — full guide (Render + Railway/Fly notes, local prod-parity
+                          smoke test, the build-time NEXT_PUBLIC_API_URL / CORS
+                          wiring rules, post-deploy verification).
+Required for a non-dev deploy: a strong SECRET_KEY (≥32 chars — lifespan refuses to
+boot otherwise), CORS_ORIGINS, DATABASE_URL, and SERPER_API_KEYS (ddgs is blocked
+from datacenter IPs). config.py auto-normalizes a bare postgres:// URL to the
++psycopg driver, so a managed-Postgres connection string works verbatim. Deploy is
+single web worker (race-free on-boot migration); scale horizontally with REDIS_URL
+set so rate-limit buckets are shared. No CI workflow yet (no automated test suite
+to run).
+
+
+14. Suggested Folder Structure (actual)
+=======================================
+Agentic CRM/
+  README.md              running context log (updated after each substantial task)
+  CLAUDE.md              authoritative engineering reference
+  DEPLOY.md              deployment guide
+  spec.txt               THIS FILE — as-built system spec
+  render.yaml            Render blueprint
+  db.ps1                 read-only Postgres browser (dev)
+  sample-companies.csv   15 real B2B companies for exercising the pipeline
+  UI.webp                design reference
+  extra/                 gitignored, local-only: the original PRD pdf
+  backend/
+    Dockerfile  docker-compose.yml  requirements.txt  .env.example
+    alembic/ (env.py, versions/)
+    app/
+      main.py            FastAPI app + lifespan (migrate + seed + scheduler)
+      core/              config, database, security (JWT), ratelimit
+      models.py  schemas.py
+      api/               deps.py, pagination.py, routers/
+      agents/            8-agent pipeline + orchestrator
+      providers/         ai, search, verification, email, calendar, inbound,
+                         hunter, oauth, email_templates
+      services/          events, serializers, seed, access, snapshots,
+                         pipeline_locks, contact_directory, auto_reply
+      workers/scheduler.py
+  web/
+    Dockerfile  next.config.ts  package.json
+    src/
+      app/               routes (App Router + (marketing)/(auth)/(app) groups)
+      components/        shell, ui, marketing, auth, and feature components
+      lib/               api.ts, api-types.ts, hooks.ts, constants.ts, nav.ts,
+                         demo.ts, demo-fixtures.ts

@@ -29,8 +29,8 @@ The frontend reads the API base URL from `web/.env.local` (`NEXT_PUBLIC_API_URL`
 
 ```
 Agentic CRM/
-  AI-Powered ... Platform.pdf   # the PRD (source of truth)
-  spec.txt                      # extracted plain-text of the PRD (for quick reference)
+  spec.txt                      # as-built system spec (kept in sync with the code)
+  extra/                        # gitignored, local-only: the original PRD pdf (source of truth)
   README.md                     # THIS FILE — running progress + context
   web/                          # the Next.js frontend
     src/app/                    # routes (App Router + route groups)
@@ -146,6 +146,19 @@ logged). DuckDuckGo search needs no key.
   no GitHub Actions / CI workflow yet (and still no automated test suite to run in one).
 
 ## Progress log
+
+### 2026-06-19 (spec.txt → root, rewritten as-built)
+The plain-text spec lived in the gitignored `extra/` scratch folder and was a
+verbatim copy of the original PRD — describing the *intended* system, with its
+tech-stack/architecture/DB/deployment/folder sections left as empty headings.
+Moved it to the repo root (now a tracked, versioned doc) and rewrote it as the
+**as-built** spec: corrected every PRD→reality divergence (8 agents but
+guess+verify merged and reply-classifier added; multi-provider verification;
+WebSocket→REST polling; Billing dropped; access-gating/kill-switch/demo added)
+and filled in the previously-empty design sections (final tech stack, architecture,
+DB design, API/backend, frontend, deployment, folder structure). The original
+verbatim PRD is preserved unchanged as the PDF in `extra/`. README file-tree
+updated to match.
 
 ### 2026-06-19 (retire the last `sellari_*` localStorage keys)
 Final naming cleanup after the backend rename: the frontend still stored its JWT under
