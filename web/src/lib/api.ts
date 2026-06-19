@@ -1,4 +1,5 @@
 import type {
+  AccessRequestRow,
   AdminCampaignDetail,
   AdminCampaignRow,
   AdminUserRow,
@@ -154,6 +155,8 @@ export const api = {
     request<{ detail: string }>("/api/contact", { method: "POST", auth: false, body: data }),
   me: () => request<User>("/api/auth/me"),
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  requestAccess: (note?: string) =>
+    request<User>("/api/access/request", { method: "POST", body: { note: note ?? null } }),
   updateName: (name: string) =>
     request<User>("/api/auth/me", { method: "PATCH", body: { name } }),
   setOutbound: (enabled: boolean) =>
@@ -345,6 +348,12 @@ export const api = {
     request<AdminUserRow>(`/api/admin/users/${id}/admin`, {
       method: "POST",
       body: { value },
+    }),
+  adminAccessRequests: () => request<AccessRequestRow[]>("/api/admin/access-requests"),
+  adminDecideAccess: (id: number, decision: "approve" | "reject", note?: string) =>
+    request<AdminUserRow>(`/api/admin/users/${id}/access`, {
+      method: "POST",
+      body: { decision, note: note ?? null },
     }),
   adminCampaigns: () => request<AdminCampaignRow[]>("/api/admin/campaigns"),
   adminCampaignDetail: (id: number) =>

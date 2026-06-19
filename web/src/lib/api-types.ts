@@ -44,6 +44,8 @@ export interface User {
   autonomous_replies: boolean;
   calendar_connected: boolean;
   mailbox_connected: boolean;
+  access_status: "none" | "pending" | "approved" | "rejected";
+  access_review_note: string | null;
   created_at: string;
 }
 
@@ -315,9 +317,18 @@ export interface AdminUserRow {
   is_verified: boolean;
   outbound_enabled: boolean;
   is_admin: boolean;
+  access_status: string;
   campaigns: number;
   companies: number;
   contacts: number;
+}
+
+export interface AccessRequestRow {
+  id: number;
+  name: string;
+  email: string;
+  note: string | null;
+  requested_at: string | null;
 }
 
 export interface AdminCampaignRow {

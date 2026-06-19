@@ -124,6 +124,55 @@ function ConnectionCard({
   );
 }
 
+// Shown on the Sending tab when the account isn't access-approved: explains the
+// restriction and lets the user request (or re-request) access.
+function AccessGate({
+  status,
+  reason,
+  busy,
+  onRequest,
+}: {
+  status: "none" | "pending" | "approved" | "rejected";
+  reason: string | null;
+  busy: boolean;
+  onRequest: () => void;
+}) {
+  if (status === "pending") {
+    return (
+      <Card title="Outbound email">
+        <p className="text-sm text-ink-soft">
+          Your access request is{" "}
+          <strong className="font-medium text-ink">pending review</strong>. An admin will enable the
+          outreach agents and outbound sending for your account.
+        </p>
+      </Card>
+    );
+  }
+  return (
+    <Card title="Outbound email">
+      <p className="text-sm text-ink-soft">
+        {status === "rejected"
+          ? "Your access request was declined."
+          : "Outbound sending and the outreach agents are restricted for new accounts to prevent abuse."}
+      </p>
+      {status === "rejected" && reason && (
+        <p className="mt-2 rounded-lg bg-cream px-3 py-2 text-sm text-ink-soft">
+          <span className="font-medium text-ink">Reason:</span> {reason}
+        </p>
+      )}
+      <p className="mt-3 text-sm text-ink-soft">
+        Request access to enable outreach drafting and real email sending. Research and
+        contact-finding stay available either way.
+      </p>
+      <div className="mt-4">
+        <Button busy={busy} onClick={onRequest}>
+          {status === "rejected" ? "Request again" : "Request access"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 // ---- page ------------------------------------------------------------------
 
 function SettingsInner() {
@@ -204,6 +253,18 @@ function SettingsInner() {
         return true;
       },
       { success: enabled ? "Autonomous replies on" : "Autonomous replies off" },
+    );
+
+  const hasAccess = me.is_admin || me.access_status === "approved";
+  const requestAccess = () =>
+    run(
+      "request-access",
+      async () => {
+        await api.requestAccess();
+        await refresh();
+        return true;
+      },
+      { success: "Access requested — an admin will review it." },
     );
 
   // ---- connections -----------------------------------------------------------
@@ -287,7 +348,8 @@ function SettingsInner() {
         </>
       )}
 
-      {tab === "sending" && (
+      {tab === "sending" &&
+        (hasAccess ? (
         <Card title="Outbound email">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -355,7 +417,14 @@ function SettingsInner() {
             </div>
           )}
         </Card>
-      )}
+        ) : (
+          <AccessGate
+            status={me.access_status}
+            reason={me.access_review_note}
+            busy={busy === "request-access"}
+            onRequest={() => void requestAccess()}
+          />
+        ))}
 
       {tab === "connections" &&
         (providers.loading ? (

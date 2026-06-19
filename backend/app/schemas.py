@@ -84,6 +84,7 @@ class UserOut(ORMModel):
     calendar_connected: bool = False
     mailbox_connected: bool = False
     access_status: str = "none"
+    access_review_note: str | None = None
     created_at: datetime
 
 

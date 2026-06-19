@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
-import type { AdminCampaignRow, AdminUserRow, HealthOut } from "@/lib/api-types";
+import type { AccessRequestRow, AdminCampaignRow, AdminUserRow, HealthOut } from "@/lib/api-types";
 import { useAuth } from "@/components/AuthProvider";
 import { CampaignInspector } from "@/components/admin/CampaignInspector";
 import { UserTreeDrawer } from "@/components/admin/UserTreeDrawer";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorCard } from "@/components/ui/ErrorCard";
@@ -20,7 +21,7 @@ import { StatNumeral } from "@/components/ui/StatNumeral";
 import { Tabs } from "@/components/ui/Tabs";
 import { CAMPAIGN_TONE } from "@/lib/constants";
 
-const TAB_VALUES = ["overview", "users", "campaigns"] as const;
+const TAB_VALUES = ["overview", "users", "access", "campaigns"] as const;
 type Tab = (typeof TAB_VALUES)[number];
 
 const TH = "px-5 py-3 text-left text-[11px] font-medium uppercase tracking-[0.12em] text-ink-faint";
@@ -198,6 +199,7 @@ function UsersTable({
               <th className={TH}>Verified</th>
               <th className={TH}>Outbound</th>
               <th className={TH}>Admin</th>
+              <th className={TH}>Access</th>
               <th className={`${TH} text-right`}>Campaigns</th>
               <th className={`${TH} text-right`}>Companies</th>
               <th className={`${TH} text-right`}>Contacts</th>
@@ -230,6 +232,9 @@ function UsersTable({
                 </td>
                 <td className="px-5 py-3">
                   {u.is_admin ? <Badge tone="terracotta">Admin</Badge> : <Dash />}
+                </td>
+                <td className="px-5 py-3">
+                  <AccessBadge status={u.access_status} />
                 </td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.campaigns}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.companies}</td>
@@ -326,6 +331,54 @@ function CampaignsTable({
   );
 }
 
+// ---- access tab --------------------------------------------------------------
+
+function AccessBadge({ status }: { status: string }) {
+  if (status === "approved") return <Badge tone="moss">Approved</Badge>;
+  if (status === "pending") return <Badge tone="amber">Pending</Badge>;
+  if (status === "rejected") return <Badge tone="rust">Declined</Badge>;
+  return <Dash />;
+}
+
+function AccessRequestsTab({
+  rows,
+  busyFor,
+  onApprove,
+  onReject,
+}: {
+  rows: AccessRequestRow[];
+  busyFor: (id: number) => boolean;
+  onApprove: (r: AccessRequestRow) => void;
+  onReject: (r: AccessRequestRow) => void;
+}) {
+  if (rows.length === 0) {
+    return <EmptyState title="No pending requests" line="Nobody is waiting for access." />;
+  }
+  return (
+    <Card flush>
+      <ul className="divide-y divide-line">
+        {rows.map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-ink">{r.name}</p>
+              <p className="font-mono text-xs text-ink-soft">{r.email}</p>
+              {r.note && <p className="mt-1 text-sm text-ink-soft">&ldquo;{r.note}&rdquo;</p>}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button busy={busyFor(r.id)} onClick={() => onApprove(r)}>
+                Approve
+              </Button>
+              <Button variant="secondary" busy={busyFor(r.id)} onClick={() => onReject(r)}>
+                Decline
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 // ---- page --------------------------------------------------------------------
 
 function AdminInner() {
@@ -335,6 +388,7 @@ function AdminInner() {
 
   const users = useApi(api.adminUsers);
   const campaigns = useApi(api.adminCampaigns);
+  const accessReqs = useApi(api.adminAccessRequests);
 
   const rawTab = search.get("tab");
   const tab: Tab = (TAB_VALUES as readonly string[]).includes(rawTab ?? "")
@@ -347,6 +401,8 @@ function AdminInner() {
     null,
   );
   const [deletingUser, setDeletingUser] = useState<AdminUserRow | null>(null);
+  const [rejecting, setRejecting] = useState<AccessRequestRow | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   // Stable closers: the Drawer's focus/scroll-lock effect depends on onClose.
   const closeTree = useCallback(() => setTreeFor(null), []);
@@ -359,6 +415,16 @@ function AdminInner() {
 
   // Busy keys end in ":<id>" so each row disables only its own buttons.
   const userBusy = (id: number) => busy !== null && busy.endsWith(`:${id}`);
+
+  const approveAccess = (r: AccessRequestRow) =>
+    void run(`access:${r.id}`, () => api.adminDecideAccess(r.id, "approve"), {
+      success: "Access approved",
+    }).then((ok) => {
+      if (ok) {
+        accessReqs.reload();
+        users.reload();
+      }
+    });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -377,6 +443,7 @@ function AdminInner() {
           items={[
             { value: "overview", label: "Overview" },
             { value: "users", label: "Users", count: users.data?.length },
+            { value: "access", label: "Access", count: accessReqs.data?.length },
             { value: "campaigns", label: "Campaigns", count: campaigns.data?.length },
           ]}
         />
@@ -411,6 +478,20 @@ function AdminInner() {
             onOpen={setTreeFor}
             onSetAdmin={(u) => setAdminChange({ user: u, value: !u.is_admin })}
             onDelete={setDeletingUser}
+          />
+        ))}
+
+      {tab === "access" &&
+        (accessReqs.loading ? (
+          <SkeletonRows n={3} />
+        ) : accessReqs.error ? (
+          <ErrorCard message={accessReqs.error} onRetry={accessReqs.reload} />
+        ) : (
+          <AccessRequestsTab
+            rows={accessReqs.data ?? []}
+            busyFor={userBusy}
+            onApprove={approveAccess}
+            onReject={setRejecting}
           />
         ))}
 
@@ -502,6 +583,43 @@ function AdminInner() {
           confirmLabel="Delete user"
           destructive
           typedPhrase="confirm"
+        />
+      )}
+
+      {rejecting && (
+        <ConfirmModal
+          open
+          onClose={() => {
+            setRejecting(null);
+            setRejectReason("");
+          }}
+          onConfirm={async () => {
+            const ok = await run(
+              `access:${rejecting.id}`,
+              () => api.adminDecideAccess(rejecting.id, "reject", rejectReason.trim() || undefined),
+              { success: "Access declined" },
+            );
+            if (!ok) throw new Error("reject failed");
+            setRejectReason("");
+            accessReqs.reload();
+            users.reload();
+          }}
+          title={`Decline ${rejecting.name}?`}
+          body={
+            <div className="space-y-3">
+              <p>They&apos;ll be notified and can request again. Optionally tell them why:</p>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={2}
+                maxLength={1000}
+                placeholder="Reason (optional)"
+                className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink"
+              />
+            </div>
+          }
+          confirmLabel="Decline"
+          destructive
         />
       )}
     </div>
