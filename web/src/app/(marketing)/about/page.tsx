@@ -104,7 +104,7 @@ export default function AboutPage() {
       <section className="border-t border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
           <div className="max-w-2xl space-y-4">
-            <Eyebrow index="01">The crew</Eyebrow>
+            <Eyebrow>The crew</Eyebrow>
             <h2 className="display text-3xl md:text-4xl">
               Eight agents, <em>one</em> pipeline.
             </h2>
@@ -126,7 +126,7 @@ export default function AboutPage() {
       <section className="border-t border-line">
         <div className="mx-auto w-full max-w-3xl px-6 py-20 md:py-24">
           <div className="space-y-4">
-            <Eyebrow index="02">Principles</Eyebrow>
+            <Eyebrow>Principles</Eyebrow>
             <h2 className="display text-3xl md:text-4xl">
               What we <em>refuse</em> to automate away.
             </h2>
@@ -147,7 +147,7 @@ export default function AboutPage() {
       <section className="border-t border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
           <div className="max-w-2xl space-y-4">
-            <Eyebrow index="03">The builders</Eyebrow>
+            <Eyebrow>The builders</Eyebrow>
             <h2 className="display text-3xl md:text-4xl">
               Made by <em>three humans</em>.
             </h2>
