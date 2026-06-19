@@ -113,6 +113,7 @@ app.add_middleware(
 
 # Routers
 from app.api.routers import (  # noqa: E402
+    access,
     admin,
     agents,
     auth,
@@ -130,6 +131,7 @@ from app.api.routers import (  # noqa: E402
 
 for module in (
     auth,
+    access,
     admin,
     campaigns,
     companies,

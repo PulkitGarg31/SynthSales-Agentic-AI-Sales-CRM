@@ -112,6 +112,18 @@ class RegisterOut(UserOut):
     email_sent: bool = False
 
 
+class AccessRequestIn(BaseModel):
+    note: str | None = None
+
+    @field_validator("note")
+    @classmethod
+    def _trim(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v[:1000] or None
+
+
 # ---------- Campaign ----------
 class CampaignBase(BaseModel):
     name: str
