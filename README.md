@@ -148,6 +148,33 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (deployment-hardening pass — config blockers + functional gaps)
+Closed the in-scope pre-deploy items from `BACKEND-GAPS.md` for a **single-worker** deploy (scope agreed
+up front; Alembic, WS agent-progress events, the Redis-backed WS/rate-limiter items, and all
+"Reachly"→"SynthSales" naming were deliberately deferred — see the gaps file). Plan in
+`.claude/plans/2026-06-19-deployment-hardening.md`; end-to-end smoke-tested against Postgres via TestClient.
+- **Production startup hardening** (BACKEND-GAPS §2). `main.py::lifespan` now **refuses to boot** when
+  `ENVIRONMENT != "development"` and `SECRET_KEY` is the dev default / empty / under 32 chars. Interactive
+  docs (`/docs`, `/redoc`, `/openapi.json`) are disabled outside development. The demo seed
+  (`jordan@apexcloud.com`) is gated to dev (or an explicit `SEED_DEMO_DATA=true`) via a new
+  `seed_demo_data` setting.
+- **forgot-password stops leaking account existence** (BACKEND-GAPS §1). Outside dev,
+  `POST /api/auth/forgot-password` always returns `email_sent: true` (+ `dev_otp: null`); dev keeps the
+  real values for testing.
+- **Pagination on list endpoints** (BACKEND-GAPS §1). New shared `app/api/pagination.py::Page` dependency
+  (`limit` 1–500 + `offset`), applied to companies, contacts, emails, conversations. Non-breaking — plain
+  arrays, an omitted `limit` falls back to a 500-row ceiling.
+- **User-level delete** (BACKEND-GAPS §1). `DELETE /api/companies/{id}` and `DELETE /api/contacts/{id}`
+  (owner-scoped, children cascade); returns `409` when a live conversation (a sent `Thread`) exists,
+  overridable with `?force=true`. Threads are `SET NULL`, never destroyed.
+- **Logout with server-side revocation** (BACKEND-GAPS §1). Tokens now carry a `jti`;
+  `POST /api/auth/logout` blocklists it in the new `revoked_tokens` table, `get_current_user` rejects
+  revoked tokens, and the scheduler purges expired rows hourly. The web sign-out calls it. (Refresh
+  tokens remain deferred — 7-day token + revocation suffices.)
+- Verified: `import app.main` clean; boot-guard trips/passes across dev/prod×weak/strong-key; `web`
+  `npm run build` passes; TestClient smoke against Postgres — revoked token → 401 while a fresh login →
+  200, `contacts?limit=1` → 1 row, `limit=0` → 422, delete routes wired (404 on missing id).
+
 ### 2026-06-17 (functional gaps)
 - **Fixed orphaned Meetings on delete** (BACKEND-GAPS §1). `Meeting` sat outside the cascade graph
   (only a `campaign_id` FK with `ondelete=SET NULL`), so deleting a campaign *or* a user left ownerless
