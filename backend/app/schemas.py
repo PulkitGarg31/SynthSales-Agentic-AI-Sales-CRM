@@ -83,6 +83,7 @@ class UserOut(ORMModel):
     autonomous_replies: bool = False
     calendar_connected: bool = False
     mailbox_connected: bool = False
+    access_status: str = "none"
     created_at: datetime
 
 

@@ -297,6 +297,11 @@ def update_me(
         user.name = payload.name  # stripped + length-checked by UserUpdate
         add_log(db, user.id, "User", f"Display name updated to '{user.name}'.")
     if payload.outbound_enabled is not None:
+        if payload.outbound_enabled and not user.has_access:
+            raise HTTPException(
+                status_code=403,
+                detail="Request access before turning on outbound sending.",
+            )
         user.outbound_enabled = payload.outbound_enabled
         add_log(
             db,
