@@ -32,7 +32,7 @@ from app.schemas import (
     SnapshotStatusOut,
 )
 from app.services import snapshots
-from app.services.access import GATED_AGENT_KEYS
+from app.services.access import require_access
 from app.services.events import add_log, add_notification
 from app.services.serializers import campaign_rollups, company_out
 from app.services.snapshots import ConversationActive
@@ -212,6 +212,19 @@ def run_campaign(
     count = db.query(Company).filter(Company.campaign_id == c.id).count()
     if count == 0:
         raise HTTPException(status_code=400, detail="Upload companies before running")
+    # Non-approved users get ONE capped preview run per campaign; block re-runs.
+    if not user.has_access:
+        already = (
+            db.query(Company)
+            .filter(Company.campaign_id == c.id, Company.ai_score > 0)
+            .first()
+        )
+        if already:
+            raise HTTPException(
+                status_code=403,
+                detail="Your preview run is used — the full run needs access approval. "
+                "Request access in Settings.",
+            )
     add_log(db, user.id, "Campaign", f"Pipeline started for '{c.name}' ({count} companies).")
     background.add_task(_run_pipeline_task, c.id, user.id)
     return {"detail": "Pipeline started", "companies": count}
@@ -350,13 +363,9 @@ def run_agent(
     user: User = Depends(get_current_user),
 ):
     c = _owned(db, user, campaign_id)
+    require_access(user)  # per-agent re-runs are disabled for non-approved users
     if payload.key not in RUNNABLE_KEYS:
         raise HTTPException(status_code=400, detail=f"Agent '{payload.key}' cannot be run on demand")
-    if payload.key in GATED_AGENT_KEYS and not user.has_access:
-        raise HTTPException(
-            status_code=403,
-            detail="This agent needs access approval. Request it in Settings.",
-        )
     suffix = " (force)" if payload.force else ""
     add_log(db, user.id, "Campaign", f"Triggered '{payload.key}' agent for '{c.name}'{suffix}.")
     background.add_task(_run_agent_task, c.id, user.id, payload.key, payload.force)
