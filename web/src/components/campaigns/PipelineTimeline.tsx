@@ -198,11 +198,11 @@ export function PipelineTimeline({
   const { busy, run } = useAction();
   const [rerunning, setRerunning] = useState<PipelineAgent | null>(null);
 
-  // Hide the reply reader from the pipeline rail: it isn't a step the user runs
-  // here (it fires on inbox sync), and its output is reached via the follow-up
-  // tracker + Conversations. Keeping it here only added noise.
+  // Show the reply reader in the pipeline rail, not the follow-up tracker: the
+  // tracker fires on its own scheduler cadence (no user step here), while the
+  // reply reader is the inbound half users care to see. Both reach Conversations.
   const sorted = [...agents]
-    .filter((a) => a.key !== "reply_classifier")
+    .filter((a) => a.key !== "tracking")
     .sort((a, b) => a.order - b.order);
 
   const start = (agent: PipelineAgent, force: boolean) =>
