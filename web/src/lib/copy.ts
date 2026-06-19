@@ -36,9 +36,9 @@ export const PHASES: readonly Phase[] = [
     title: "Research",
     agents: [AGENT_LABELS.enrichment, AGENT_LABELS.scoring],
     points: [
-      "Reads each company like an analyst — site, signals, news, hiring",
-      "Weak evidence sinks the score; dead domains are flagged on sight",
-      "Only real, reachable businesses rise to the top of your list",
+      "Reads each company like an analyst",
+      "Dead domains flagged honestly",
+      "Only real, reachable businesses rise",
     ],
   },
   {
@@ -46,9 +46,9 @@ export const PHASES: readonly Phase[] = [
     title: "Find people",
     agents: [AGENT_LABELS.employee_finder, AGENT_LABELS.email_guess_verification],
     points: [
-      "Real LinkedIn decision-makers, or none at all — names are never invented",
-      "Addresses guessed pattern by pattern, then confirmed against the mail server",
-      "Nobody is contacted until the mailbox checks out, so bounces stay rare",
+      "Real LinkedIn profiles, never invented",
+      "Every email verified first",
+      "So bounces stay rare",
     ],
   },
   {
@@ -56,9 +56,9 @@ export const PHASES: readonly Phase[] = [
     title: "Reach out",
     agents: [AGENT_LABELS.outreach, AGENT_LABELS.tracking],
     points: [
-      "No templates — each draft is built from that company's own research",
-      "Reads like you actually did the homework",
-      "Up to three gentle follow-ups, then it knows when to stop",
+      "No templates, only real research",
+      "Reads like you did the homework",
+      "Three follow-ups, then it stops",
     ],
   },
   {
@@ -66,9 +66,9 @@ export const PHASES: readonly Phase[] = [
     title: "Convert",
     agents: [AGENT_LABELS.meeting, AGENT_LABELS.reply_classifier],
     points: [
-      "Every reply read and classified on arrival: interested, question, not interested, meeting-ready",
-      "A yes books a real Google Meet event on your own calendar",
-      "The deal moves to the meeting stage automatically",
+      "Every reply read and classified",
+      "A yes books a real Google Meet link",
+      "Straight onto your own calendar",
     ],
   },
 ] as const;
