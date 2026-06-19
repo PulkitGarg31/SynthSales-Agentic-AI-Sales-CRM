@@ -53,6 +53,8 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
 - DB inspection: **`.\db.ps1`** (repo root) is a read-only Postgres browser — `.\db.ps1` for the menu,
   `.\db.ps1 user <id|email>` for a per-user tree, `.\db.ps1 health` for row counts, `.\db.ps1 sql "<SELECT>"`
   for ad-hoc queries. Use it to confirm what the pipeline actually wrote.
+- CSV upload: **`sample-companies.csv`** (repo root) — 15 real B2B companies for exercising the
+  upload → pipeline flow (and the non-approved 2-company preview cap).
 
 ## Architecture
 
@@ -285,3 +287,6 @@ retired (bare `amber` + `amber-deep` only).
 - Platform is **Windows + PowerShell**; the backend Python lives in `backend\.venv` (invoke as
   `.\.venv\Scripts\python.exe`). Node may not be on a fresh shell's PATH (`C:\Program Files\nodejs`).
 - `docker compose` must be running for the backend to reach Postgres on `localhost:5433`.
+- **`uvicorn --reload` is unreliable here** — watchfiles can silently miss edits on Windows after rapid
+  changes, leaving the worker on stale code. After changing backend code, **restart uvicorn** rather than
+  trusting auto-reload (or you'll test stale behavior). Next.js/Turbopack hot-reload on the frontend is fine.
