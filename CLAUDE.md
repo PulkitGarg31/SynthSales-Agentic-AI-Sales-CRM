@@ -12,7 +12,7 @@ Two independent apps in one repo:
   container `reachly_postgres`) — kept deliberately (renaming the container/db/volume forces a data
   migration for zero functional gain; revisit at deploy time).
 - `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). All user-facing branding is **SynthSales**;
-  no "reachly" string may appear in `web/src`. Talks to the backend over REST + WebSocket.
+  no "reachly" string may appear in `web/src`. Talks to the backend over REST (polling for live data).
 
 **`README.md` is a running context log** — it is updated after each substantial task with what changed and why; keep that
 convention when you finish meaningful work.
@@ -190,13 +190,12 @@ the deploy is single-worker.
   `alembic stamp`-ed to it. The runtime admin auto-grant (`ADMIN_EMAILS`) stays in `lifespan` — it's
   config-driven, not schema.
 
-### Realtime & cross-cutting services
+### Cross-cutting services
 
 - `services/events.py` — `add_log()` / `add_notification()` are the single way to record audit logs and
-  notifications; both also push over WebSocket via `realtime/ws.py::notify()`. Use these, don't write
-  `Log`/`Notification` rows directly.
-- `realtime/ws.py` — in-process hub; `/ws?token=…` streams `log` + `notification` events. The main
-  event loop is captured in `lifespan` so threadpool (sync) request handlers can broadcast.
+  notifications. Use these, don't write `Log`/`Notification` rows directly. The web app surfaces both by
+  **polling** REST (`GET /api/logs`, `GET /api/notifications`) — there is no WebSocket/push layer (removed
+  2026-06-19; notifications poll every 30s, activity/live-log every 5s, the pipeline view every 3s).
 - `workers/scheduler.py` — APScheduler polls the tracking agent every `FOLLOWUP_INTERVAL_MINUTES`
   (default 15, the **poll cadence**) for all users. Disable with `ENABLE_SCHEDULER=false`. A thread
   gets an automatic follow-up only after our last message goes unanswered for `FOLLOWUP_DELAY_DAYS`
@@ -208,7 +207,7 @@ the deploy is single-worker.
 
 ### API surface & auth
 
-Routers in `backend/app/api/routers/`, all prefixed `/api/<name>` (except the WebSocket router at `/ws`). Auth is JWT (`api/deps.py::
+Routers in `backend/app/api/routers/`, all prefixed `/api/<name>`. Auth is JWT (`api/deps.py::
 get_current_user`); cross-tenant `/api/admin/*` routes require `require_admin` (a user is admin if
 `is_admin` is set, auto-granted at startup/verification for emails in `ADMIN_EMAILS`).
 

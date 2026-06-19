@@ -16,9 +16,10 @@ why.
       `app/api/pagination.py::Page` dependency. Non-breaking: responses stay plain arrays; an omitted
       `limit` falls back to a 500-row safety ceiling. (`notifications` already took a `limit`; `/api/logs`
       already did.) True UI pagination (envelope + load-more) is still a future enhancement.
-- [ ] **WS pushes only `log` + `notification`** — *deferred this pass.* No entity/agent-progress events,
-      so the pipeline page still polls `GET /api/campaigns/{id}/pipeline` while agents run. Candidate:
-      push per-agent progress over WS. (Pure enhancement; polling works.)
+- [x] **Realtime push removed in favor of polling** (2026-06-19). The WebSocket hub only ever carried
+      `log` + `notification`; rather than extend it with agent-progress events, the whole WS layer was
+      deleted and the UI now polls REST everywhere (notifications 30s, activity + campaign live-log 5s,
+      pipeline 3s). Simpler, and it removed the multi-worker WS blocker below.
 - [x] **User-level delete for companies/contacts** — added 2026-06-19. `DELETE /api/companies/{id}` and
       `DELETE /api/contacts/{id}` (owner-scoped; children cascade). Blocked with `409` if the target has
       a live conversation (a sent `Thread`), overridable with `?force=true`. Threads are `SET NULL`, never
@@ -36,9 +37,10 @@ why.
       metadata from app settings/models. Adopting it also fixed a latent missing `ix_users_google_sub`
       index (the old ALTER retrofit added the column but never its index). *Optional follow-up:* standardize
       `companies.score_factors` + `pipeline_snapshots.payload` from `JSON` to `JSONB` (one clean migration).
-- [ ] **WS hub is in-process** (`realtime/ws.py`) — *deferred: moot at single-worker.* A multi-worker /
-      multi-instance deploy would need Redis pub/sub (and would also need the in-process APScheduler moved
-      to a single leader, or it double-fires follow-ups + inbound polls). Revisit only if scaling out.
+- [x] **WS hub is in-process** — resolved 2026-06-19 by removing the WebSocket layer entirely (the UI
+      polls REST instead), so there's no socket left to back with Redis. *Still open for multi-worker:* the
+      in-process APScheduler would double-fire follow-ups + inbound polls, so a multi-worker/multi-instance
+      deploy still needs the scheduler moved to a single leader/own process. Revisit only if scaling out.
 - [ ] **Rate limiter is in-memory per-process** (`core/ratelimit.py`) — *deferred: moot at single-worker.*
       Resets on restart; needs Redis only for multi-process.
 - [x] **Seeding gated by environment** — fixed 2026-06-19. The `jordan@apexcloud.com` demo user is seeded

@@ -148,6 +148,23 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (realtime → polling; WebSocket layer removed)
+Replaced the WebSocket push layer with REST polling and deleted the whole subsystem (the socket only ever
+carried `log` + `notification`). At single-worker, polling is simpler and it removes the in-process-WS
+multi-worker blocker (no Redis needed for realtime).
+- **Frontend:** `useApi` gained an optional `pollMs`. The notification bell + notifications page poll every
+  30s (the bell still toasts newly-arrived notifications, detected via an id high-water mark); the activity
+  page and the campaign "Live log" poll `GET /api/logs` every 5s. The activity page shed its live-stream /
+  pause-buffer / flush machinery — polling refetches the whole list (with real DB timestamps), and "pause"
+  now just pauses auto-refresh. `ws.ts` + `wsSubscribe`/`wsDisconnect` deleted; `AuthProvider` no longer
+  tears down a socket. (The pipeline view already polled every 3s — unchanged.)
+- **Backend:** deleted `realtime/ws.py` (+ the `realtime/` package) and the `/ws` router; `services/events.py`
+  `add_log`/`add_notification` still persist rows but no longer push (`notify` gone); `main.py` dropped
+  `set_main_loop` and the ws-router wiring.
+- Verified: `npm run build` passes; backend imports + boots via TestClient; `add_log`/`add_notification`
+  write rows with no `notify`; `GET /api/logs` + `GET /api/notifications` return 200; `/ws` now 404; grep
+  shows zero `realtime`/`notify`/`ws` references left in the backend.
+
 ### 2026-06-19 (Alembic migrations — versioned schema, auto-upgrade on boot)
 Adopted **Alembic** to replace `create_all` + the idempotent `ALTER TABLE` block (BACKEND-GAPS §2; a
 follow-up to the deployment-hardening pass below). Plan: `.claude/plans/2026-06-19-alembic-migrations.md`.
