@@ -42,8 +42,10 @@ The backend **boots with zero credentials** in development — every external in
 gracefully (see Providers below). `web/.env.local` sets `NEXT_PUBLIC_API_URL` (defaults to
 `http://127.0.0.1:8000`). To enable real integrations, copy `backend/.env.example` → `backend/.env` and
 fill keys. **For a non-development deploy:** set `ENVIRONMENT` to a non-`development` value, a strong
-`SECRET_KEY` (≥32 chars — `lifespan` refuses to boot otherwise), plus your prod `CORS_ORIGINS` and
-`DATABASE_URL`. Outside development, interactive `/docs` is disabled and the demo user is not seeded.
+`SECRET_KEY` (≥32 chars — `lifespan` refuses to boot otherwise), your prod `CORS_ORIGINS` and
+`DATABASE_URL`, and **`SERPER_API_KEYS`** — web search (`ddgs`) is rate-limited from datacenter IPs and
+fails on a deploy, so without a Serper key the pipeline runs blind (no research, no contacts). Outside
+development, interactive `/docs` is disabled and the demo user is not seeded.
 
 ### Verification / testing
 
