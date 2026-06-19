@@ -3,7 +3,7 @@
 Responses stay plain arrays (no envelope) so existing callers are unaffected; an
 omitted ``limit`` falls back to ``MAX_LIMIT`` as a safety ceiling against
 unbounded result sets. True UI pagination (envelope + load-more) is a deferred
-enhancement (see BACKEND-GAPS.md).
+enhancement.
 """
 from fastapi import Query
 
