@@ -15,7 +15,6 @@ from app.schemas import (
     ContactCreate,
     ContactOut,
 )
-from app.services.access import require_access
 from app.services.events import add_log
 from app.services.serializers import company_out
 
@@ -82,7 +81,6 @@ def enrich(
     AI/search path even on dead/parked domains so the user actually gets a
     fresh attempt — that's the point of clicking the button."""
     c = _owned(db, user, company_id)
-    require_access(user)
     enrichment_agent.run(db, c, c.campaign, user.id, force_ai=True)
     return get_company(company_id, db, user)
 
@@ -92,8 +90,13 @@ def find_contacts(
     company_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     c = _owned(db, user, company_id)
-    require_access(user)
-    employee_finder_agent.run(db, c, user.id)
+    # Non-approved users are capped to a single contact (credit guard).
+    employee_finder_agent.run(db, c, user.id, count=3 if user.has_access else 1)
+    if not user.has_access:
+        db.refresh(c)
+        for extra in c.contacts[1:]:
+            db.delete(extra)
+        db.commit()
     email_guess_verification_agent.run(db, c, user.id)
     return get_company(company_id, db, user)
 

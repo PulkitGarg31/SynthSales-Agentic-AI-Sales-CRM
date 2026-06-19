@@ -202,8 +202,6 @@ function CampaignDetailInner() {
   const { busy, run } = useAction();
   const { me } = useAuth();
   const hasAccess = me.is_admin || me.access_status === "approved";
-  // Non-approved users get ONE capped preview run; disable Run-all once it exists.
-  const previewUsed = !hasAccess && (campaign.data?.companies_researched ?? 0) > 0;
 
   // ?fresh=1 (set by the wizard) opens the run-all confirm exactly once:
   // seeded into state at mount, then stripped from the URL so a refresh or
@@ -294,7 +292,7 @@ function CampaignDetailInner() {
             <Button
               variant="accent"
               busy={busy === "run-all"}
-              disabled={anyRunning || previewUsed}
+              disabled={anyRunning}
               onClick={() => setRunAllOpen(true)}
             >
               {anyRunning ? "Pipeline running…" : "Run all agents"}

@@ -294,6 +294,13 @@ def run_agent_for_campaign(
     contacts, stale email drafts, stale verification verdicts) and produce a
     fresh result. Defaults to False so bulk pipelines stay incremental.
     """
+    # Non-approved users get a credit-capped version of the free agents (the API
+    # 403s the gated ones). No snapshot/cascade — the capped run is cheap.
+    user = db.get(User, owner_id)
+    if user and not user.has_access:
+        _run_agent_capped(db, campaign, owner_id, key, force)
+        return
+
     # A forced re-run is destructive: snapshot for undo, then clear this agent's
     # successors (preserving locked conversations). Non-forced incremental runs
     # are additive — no snapshot, no cascade.
@@ -359,17 +366,60 @@ def run_agent_for_campaign(
         raise ValueError(f"Agent '{key}' cannot be run on demand")
 
 
-def _run_preview_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dict:
-    """Credit-capped run for non-approved users: enrich + score the first
-    PREVIEW_COMPANIES companies, then find ONE contact (and its email) for the
-    top-scored one. Never reaches outreach."""
-    companies = (
+def _preview_companies(db: Session, campaign: Campaign) -> list[Company]:
+    """First PREVIEW_COMPANIES companies (upload order) — the non-approved sample."""
+    return (
         db.query(Company)
         .filter(Company.campaign_id == campaign.id)
         .order_by(Company.id)
         .limit(PREVIEW_COMPANIES)
         .all()
     )
+
+
+def _find_one_contact(db: Session, company: Company, owner_id: int, force: bool) -> None:
+    """Find a single contact for `company` — the non-approved contact cap."""
+    employee_finder_agent.run(db, company, owner_id, count=1, force=force)
+    db.refresh(company)
+    for extra in company.contacts[1:]:  # guard: keep exactly one
+        db.delete(extra)
+    db.commit()
+
+
+def _run_agent_capped(
+    db: Session, campaign: Campaign, owner_id: int, key: str, force: bool
+) -> None:
+    """One free agent, credit-capped, for a non-approved user (2 companies / 1
+    contact). Gated keys never reach here — the API 403s them for non-approved."""
+    companies = _preview_companies(db, campaign)
+    if not companies:
+        return
+    if key == "enrichment":
+        _phase(
+            db, owner_id, enrichment_agent,
+            lambda: _run_enrichment_concurrent(companies, campaign.id, owner_id, force_ai=force),
+        )
+    elif key == "scoring":
+        _phase(
+            db, owner_id, scoring_agent,
+            lambda: scoring_agent.run(db, campaign, owner_id, companies=companies),
+        )
+    elif key == "employee_finder":
+        top = max(companies, key=lambda c: c.ai_score or 0)
+        _phase(db, owner_id, employee_finder_agent, lambda: _find_one_contact(db, top, owner_id, force))
+    elif key == "email_guess_verification":
+        top = max(companies, key=lambda c: c.ai_score or 0)
+        _phase(
+            db, owner_id, email_guess_verification_agent,
+            lambda: email_guess_verification_agent.run(db, top, owner_id, force=force),
+        )
+
+
+def _run_preview_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dict:
+    """Credit-capped full run for non-approved users: enrich + score the first
+    PREVIEW_COMPANIES companies, then ONE contact (and its email) for the
+    top-scored one. Never reaches outreach."""
+    companies = _preview_companies(db, campaign)
     if not companies:
         return {"companies": 0, "qualified": 0, "contacts": 0}
 
@@ -383,15 +433,7 @@ def _run_preview_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
     )
 
     top = max(companies, key=lambda c: c.ai_score or 0)
-
-    def _find_one() -> None:
-        employee_finder_agent.run(db, top, owner_id, count=1, force=True)
-        db.refresh(top)
-        for extra in top.contacts[1:]:  # guard: keep exactly one
-            db.delete(extra)
-        db.commit()
-
-    _phase(db, owner_id, employee_finder_agent, _find_one)
+    _phase(db, owner_id, employee_finder_agent, lambda: _find_one_contact(db, top, owner_id, True))
     db.refresh(top)
     if top.contacts:
         _phase(

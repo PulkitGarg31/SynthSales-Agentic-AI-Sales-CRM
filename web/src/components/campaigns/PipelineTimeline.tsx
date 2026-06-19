@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/Modal";
 
+// Agents gated behind access approval; the rest are free (capped for non-approved,
+// so their Run buttons stay active — only the gated ones show "Requires access").
+const GATED_KEYS = new Set(["outreach", "tracking", "meeting", "reply_classifier"]);
+
 // Status dot, matching AGENT_STATUS_TONE (Idle faint / Running terracotta /
 // Error rust); Running pulses.
 const DOT: Record<string, string> = {
@@ -78,6 +82,7 @@ function AgentRow({
 }) {
   const label = AGENT_LABELS[agent.key] ?? agent.name;
   const running = agent.status === "Running";
+  const isGated = GATED_KEYS.has(agent.key);
   // Lock this row's controls while ITS run is in flight (or the agent is
   // already Running) - other rows stay usable.
   const locked = running || (busy !== null && busy.endsWith(`:${agent.key}`));
@@ -131,7 +136,7 @@ function AgentRow({
             <Button
               variant="secondary"
               busy={busy === `run:${agent.key}`}
-              disabled={locked || !hasAccess}
+              disabled={locked}
               onClick={() => onRun(agent)}
               className="px-3 py-1 text-xs"
             >
@@ -139,13 +144,13 @@ function AgentRow({
             </Button>
             <button
               type="button"
-              disabled={locked || !hasAccess}
+              disabled={locked}
               onClick={() => onRerun(agent)}
               className="text-xs font-medium text-ink-soft underline-offset-2 transition-colors hover:text-terracotta hover:underline disabled:pointer-events-none disabled:opacity-50"
             >
               Re-run fresh…
             </button>
-            {!hasAccess && (
+            {!hasAccess && isGated && (
               <span className="text-xs italic text-ink-faint">Requires access</span>
             )}
             {link && (
