@@ -25,6 +25,16 @@ import type {
 const FOOTER =
   "Best,\nAlex Rivera\nAccount Executive, Apex Cloud\nalex@apexcloud.com";
 
+// Meeting dates are computed relative to "now" so the demo always has live
+// upcoming meetings, no matter when it's viewed (fixed dates would rot into the
+// past). Evaluated once at module load; stable for the session.
+function offsetISO(days: number, hourUtc = 16): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  d.setUTCHours(hourUtc, 0, 0, 0);
+  return d.toISOString();
+}
+
 export const DEMO_USER: User = {
   id: 9999,
   name: "Alex Rivera",
@@ -106,10 +116,10 @@ const THREAD_DETAILS: Record<number, ThreadDetail> = {
 };
 
 const MEETINGS: Meeting[] = [
-  { id: 1, campaign_id: 1, company: "Cedar Clinics", contact: "Dr. Amelia Ross", scheduled_at: "2026-05-29T19:00:00Z", status: "Upcoming", link: "https://meet.google.com/demo-cedar-apex", notes: "Focus on scheduling no-show reduction." },
-  { id: 2, campaign_id: 1, company: "Northwind Logistics", contact: "Dana Whitfield", scheduled_at: "2026-05-30T19:00:00Z", status: "Upcoming", link: "https://meet.google.com/demo-northwind-apex", notes: "Tailor to route + warehouse data." },
-  { id: 3, campaign_id: 1, company: "Brightwave Manufacturing", contact: "Tom Schaefer", scheduled_at: "2026-06-03T16:00:00Z", status: "Upcoming", link: "https://meet.google.com/demo-brightwave-apex", notes: "Technical demo — tailor to their telemetry pipeline and predictive maintenance." },
-  { id: 4, campaign_id: 1, company: "Summit Retail Group", contact: "Greg Hollis", scheduled_at: "2026-05-19T17:30:00Z", status: "Completed", link: "https://meet.google.com/demo-summit", notes: "Budget frozen until Q3." },
+  { id: 1, campaign_id: 1, company: "Cedar Clinics", contact: "Dr. Amelia Ross", scheduled_at: offsetISO(2, 19), status: "Upcoming", link: "https://meet.google.com/demo-cedar-apex", notes: "Focus on scheduling no-show reduction." },
+  { id: 2, campaign_id: 1, company: "Northwind Logistics", contact: "Dana Whitfield", scheduled_at: offsetISO(4, 19), status: "Upcoming", link: "https://meet.google.com/demo-northwind-apex", notes: "Tailor to route + warehouse data." },
+  { id: 3, campaign_id: 1, company: "Brightwave Manufacturing", contact: "Tom Schaefer", scheduled_at: offsetISO(9, 16), status: "Upcoming", link: "https://meet.google.com/demo-brightwave-apex", notes: "Technical demo — tailor to their telemetry pipeline and predictive maintenance." },
+  { id: 4, campaign_id: 1, company: "Summit Retail Group", contact: "Greg Hollis", scheduled_at: offsetISO(-30, 17), status: "Completed", link: "https://meet.google.com/demo-summit", notes: "Budget frozen until Q3." },
 ];
 
 const NOTIFICATIONS: AppNotification[] = [
