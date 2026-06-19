@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MarketingNav } from "@/components/marketing/MarketingNav";
 
 const NAV = [
   { label: "Product", href: "/#features" },
@@ -17,17 +18,11 @@ export function MarketingTopbar() {
         <Link href="/" aria-label="SynthSales home">
           <Wordmark withEmblem />
         </Link>
-        <nav aria-label="Main" className="hidden items-center gap-7 md:flex">
-          {NAV.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="text-sm text-ink-soft transition hover:text-ink"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <MarketingNav
+          items={NAV}
+          className="hidden items-center gap-7 md:flex"
+          linkClassName="text-sm text-ink-soft transition hover:text-ink"
+        />
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
           <Link
