@@ -55,7 +55,7 @@ const CAMPAIGNS: Campaign[] = [
   { id: 2, name: "FinTech Mid-Market Expansion", product: "LedgerOne Payments API", status: "Running", tone: "professional", top_n: 40, created_at: "2026-04-22T09:00:00Z", companies_uploaded: 24, companies_researched: 24, emails_sent: 9, replies_received: 3, meetings_booked: 1 },
   { id: 3, name: "HealthOps Pilot Outreach", product: "HealthOps Scheduling Suite", status: "Paused", tone: "friendly", top_n: 30, created_at: "2026-05-01T09:00:00Z", companies_uploaded: 12, companies_researched: 12, emails_sent: 4, replies_received: 1, meetings_booked: 0 },
   { id: 4, name: "Retail Analytics — Spring", product: "ShelfIQ Analytics", status: "Completed", tone: "concise", top_n: 60, created_at: "2026-03-05T09:00:00Z", companies_uploaded: 40, companies_researched: 40, emails_sent: 22, replies_received: 7, meetings_booked: 4 },
-  { id: 5, name: "Logistics Net-New (Draft)", product: "CargoX Route Optimizer", status: "Draft", tone: "professional", top_n: 50, created_at: "2026-05-20T09:00:00Z", companies_uploaded: 0, companies_researched: 0, emails_sent: 0, replies_received: 0, meetings_booked: 0 },
+  { id: 5, name: "Logistics Net-New", product: "CargoX Route Optimizer", status: "Running", tone: "professional", top_n: 50, created_at: "2026-05-20T09:00:00Z", companies_uploaded: 4, companies_researched: 4, emails_sent: 0, replies_received: 0, meetings_booked: 0 },
 ];
 
 const FACTOR_LABELS: [string, number][] = [
@@ -80,6 +80,8 @@ type CompanySpec = {
   summary: string; points: string[]; explanation: string; hiring: boolean;
   confidence: number; domain_status: Company["domain_status"];
   found: number; verified: number; funding?: string; news?: string;
+  // Enriched but not yet scored (campaign stopped after research): no score_factors.
+  unscored?: boolean;
 };
 
 function mkCompany(c: CompanySpec): Company {
@@ -88,7 +90,7 @@ function mkCompany(c: CompanySpec): Company {
     mail_domain: c.domain, industry: c.industry, size: c.size, location: c.location,
     ai_score: c.ai_score, rank: c.rank, match_level: c.match_level, status: c.status,
     research_summary: c.summary, research_points: c.points, match_explanation: c.explanation,
-    score_factors: factors(c.ai_score), recent_funding: c.funding ?? null,
+    score_factors: c.unscored ? [] : factors(c.ai_score), recent_funding: c.funding ?? null,
     recent_news: c.news ?? null, active_hiring: c.hiring,
     enrichment_confidence: c.confidence, domain_status: c.domain_status,
     contacts_found: c.found, contacts_verified: c.verified,
@@ -121,6 +123,14 @@ const COMPANIES: Company[] = [
   mkCompany({ id: 33, campaign_id: 4, name: "GreenLeaf Markets", domain: "greenleafmarkets.com", industry: "Organic Retail", size: "500–1,000", location: "Portland, US", ai_score: 75, rank: 3, match_level: "Good", status: "Qualified", summary: "Organic grocery chain modernizing category management.", points: ["Regional organic grocery chain.", "Modernizing category management and pricing."], explanation: "Good fit; mid-size data footprint.", hiring: false, confidence: 72, domain_status: "live", found: 1, verified: 1 }),
   mkCompany({ id: 34, campaign_id: 4, name: "ValueMart Holdings", domain: "valuemart.com", industry: "Discount Retail", size: "5,000+", location: "Dallas, US", ai_score: 66, rank: 4, match_level: "Good", status: "Reviewed", summary: "Discount retailer under margin pressure and store rationalization.", points: ["Large discount retailer.", "Closing underperforming stores — budget scrutiny."], explanation: "Moderate fit; cost-cutting lowers timing score.", hiring: false, confidence: 63, domain_status: "live", found: 0, verified: 0, news: "Closing 30 underperforming stores (2026)" }),
   mkCompany({ id: 35, campaign_id: 4, name: "Coastal Outfitters", domain: "coastaloutfitters.com", industry: "Outdoor Retail", size: "200–500", location: "San Diego, US", ai_score: 51, rank: 5, match_level: "Weak", status: "Excluded", summary: "Smaller outdoor retailer with an unreachable site at scan time.", points: ["Smaller outdoor-gear retailer.", "Domain unreachable during enrichment."], explanation: "Low confidence; excluded by reviewer.", hiring: false, confidence: 44, domain_status: "dead", found: 0, verified: 0 }),
+
+  // ---- Campaign 5: Logistics Net-New (CargoX Route Optimizer) ----
+  // Stopped right after research: enriched, NOT yet scored (ai_score 0, no rank,
+  // status "Researching") — demonstrates a campaign halted at the first agent.
+  mkCompany({ id: 41, campaign_id: 5, name: "FreightLink Carriers", domain: "freightlink.com", industry: "Logistics & Supply Chain", size: "1,000–5,000", location: "Memphis, US", ai_score: 0, rank: 0, match_level: "Moderate", status: "Researching", unscored: true, summary: "Long-haul carrier with public signals of route-inefficiency pressure; enrichment complete, scoring not yet run.", points: ["National long-haul freight carrier.", "Public commentary on rising fuel and empty-mile costs.", "Hiring for logistics-planning roles."], explanation: "Not yet scored — research complete only.", hiring: true, confidence: 70, domain_status: "live", found: 0, verified: 0 }),
+  mkCompany({ id: 42, campaign_id: 5, name: "PortSide Logistics", domain: "portside.io", industry: "Freight Forwarding", size: "500–1,000", location: "Long Beach, US", ai_score: 0, rank: 0, match_level: "Moderate", status: "Researching", unscored: true, summary: "Port-adjacent freight forwarder; enrichment complete, scoring pending.", points: ["Freight forwarder near major West Coast ports.", "Coordinates drayage and intermodal moves."], explanation: "Not yet scored — research complete only.", hiring: false, confidence: 66, domain_status: "live", found: 0, verified: 0 }),
+  mkCompany({ id: 43, campaign_id: 5, name: "RapidHaul Express", domain: "rapidhaul.com", industry: "Trucking", size: "200–500", location: "Kansas City, US", ai_score: 0, rank: 0, match_level: "Moderate", status: "Researching", unscored: true, summary: "Regional trucking firm; enrichment complete, scoring pending.", points: ["Regional less-than-truckload carrier.", "Manual route planning today."], explanation: "Not yet scored — research complete only.", hiring: false, confidence: 58, domain_status: "live", found: 0, verified: 0 }),
+  mkCompany({ id: 44, campaign_id: 5, name: "Meridian Freight Co", domain: "meridianfreight.com", industry: "Logistics & Supply Chain", size: "1,000–5,000", location: "Atlanta, US", ai_score: 0, rank: 0, match_level: "Moderate", status: "Researching", unscored: true, summary: "Freight broker with a parked marketing domain; low enrichment confidence.", points: ["Freight brokerage and 3PL.", "Marketing domain appears parked — limited signals."], explanation: "Not yet scored — research complete only.", hiring: false, confidence: 32, domain_status: "parked", found: 0, verified: 0 }),
 ];
 
 const CONTACTS: Contact[] = [
@@ -202,36 +212,43 @@ const AGENTS: Agent[] = AGENT_META.map((m, i) => ({
   last_run: "2026-05-27T09:00:00Z",
 }));
 
-const PIPELINE_PROGRESS: Record<string, [number, number, boolean]> = {
-  // key: [completed, total, runnable]
-  enrichment: [18, 18, true],
-  scoring: [18, 18, true],
-  employee_finder: [5, 5, true],
-  email_guess_verification: [6, 6, true],
-  outreach: [3, 6, true],
-  tracking: [2, 3, true],
-  meeting: [3, 3, false],
-  reply_classifier: [2, 2, false],
+// Per-campaign pipeline: each campaign is "stopped" after a different agent so
+// the demo shows the pipeline halting at various stages. `reached` is the index
+// of the last agent that ran (AGENT_META order); agents past it haven't run
+// (completed 0, no last_run). `totals` is the per-agent work count.
+function pipelineFor(reached: number, totals: number[]): PipelineAgent[] {
+  return AGENT_META.map((m, i) => {
+    const total = totals[i] ?? 0;
+    const done = i <= reached;
+    return {
+      key: m.key,
+      name: m.name,
+      description: m.description,
+      order: i,
+      status: "Idle",
+      enabled: true,
+      last_run: done ? "2026-06-15T09:00:00Z" : null,
+      total,
+      completed: done ? total : 0,
+      // meeting + reply_classifier fire on their own triggers, never a button.
+      runnable: m.key !== "meeting" && m.key !== "reply_classifier",
+    };
+  });
+}
+
+//                                  enr sco fin eml out trk mtg rep
+const CAMPAIGN_PIPELINE: Record<number, PipelineAgent[]> = {
+  1: pipelineFor(7, [5, 5, 4, 4, 4, 4, 4, 2]), // Running — full run, meetings + replies
+  2: pipelineFor(4, [5, 5, 3, 3, 3, 3, 0, 0]), // Running — stopped after outreach
+  3: pipelineFor(3, [4, 4, 2, 2, 2, 0, 0, 0]), // Paused — stopped after email verify
+  4: pipelineFor(7, [5, 5, 5, 5, 5, 5, 4, 3]), // Completed — full run
+  5: pipelineFor(0, [4, 4, 0, 0, 0, 0, 0, 0]), // Running — stopped after research
 };
 
-const PIPELINE: PipelineAgent[] = AGENT_META.map((m, i) => {
-  const [completed, total, runnable] = PIPELINE_PROGRESS[m.key];
-  return {
-    key: m.key,
-    name: m.name,
-    description: m.description,
-    order: i,
-    status: "Idle",
-    enabled: true,
-    last_run: "2026-05-27T09:00:00Z",
-    total,
-    completed,
-    runnable,
-  };
-});
+const PIPELINE = CAMPAIGN_PIPELINE[1];
 
 const DASHBOARD: Dashboard = {
-  active_campaigns: 2,
+  active_campaigns: 3,
   paused_campaigns: 1,
   completed_campaigns: 1,
   companies_uploaded: 94,
@@ -274,7 +291,7 @@ export function resolveDemo<T>(rawPath: string): T {
   else if (path === "/api/dashboard") out = DASHBOARD;
   else if (path === "/api/campaigns") out = CAMPAIGNS;
   else if (/^\/api\/campaigns\/\d+\/companies$/.test(path)) out = COMPANIES.filter((c) => c.campaign_id === idIn(path, /campaigns\/(\d+)/));
-  else if (/^\/api\/campaigns\/\d+\/pipeline$/.test(path)) out = PIPELINE;
+  else if (/^\/api\/campaigns\/\d+\/pipeline$/.test(path)) out = CAMPAIGN_PIPELINE[idIn(path, /campaigns\/(\d+)/)] ?? PIPELINE;
   else if (/^\/api\/campaigns\/\d+\/snapshot$/.test(path)) out = SNAPSHOT;
   else if (/^\/api\/campaigns\/\d+$/.test(path)) out = CAMPAIGNS.find((c) => c.id === idIn(path, /campaigns\/(\d+)/)) ?? CAMPAIGNS[0];
   else if (/^\/api\/companies\/\d+$/.test(path)) out = companyDetail(idIn(path, /companies\/(\d+)/));
