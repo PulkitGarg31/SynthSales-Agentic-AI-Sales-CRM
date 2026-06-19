@@ -344,6 +344,31 @@ export default function DashboardPage() {
         />
       ) : (
         <>
+          {/* Upcoming meetings - surfaced first; the most actionable item here */}
+          <Card title="Upcoming meetings" flush>
+            <div className="mt-3 pb-2">
+              {meetings.loading ? (
+                <div className="px-5 pb-3">
+                  <SkeletonRows n={3} />
+                </div>
+              ) : meetings.error ? (
+                <div className="px-5 pb-3">
+                  <ErrorCard message={meetings.error} onRetry={meetings.reload} />
+                </div>
+              ) : upcoming.length === 0 ? (
+                <p className="px-5 pb-3 font-serif italic text-ink-soft">
+                  Nothing on the calendar yet.
+                </p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {upcoming.map((m) => (
+                    <MeetingRow key={m.id} meeting={m} />
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Card>
+
           {/* Headline outcomes - own the dashboard call's state */}
           {dash.loading ? (
             <SkeletonRows n={2} />
@@ -406,30 +431,6 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          {/* Upcoming meetings */}
-          <Card title="Upcoming meetings" flush>
-            <div className="mt-3 pb-2">
-              {meetings.loading ? (
-                <div className="px-5 pb-3">
-                  <SkeletonRows n={3} />
-                </div>
-              ) : meetings.error ? (
-                <div className="px-5 pb-3">
-                  <ErrorCard message={meetings.error} onRetry={meetings.reload} />
-                </div>
-              ) : upcoming.length === 0 ? (
-                <p className="px-5 pb-3 font-serif italic text-ink-soft">
-                  Nothing on the calendar yet.
-                </p>
-              ) : (
-                <ul className="divide-y divide-line">
-                  {upcoming.map((m) => (
-                    <MeetingRow key={m.id} meeting={m} />
-                  ))}
-                </ul>
-              )}
-            </div>
-          </Card>
         </>
       )}
     </div>
