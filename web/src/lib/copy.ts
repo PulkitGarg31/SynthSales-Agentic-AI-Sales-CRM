@@ -27,7 +27,7 @@ export type Phase = {
   index: string;
   title: string;
   agents: readonly string[];
-  description: string;
+  points: readonly string[];
 };
 
 export const PHASES: readonly Phase[] = [
@@ -35,29 +35,41 @@ export const PHASES: readonly Phase[] = [
     index: "01",
     title: "Research",
     agents: [AGENT_LABELS.enrichment, AGENT_LABELS.scoring],
-    description:
-      "Every company is read the way an analyst would read it: the website, the signals, the news, the hiring. Weak evidence sinks the score and dead domains are flagged on sight, so only real, reachable businesses rise to the top of your list.",
+    points: [
+      "Reads each company like an analyst — site, signals, news, hiring",
+      "Weak evidence sinks the score; dead domains are flagged on sight",
+      "Only real, reachable businesses rise to the top of your list",
+    ],
   },
   {
     index: "02",
     title: "Find people",
     agents: [AGENT_LABELS.employee_finder, AGENT_LABELS.email_guess_verification],
-    description:
-      "Real LinkedIn profiles of decision makers, or none at all. Names are never invented. Addresses are guessed pattern by pattern and confirmed against the mail server before anyone is contacted, so bounces stay rare.",
+    points: [
+      "Real LinkedIn decision-makers, or none at all — names are never invented",
+      "Addresses guessed pattern by pattern, then confirmed against the mail server",
+      "Nobody is contacted until the mailbox checks out, so bounces stay rare",
+    ],
   },
   {
     index: "03",
     title: "Reach out",
     agents: [AGENT_LABELS.outreach, AGENT_LABELS.tracking],
-    description:
-      "No templates with a name swapped in. Each draft is built from that one company's own research, so it reads like you did the homework. Quiet threads get up to three gentle follow-ups, and then the outreach knows when to stop.",
+    points: [
+      "No templates — each draft is built from that company's own research",
+      "Reads like you actually did the homework",
+      "Up to three gentle follow-ups, then it knows when to stop",
+    ],
   },
   {
     index: "04",
     title: "Convert",
     agents: [AGENT_LABELS.meeting, AGENT_LABELS.reply_classifier],
-    description:
-      "Inbound replies are read and classified the moment they land: interested, question, not interested, meeting-ready. When a prospect says yes, a real Google Meet event lands on your own calendar and the deal moves to the meeting stage.",
+    points: [
+      "Every reply read and classified on arrival: interested, question, not interested, meeting-ready",
+      "A yes books a real Google Meet event on your own calendar",
+      "The deal moves to the meeting stage automatically",
+    ],
   },
 ] as const;
 
