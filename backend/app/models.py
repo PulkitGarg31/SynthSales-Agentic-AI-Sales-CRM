@@ -68,6 +68,16 @@ class User(Base):
     # inbound poller read THIS user's replies. Sensitive: never serialized into
     # UserOut/logs/WS. Presence ⇒ mailbox_connected.
     gmail_read_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Anti-abuse access gating. New accounts start "none" (research + list-building
+    # only); "approved" unlocks the outreach agents + outbound sending. Admins are
+    # always treated as approved (see has_access). Existing users were grandfathered
+    # to "approved" by the adopting migration.
+    access_status: Mapped[str] = mapped_column(String(20), default="none", nullable=False)
+    access_note: Mapped[str | None] = mapped_column(Text, nullable=True)          # user's justification
+    access_review_note: Mapped[str | None] = mapped_column(Text, nullable=True)   # admin's reason
+    access_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     @property
@@ -77,6 +87,11 @@ class User(Base):
     @property
     def mailbox_connected(self) -> bool:
         return bool(self.gmail_read_token)
+
+    @property
+    def has_access(self) -> bool:
+        """Admins are implicitly approved; everyone else needs an explicit grant."""
+        return bool(self.is_admin or self.access_status == "approved")
 
     campaigns: Mapped[list[Campaign]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
