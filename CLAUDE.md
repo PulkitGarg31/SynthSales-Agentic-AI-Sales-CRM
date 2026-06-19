@@ -273,6 +273,29 @@ oauth-callback), `(app)` (dashboard, campaigns [+new, +/[id] pipeline page], res
 contacts, outreach, conversations, meetings, agents, integrations, notifications, activity, settings,
 admin). Billing was dropped in the 2026-06 rebuild; Integrations/Activity/Admin are new.
 
+### Read-only demo account (frontend-only, no backend)
+
+A **"View live demo"** button on the **signup** page (`enterDemo()` in `api.ts`) drops a visitor into a
+**static, read-only demo** showing the full product with dummy data for every agent — **nothing works**.
+It is purely frontend: a `localStorage["synthsales_demo"]` flag + a sentinel token (`"demo"`) make the
+existing auth guards pass, and `api.ts::request()` intercepts **authenticated** traffic — GETs resolve
+from `lib/demo-fixtures.ts`, every mutation throws `DemoError` (which `useAction` turns into a friendly
+"create an account" toast). **No network call leaves the browser in demo mode.** Public auth endpoints
+(`auth:false`: login/register/etc.) bypass the demo so a real login always works; `setToken()` (a real
+login) clears the demo flag, and `signOut`/the modal's "Create account" call `exitDemo()`.
+- `lib/demo-fixtures.ts` — the dataset (mirrors `services/seed.py` shapes) + `resolveDemo(path)` which
+  regex-routes a GET path to its fixture (unknown paths → empty default, never crash). Demo campaigns are
+  deliberately **stopped at different pipeline agents** (per-campaign `CAMPAIGN_PIPELINE`) and meeting dates
+  are **relative to now** (`offsetISO`) so "upcoming" stays upcoming. Edit data here.
+- `lib/demo.ts` — `useDemo()` (a `useSyncExternalStore` hook, hydration-safe) + the per-session
+  `synthsales_demo_welcomed` flag helpers.
+- `components/DemoWelcomeModal.tsx` — centered once-per-session warning (OK / Create account), mounted in
+  `AuthProvider`. A "Demo · read-only" Topbar badge + greyed-out primary buttons (Run all agents, New/Create
+  campaign, Send, Book meeting, all gated on `useDemo()`) reinforce that it's inert.
+- New demo code uses `synthsales_*` localStorage keys; the legacy `sellari_*` keys (token, theme) are left
+  as-is. The Integrations page reads `/health` (a public `auth:false` GET) so it shows real backend status
+  even in demo — harmless.
+
 ## Frontend gotcha — Next.js 16 is not the Next.js you know
 
 Per `web/AGENTS.md`: this is Next.js 16, which has breaking changes vs. older versions in your training
