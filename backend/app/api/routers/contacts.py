@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.pagination import Page, paginate
 from app.core.database import get_db
 from app.models import Campaign, Company, Contact, User
 from app.schemas import ContactOut, ContactUpdate
@@ -21,6 +22,7 @@ def list_contacts(
     campaign_id: int | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    page: Page = Depends(),
 ):
     q = (
         db.query(Contact)
@@ -30,7 +32,7 @@ def list_contacts(
     )
     if campaign_id is not None:
         q = q.filter(Campaign.id == campaign_id)
-    return q.all()
+    return paginate(q, page).all()
 
 
 @router.patch("/{contact_id}", response_model=ContactOut)

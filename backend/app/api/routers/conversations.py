@@ -8,6 +8,7 @@ from app.agents.meeting import meeting_agent
 from app.agents.reply_classifier import reply_classifier_agent
 from app.agents.tracking import tracking_agent
 from app.api.deps import get_current_user
+from app.api.pagination import Page, paginate
 from app.core.database import get_db
 from app.models import (
     Campaign,
@@ -76,6 +77,7 @@ def list_threads(
     campaign_id: int | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    page: Page = Depends(),
 ):
     q = (
         db.query(Thread)
@@ -85,7 +87,7 @@ def list_threads(
     )
     if campaign_id is not None:
         q = q.filter(Campaign.id == campaign_id)
-    return [_enrich(db, t) for t in q.all()]
+    return [_enrich(db, t) for t in paginate(q, page).all()]
 
 
 @router.get("/{thread_id}", response_model=ThreadDetailOut)

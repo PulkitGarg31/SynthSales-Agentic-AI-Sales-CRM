@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.outreach import outreach_agent
 from app.api.deps import get_current_user
+from app.api.pagination import Page, paginate
 from app.core.database import get_db
 from app.models import Campaign, Company, Contact, EmailDraft, User
 from app.providers.email import email_provider
@@ -27,6 +28,7 @@ def list_drafts(
     campaign_id: int | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    page: Page = Depends(),
 ):
     q = (
         db.query(EmailDraft)
@@ -37,7 +39,7 @@ def list_drafts(
     )
     if campaign_id is not None:
         q = q.filter(Campaign.id == campaign_id)
-    return q.all()
+    return paginate(q, page).all()
 
 
 @router.patch("/{draft_id}", response_model=EmailDraftOut)

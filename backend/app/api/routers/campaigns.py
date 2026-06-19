@@ -20,6 +20,7 @@ from app.agents.orchestrator import (
     run_campaign_pipeline,
 )
 from app.api.deps import get_current_user
+from app.api.pagination import Page, paginate
 from app.core.database import SessionLocal, get_db
 from app.models import AgentConfig, Campaign, Company, Contact, EmailDraft, Meeting, Thread, User
 from app.schemas import (
@@ -120,15 +121,18 @@ def duplicate_campaign(
 
 @router.get("/{campaign_id}/companies", response_model=list[CompanyOut])
 def campaign_companies(
-    campaign_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    campaign_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    page: Page = Depends(),
 ):
     _owned(db, user, campaign_id)
-    rows = (
+    q = (
         db.query(Company)
         .filter(Company.campaign_id == campaign_id)
         .order_by(Company.rank, Company.name)
-        .all()
     )
+    rows = paginate(q, page).all()
     return [company_out(db, c) for c in rows]
 
 
