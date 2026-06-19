@@ -38,9 +38,12 @@ why.
       index (the old ALTER retrofit added the column but never its index). *Optional follow-up:* standardize
       `companies.score_factors` + `pipeline_snapshots.payload` from `JSON` to `JSONB` (one clean migration).
 - [x] **WS hub is in-process** — resolved 2026-06-19 by removing the WebSocket layer entirely (the UI
-      polls REST instead), so there's no socket left to back with Redis. *Still open for multi-worker:* the
-      in-process APScheduler would double-fire follow-ups + inbound polls, so a multi-worker/multi-instance
-      deploy still needs the scheduler moved to a single leader/own process. Revisit only if scaling out.
+      polls REST instead), so there's no socket left to back with Redis. The other multi-worker hazard —
+      the in-process APScheduler double-firing follow-ups + inbound polls — is now guarded too: the two
+      action jobs take a Postgres advisory lock per tick (`pg_try_advisory_xact_lock`), so any number of
+      scheduler processes run each tick exactly once. (A dedicated scheduler process is still the cleaner
+      shape at real horizontal scale, but no longer required for correctness. The rate-limiter below is the
+      remaining per-process item.)
 - [ ] **Rate limiter is in-memory per-process** (`core/ratelimit.py`) — *deferred: moot at single-worker.*
       Resets on restart; needs Redis only for multi-process.
 - [x] **Seeding gated by environment** — fixed 2026-06-19. The `jordan@apexcloud.com` demo user is seeded

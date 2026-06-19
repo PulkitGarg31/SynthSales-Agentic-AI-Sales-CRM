@@ -203,7 +203,9 @@ the deploy is single-worker.
   it auto-advances to the terminal `Stalled` stage. `Contact.do_not_contact` suppresses every send
   path (outreach draft, send, auto follow-up, meeting invite). A second job polls the inbound reply
   reader (the `reply_classifier` agent) every `INBOUND_POLL_MINUTES` (default 5) for every user with
-  a connected mailbox.
+  a connected mailbox. Both action jobs take a Postgres advisory lock per tick (`_job_lock` →
+  `pg_try_advisory_xact_lock`), so running the scheduler under multiple workers can't double-fire them —
+  only one process executes each tick (the idempotent purge jobs are unguarded).
 
 ### API surface & auth
 

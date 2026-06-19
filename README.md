@@ -148,6 +148,15 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (scheduler: advisory-lock guard for multi-worker safety)
+The in-process APScheduler would double-fire its two **action** jobs (follow-ups, inbound) if ever run
+under multiple web workers — sending prospects duplicate emails. Guarded both with a transaction-scoped
+Postgres advisory lock (`pg_try_advisory_xact_lock`) via a small `_job_lock` helper in
+`workers/scheduler.py`: each tick acquires the lock; a process that doesn't get it skips. The scheduler is
+now correct at any worker count (the idempotent purge jobs are left unguarded — harmless to double-run), so
+the deploy no longer has to pin the web to a single worker for correctness. Verified: while one holder is in
+the lock, a concurrent acquire returns `False`; after release it re-acquires.
+
 ### 2026-06-19 (realtime → polling; WebSocket layer removed)
 Replaced the WebSocket push layer with REST polling and deleted the whole subsystem (the socket only ever
 carried `log` + `notification`). At single-worker, polling is simpler and it removes the in-process-WS
