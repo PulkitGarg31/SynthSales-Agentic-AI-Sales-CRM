@@ -977,3 +977,22 @@ A round of UI/copy refinements off a user-supplied change list:
 
 ✅ `npm run build` green (32/32 routes). ✅ Visually verified hero, about (numbering + nav
 underline), and signup (Google button) via headless screenshots.
+
+## Scroll reveal, sliding auth, nav scroll-spy (user change-list 2)
+
+- **Hero** — restored the long descriptive paragraph (an earlier pass had wrongly replaced
+  it); "Your next customer is already in the spreadsheet." now sits as a serif-italic tagline
+  above it, with its full stop in terracotta to match the headline.
+- **Scroll reveal** — each landing section below the hero fades + lifts in as it enters the
+  viewport via a `<Reveal>` wrapper (IntersectionObserver, fires once; animates only opacity +
+  transform so it stays compositor-smooth, never laggy; honours `prefers-reduced-motion`).
+- **Sliding auth** — `(auth)/layout.tsx` is now a client split-screen: sign-in keeps the form
+  on the RIGHT; Create account slides it to the LEFT (and the quote panel the other way) with a
+  500 ms transform transition. Collapses to the single full-width form on mobile (plain swap).
+- **Top nav** — added **Home**; reordered so How it works precedes Product (matching page
+  order). The active underline is now driven by an IntersectionObserver mid-line: it follows the
+  section in view (Home / How it works / Product) and clears entirely in any section that isn't
+  in the nav (Showcase, Testimonials, FAQ, CTA). About/Contact still underline by route.
+
+✅ `npm run build` green (32/32). ✅ Verified nav order + Home underline, orange tagline stop,
+and the login (form-right) / signup (form-left) slide end-states via headless screenshots.
