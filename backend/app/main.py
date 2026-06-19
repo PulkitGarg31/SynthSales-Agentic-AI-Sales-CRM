@@ -18,8 +18,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("reachly")
 
 
+def _assert_production_config() -> None:
+    """Refuse to boot a non-development environment with insecure defaults."""
+    if settings.environment != "development":
+        if (
+            settings.secret_key in ("", "dev-secret-change-me")
+            or len(settings.secret_key) < 32
+        ):
+            raise RuntimeError(
+                "SECRET_KEY must be overridden with a strong value (>=32 chars) "
+                "when ENVIRONMENT is not 'development'. "
+                'Generate one: python -c "import secrets; print(secrets.token_urlsafe(48))"'
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _assert_production_config()
+
     import asyncio
 
     from app.realtime.ws import set_main_loop
@@ -175,7 +191,10 @@ async def lifespan(app: FastAPI):
 
     db = SessionLocal()
     try:
-        seed_demo(db)
+        if settings.environment == "development" or settings.seed_demo_data:
+            seed_demo(db)
+        else:
+            logger.info("Demo seed skipped (environment=%s).", settings.environment)
     except Exception as exc:  # pragma: no cover
         logger.warning("Seed skipped: %s", exc)
     finally:
@@ -186,11 +205,18 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
+# Interactive API docs are a dev convenience — disabled outside development so a
+# production deploy doesn't expose its full schema/try-it surface publicly.
+_docs_enabled = settings.environment == "development"
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
     description="AI-Powered B2B Outreach & Lead Generation API",
     lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 app.add_middleware(
