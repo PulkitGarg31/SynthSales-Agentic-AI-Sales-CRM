@@ -148,6 +148,14 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (schema: score_factors + payload → JSONB)
+Standardized the last two generic-`JSON` columns (`companies.score_factors`, `pipeline_snapshots.payload`)
+to `JSONB`, matching the other document columns — the first change authored through the new Alembic
+workflow. Migration `f82b2984156b` (revises baseline `ab18fda68ae2`) uses explicit `postgresql_using`
+casts in both directions. Verified: applied to the dev DB (with real data) → both columns `jsonb`;
+`alembic check` clean; and on a throwaway DB a fresh `upgrade head` plus a `downgrade -1` → re-`upgrade`
+round-trip all behaved correctly. (Models also dropped the now-unused `JSON` import.)
+
 ### 2026-06-19 (scheduler: advisory-lock guard for multi-worker safety)
 The in-process APScheduler would double-fire its two **action** jobs (follow-ups, inbound) if ever run
 under multiple web workers — sending prospects duplicate emails. Guarded both with a transaction-scoped

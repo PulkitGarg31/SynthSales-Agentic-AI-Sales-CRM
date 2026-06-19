@@ -2,10 +2,8 @@
 
 Originally compiled 2026-06-10 while auditing the backend for the **SynthSales** frontend rebuild;
 **last reviewed 2026-06-19.** Per this file's convention, resolved items are removed once done — the
-2026-06-19 deployment-hardening pass closed every functional gap plus the config/security checklist
-(SECRET_KEY boot-guard, ENVIRONMENT enforcement, env-gated seeding, forgot-password oracle, pagination,
-user-level delete, logout/revocation, Alembic migrations, WS→polling, scheduler multi-worker guard — see
-the README progress log for the details).
+2026-06-19 deployment-hardening pass closed every functional gap, the config/security checklist, and the
+`JSON`→`JSONB` schema polish (see the README progress log for the details).
 
 Everything below is what **remains**: all non-blocking and deferred by choice, each with a note on why
 and when to revisit.
@@ -18,13 +16,7 @@ and when to revisit.
       multi-process deploy. This is now the *only* remaining per-process concern — the WebSocket hub was
       removed and the scheduler's action jobs are advisory-locked.
 
-## 2 · Schema polish (optional)
-
-- [ ] **Standardize `JSON` → `JSONB`** — `companies.score_factors` and `pipeline_snapshots.payload` are
-      still generic `JSON`, while the other document columns are `JSONB`. One clean Alembic migration would
-      make them consistent (JSONB is indexable and dedups keys). Cosmetic; no functional impact.
-
-## 3 · Naming / cosmetic consistency (revisit at deploy)
+## 2 · Naming / cosmetic consistency (revisit at deploy)
 
 - [ ] **Internal "Reachly" identifiers** — the backend deliberately keeps the old name:
       - *Needs a data migration* (do at deploy, if at all): `docker-compose.yml` container
