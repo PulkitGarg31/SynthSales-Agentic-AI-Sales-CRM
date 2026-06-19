@@ -20,10 +20,17 @@ class ScoringAgent(Agent):
     key = "scoring"
     name = "Company Scoring"
 
-    def run(self, db: Session, campaign: Campaign, owner_id: int) -> int:
-        companies = (
-            db.query(Company).filter(Company.campaign_id == campaign.id).all()
-        )
+    def run(
+        self,
+        db: Session,
+        campaign: Campaign,
+        owner_id: int,
+        companies: list[Company] | None = None,
+    ) -> int:
+        if companies is None:
+            companies = (
+                db.query(Company).filter(Company.campaign_id == campaign.id).all()
+            )
         for c in companies:
             self._score(c, campaign)
 

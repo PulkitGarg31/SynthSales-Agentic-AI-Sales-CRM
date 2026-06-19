@@ -74,6 +74,10 @@ def _phase(db: Session, owner_id: int, agent: Agent, fn) -> None:
 # connection-pool ceiling (see core/database.py, which pins pool_size to match).
 ENRICH_MAX_WORKERS = 4
 
+# Non-approved (no-access) users get a credit-capped preview: this many companies
+# are enriched + scored, and ONE contact (with its email) is found for the top one.
+PREVIEW_COMPANIES = 2
+
 
 def _enrich_one(company_id: int, campaign_id: int, owner_id: int, force_ai: bool) -> None:
     """Enrich a single company on a PRIVATE session — safe inside a worker
@@ -355,8 +359,66 @@ def run_agent_for_campaign(
         raise ValueError(f"Agent '{key}' cannot be run on demand")
 
 
+def _run_preview_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dict:
+    """Credit-capped run for non-approved users: enrich + score the first
+    PREVIEW_COMPANIES companies, then find ONE contact (and its email) for the
+    top-scored one. Never reaches outreach."""
+    companies = (
+        db.query(Company)
+        .filter(Company.campaign_id == campaign.id)
+        .order_by(Company.id)
+        .limit(PREVIEW_COMPANIES)
+        .all()
+    )
+    if not companies:
+        return {"companies": 0, "qualified": 0, "contacts": 0}
+
+    _phase(
+        db, owner_id, enrichment_agent,
+        lambda: _run_enrichment_concurrent(companies, campaign.id, owner_id, force_ai=False),
+    )
+    _phase(
+        db, owner_id, scoring_agent,
+        lambda: scoring_agent.run(db, campaign, owner_id, companies=companies),
+    )
+
+    top = max(companies, key=lambda c: c.ai_score or 0)
+
+    def _find_one() -> None:
+        employee_finder_agent.run(db, top, owner_id, count=1, force=True)
+        db.refresh(top)
+        for extra in top.contacts[1:]:  # guard: keep exactly one
+            db.delete(extra)
+        db.commit()
+
+    _phase(db, owner_id, employee_finder_agent, _find_one)
+    db.refresh(top)
+    if top.contacts:
+        _phase(
+            db, owner_id, email_guess_verification_agent,
+            lambda: email_guess_verification_agent.run(db, top, owner_id, force=True),
+        )
+
+    campaign.status = "Running"
+    db.commit()
+    add_notification(
+        db, owner_id, "campaign", "Preview ready",
+        f"'{campaign.name}': previewed {len(companies)} companies. Request access for the full run.",
+    )
+    return {
+        "companies": len(companies),
+        "qualified": len(companies),
+        "contacts": sum(len(c.contacts) for c in companies),
+    }
+
+
 def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dict:
-    """Phases 1–6: research → score → contacts → guess/verify → outreach drafts."""
+    """Phases 1–6: research → score → contacts → guess/verify → outreach drafts.
+    Non-approved users get the credit-capped preview instead (see _run_preview_pipeline)."""
+    user = db.get(User, owner_id)
+    if user and not user.has_access:
+        return _run_preview_pipeline(db, campaign, owner_id)
+
     snapshots.capture(db, campaign, owner_id, trigger="pipeline", label="Full pipeline run")
     companies = db.query(Company).filter(Company.campaign_id == campaign.id).all()
 
@@ -410,17 +472,8 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
                 ):
                     outreach_agent.run(db, contact, c, campaign, owner_id, force=True)
 
-    # GATED: a non-approved user gets research + contacts but no outreach drafts;
-    # surface why instead of silently producing nothing.
-    user = db.get(User, owner_id)
-    if user and user.has_access:
-        _phase(db, owner_id, outreach_agent, _draft_all)
-    else:
-        add_notification(
-            db, owner_id, "campaign", "Outreach needs access",
-            f"'{campaign.name}' was researched and contacts found. "
-            "Request access to draft + send outreach.",
-        )
+    # Only approved users reach here (non-approved branch to the preview above).
+    _phase(db, owner_id, outreach_agent, _draft_all)
 
     campaign.status = "Running"
     db.commit()
