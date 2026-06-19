@@ -101,7 +101,11 @@ Non-obvious orchestration rules you must respect when editing agents:
   fallback), de-dupes by `Message.external_id`, classifies via `ai.complete_json`, and acts: a
   high-confidence *not-interested* sets `Contact.do_not_contact=True` + `Thread.stage="Closed"`
   (reusing the Step 04 suppression); interested/meeting-ready advance to `Negotiating` + surface;
-  everything else only surfaces. It never opts a contact out without AI.
+  everything else only surfaces. It never opts a contact out without AI. **In the pipeline rail
+  (`web/.../PipelineTimeline.tsx`) the reply reader is the only inbound stage shown — the follow-up
+  tracker is hidden (it fires on the scheduler, not a user click) and the reply reader is sorted just
+  above the meeting scheduler (a display-only override of `meeting.order`; the backend still orders
+  `reply_classifier` last). Both rows deep-link to Conversations.**
 - **Autonomous replies (off by default)** — by default `reply_classifier` only surfaces/advances/
   closes; it does **not** send. When the user turns on `User.autonomous_replies` (Settings; also
   requires `outbound_enabled`), the classifier routes high-confidence, actionable replies through
