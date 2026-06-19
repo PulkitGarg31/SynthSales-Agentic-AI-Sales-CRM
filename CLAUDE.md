@@ -35,11 +35,15 @@ npm run build      # production build — this is also the typecheck gate
 npm run lint       # eslint (flat config)
 ```
 
-Demo login (seeded automatically, idempotent): **jordan@apexcloud.com / password123**.
+Demo login (seeded automatically in **development**, idempotent): **jordan@apexcloud.com / password123**.
+The demo seed is gated to dev (or an explicit `SEED_DEMO_DATA=true`), so production boots clean.
 
-The backend **boots with zero credentials** — every external integration degrades gracefully (see
-Providers below). `web/.env.local` sets `NEXT_PUBLIC_API_URL` (defaults to `http://127.0.0.1:8000`).
-To enable real integrations, copy `backend/.env.example` → `backend/.env` and fill keys.
+The backend **boots with zero credentials** in development — every external integration degrades
+gracefully (see Providers below). `web/.env.local` sets `NEXT_PUBLIC_API_URL` (defaults to
+`http://127.0.0.1:8000`). To enable real integrations, copy `backend/.env.example` → `backend/.env` and
+fill keys. **For a non-development deploy:** set `ENVIRONMENT` to a non-`development` value, a strong
+`SECRET_KEY` (≥32 chars — `lifespan` refuses to boot otherwise), plus your prod `CORS_ORIGINS` and
+`DATABASE_URL`. Outside development, interactive `/docs` is disabled and the demo user is not seeded.
 
 ### Verification / testing
 
@@ -158,9 +162,9 @@ handlers (`services/auto_reply.py`, additionally gated by `User.autonomous_repli
 `backend/app/models.py` — Users, Campaigns, Companies, Contacts, EmailDrafts, Threads+Messages,
 Meetings, Notifications, Logs, AgentConfigs, plus VerifiedContact (the global cross-tenant verified-contact
 directory, keyed by company domain/name — finder + guess-verify reuse it to skip re-finding and paid
-verification) and PipelineSnapshot (the per-campaign one-level 24h undo buffer). All child rows cascade-delete
-from their owner. Key
-status fields the UI depends on:
+verification), PipelineSnapshot (the per-campaign one-level 24h undo buffer), and RevokedToken (the JWT
+logout/revocation blocklist, keyed by token `jti`; expired rows purged hourly by the scheduler). All child
+rows cascade-delete from their owner. Key status fields the UI depends on:
 - `Company.status`: `Researching` (not yet processed) → `Qualified` (top-N) | `Reviewed` (scored but
   not selected) | `Excluded`/`Approved`/`Contacted` (user-set, preserved across re-runs).
 - `Company.domain_status`: `live|parked|dead|unknown`; `enrichment_confidence` (0–100) caps scoring so
@@ -216,6 +220,15 @@ get_current_user`); cross-tenant `/api/admin/*` routes require `require_admin` (
 Auth additions (2026-06-11): `POST /api/auth/forgot-password` (throttled, anti-enumeration generic
 response) and `POST /api/auth/reset-password` (OTP ladder mirroring verify-otp) power the real
 password-reset flow; `GET /api/notifications` takes `limit` (default 50, max 500).
+
+Auth/API additions (2026-06-19): `POST /api/auth/logout` revokes the caller's token — tokens carry a
+`jti`, logout records it in the `revoked_tokens` blocklist, and `get_current_user` rejects revoked tokens
+(no refresh tokens — the 7-day token + revocation suffices). The four list endpoints (companies via
+`/api/campaigns/{id}/companies`, contacts, emails, conversations) accept optional `limit`/`offset` via the
+shared `api/pagination.py::Page` dependency (responses stay plain arrays; an omitted `limit` ⇒ a 500-row
+ceiling). User-level delete exists for companies (`DELETE /api/companies/{id}`) and contacts
+(`DELETE /api/contacts/{id}`) — owner-scoped, children cascade, blocked `409` if a live conversation exists
+unless `?force=true`.
 
 Frontend wiring (`web/src/lib/`): `api.ts` is the typed client (token in `localStorage["sellari_token"]`,
 authenticated 401s auto-redirect to `/login`), `api-types.ts` mirrors backend schemas, `hooks.ts` has

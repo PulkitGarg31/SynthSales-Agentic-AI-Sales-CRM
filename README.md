@@ -41,19 +41,18 @@ Agentic CRM/
     .env / .env.example         # config + placeholder integration keys
     requirements.txt
     app/
-      main.py                   # FastAPI app, lifespan (create tables + seed + scheduler)
+      main.py                   # FastAPI app, lifespan (Alembic upgrade + seed + scheduler)
       core/                     # config, database, security (JWT, password hashing)
       models.py  schemas.py     # SQLAlchemy models + Pydantic schemas
       api/routers/              # auth, campaigns, companies, contacts, emails,
                                 #   conversations, meetings, notifications, agents, logs,
-                                #   dashboard, admin, contact (contact_us), ws (websocket)
+                                #   dashboard, admin, contact (contact_us)
       agents/                   # 8-agent pipeline + orchestrator (PRD §3)
       providers/                # ai (Gemini→Groq→OpenRouter), search (DuckDuckGo),
                                 #   verification (MX + Verifalia/ZeroBounce), email
                                 #   (Gmail/SMTP/console), calendar, inbound (reply reader)
       services/                 # events (logs+notifications), serializers, seed
-      workers/scheduler.py      # APScheduler — follow-up + inbound reply polling
-      realtime/ws.py            # in-process WebSocket hub
+      workers/scheduler.py      # APScheduler — follow-up + inbound reply polling (advisory-locked)
 ```
 
 ## Run it
@@ -124,18 +123,18 @@ logged). DuckDuckGo search needs no key.
 
 | PRD area | Status |
 |---|---|
-| FastAPI services + REST layer | ✅ 72 endpoints across 14 routers, OpenAPI at `/docs` |
-| Database (PostgreSQL) | ✅ Postgres 16 in Docker; SQLAlchemy 2.0 models; tables auto-created on boot |
-| Authentication | ✅ JWT, password hashing (pbkdf2), register + OTP email verify + login + `/me` |
+| FastAPI services + REST layer | ✅ REST API across 13 routers, OpenAPI at `/docs` (development only) |
+| Database (PostgreSQL) | ✅ Postgres 16 in Docker; SQLAlchemy 2.0 models; schema managed by Alembic (auto-upgrades on boot) |
+| Authentication | ✅ JWT (+ logout / token revocation), password hashing (pbkdf2), register + OTP email verify + login + `/me` |
 | Multi-agent architecture (8 agents) | ✅ Enrichment, Scoring, Employee Finder, Email Guessing & Verification, Outreach, Tracking/Follow-up, Meeting Coordination, Reply Detection & Intent — sequential orchestrator |
 | Email infrastructure | ✅ Provider with Gmail API / SMTP / console fallback |
 | AI layer | ✅ Gemini→Groq→OpenRouter chain via httpx REST with 429 failover (graceful fallback when no key) |
 | Search + scraping | ✅ DuckDuckGo (ddgs) provider, no key required |
 | Email verification | ✅ Free MX/syntax layer + Verifalia/ZeroBounce (httpx); returns Verified/Risky/Invalid/Unknown |
-| WebSocket / realtime | ✅ `/ws?token=…` pushes notification + log events |
+| Realtime updates | ✅ REST polling (notifications 30s, activity/live-log 5s, pipeline 3s); the WebSocket layer was removed |
 | Background jobs | ✅ APScheduler: follow-up polling (15 min) + inbound reply polling (5 min) (PRD Phase 7) |
 | Gmail + Calendar integration | ✅ Email send wired; per-user Google Calendar creates real Meet links on booking (falls back to a user-supplied link) |
-| Migrations (Alembic) | ⏳ Using `create_all` on boot for dev; Alembic is the production follow-up |
+| Migrations (Alembic) | ✅ Alembic owns the schema; `alembic upgrade head` runs on boot |
 | Deployment / CI-CD | ⏳ Not done (future) |
 
 > All external integrations **degrade gracefully** without keys, so the API runs end-to-end
@@ -143,7 +142,6 @@ logged). DuckDuckGo search needs no key.
 
 ## Not built yet (future)
 
-- Alembic migrations (still using `create_all` + idempotent `ALTER TABLE` on boot).
 - Deployment / CI-CD.
 
 ## Progress log
