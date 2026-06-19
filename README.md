@@ -1000,3 +1000,8 @@ and the login (form-right) / signup (form-left) slide end-states via headless sc
 **Follow-up:** the hero tagline was then removed — the line reads better appearing once, as the
 CTA-band heading ("Your next customer is already *in the spreadsheet*.") — and that heading's full
 stop is now the terracotta one. The hero is back to headline + paragraph.
+
+**Streaming How-it-works bullets** — the four phase cards now type their bullets out like an agent
+streaming tokens (`StreamingPoints`): on scroll-into-view it reveals characters bullet-by-bullet
+with a terracotta caret at the writing head. The un-typed remainder stays in the layout but
+transparent, so the card never reflows while it types; honours `prefers-reduced-motion` (instant).
