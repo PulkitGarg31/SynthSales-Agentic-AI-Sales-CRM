@@ -1,4 +1,5 @@
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { StreamingPoints } from "@/components/marketing/StreamingPoints";
 import { PHASES } from "@/lib/copy";
 
 export function HowItWorks() {
@@ -23,11 +24,7 @@ export function HowItWorks() {
               <li key={phase.index} className="rounded-2xl border border-line bg-paper px-8 py-7">
                 <p className="font-serif text-3xl leading-none text-terracotta">{phase.index}</p>
                 <h3 className="mt-5 text-lg font-semibold tracking-tight text-ink">{phase.title}</h3>
-                <ul className="mt-4 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-ink-soft marker:text-terracotta">
-                  {phase.points.map((point) => (
-                    <li key={point}>{point}</li>
-                  ))}
-                </ul>
+                <StreamingPoints points={phase.points} />
               </li>
             ))}
           </ol>
