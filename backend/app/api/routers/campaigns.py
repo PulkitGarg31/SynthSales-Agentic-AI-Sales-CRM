@@ -32,6 +32,7 @@ from app.schemas import (
     SnapshotStatusOut,
 )
 from app.services import snapshots
+from app.services.access import GATED_AGENT_KEYS
 from app.services.events import add_log, add_notification
 from app.services.serializers import campaign_rollups, company_out
 from app.services.snapshots import ConversationActive
@@ -351,6 +352,11 @@ def run_agent(
     c = _owned(db, user, campaign_id)
     if payload.key not in RUNNABLE_KEYS:
         raise HTTPException(status_code=400, detail=f"Agent '{payload.key}' cannot be run on demand")
+    if payload.key in GATED_AGENT_KEYS and not user.has_access:
+        raise HTTPException(
+            status_code=403,
+            detail="This agent needs access approval. Request it in Settings.",
+        )
     suffix = " (force)" if payload.force else ""
     add_log(db, user.id, "Campaign", f"Triggered '{payload.key}' agent for '{c.name}'{suffix}.")
     background.add_task(_run_agent_task, c.id, user.id, payload.key, payload.force)

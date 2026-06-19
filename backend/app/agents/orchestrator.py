@@ -12,7 +12,7 @@ from app.agents.scoring import scoring_agent
 from app.agents.tracking import tracking_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
 from app.core.database import SessionLocal
-from app.models import AgentConfig, Campaign, Company, Contact, EmailDraft
+from app.models import AgentConfig, Campaign, Company, Contact, EmailDraft, User
 from app.services import contact_directory
 from app.services import snapshots
 from app.services.events import add_notification
@@ -410,7 +410,17 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
                 ):
                     outreach_agent.run(db, contact, c, campaign, owner_id, force=True)
 
-    _phase(db, owner_id, outreach_agent, _draft_all)
+    # GATED: a non-approved user gets research + contacts but no outreach drafts;
+    # surface why instead of silently producing nothing.
+    user = db.get(User, owner_id)
+    if user and user.has_access:
+        _phase(db, owner_id, outreach_agent, _draft_all)
+    else:
+        add_notification(
+            db, owner_id, "campaign", "Outreach needs access",
+            f"'{campaign.name}' was researched and contacts found. "
+            "Request access to draft + send outreach.",
+        )
 
     campaign.status = "Running"
     db.commit()

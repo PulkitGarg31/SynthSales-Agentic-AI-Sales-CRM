@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.providers.email import email_provider
 from app.schemas import ReplyIn, ThreadDetailOut, ThreadOut
+from app.services.access import require_access
 from app.services.events import add_log
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
@@ -38,6 +39,7 @@ def sync_inbox(
 ):
     """Read the user's connected mailbox now, ingest + classify new replies.
     No mailbox connected ⇒ {ingested:0, classified:0} (no error)."""
+    require_access(user)
     result = reply_classifier_agent.run(db, user.id)
     return SyncResult(**result)
 
@@ -229,6 +231,7 @@ def book_meeting(
     user: User = Depends(get_current_user),
 ):
     t = _owned(db, user, thread_id)
+    require_access(user)
     try:
         meeting_agent.book(
             db,
