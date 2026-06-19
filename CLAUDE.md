@@ -55,8 +55,8 @@ There is **no automated test suite** (no pytest, no jest). The de-facto verifica
 - DB inspection: **`.\db.ps1`** (repo root) is a read-only Postgres browser — `.\db.ps1` for the menu,
   `.\db.ps1 user <id|email>` for a per-user tree, `.\db.ps1 health` for row counts, `.\db.ps1 sql "<SELECT>"`
   for ad-hoc queries. Use it to confirm what the pipeline actually wrote.
-- CSV upload: **`sample-companies.csv`** (repo root) — 15 real B2B companies for exercising the
-  upload → pipeline flow (and the non-approved 2-company preview cap).
+- CSV upload: **`sample-companies.csv`** (`extra/`, gitignored/local-only) — 15 real B2B companies for
+  exercising the upload → pipeline flow (and the non-approved 2-company preview cap).
 
 ## Architecture
 
@@ -314,7 +314,7 @@ Per `web/AGENTS.md`: this is Next.js 16, which has breaking changes vs. older ve
 data (APIs, conventions, file structure). **Read the relevant guide under `web/node_modules/next/dist/docs/`
 before writing frontend code**, and heed deprecation notices. Routes use the App Router with
 `(marketing)`, `(auth)` and `(app)` route groups. The design system lives in Tailwind v4 `@theme`
-tokens in `src/app/globals.css`, styled after the `UI.webp` reference at the repo root: warm cream
+tokens in `src/app/globals.css`, styled after the `UI.webp` reference (`extra/`, local-only): warm cream
 editorial minimalism — cream/paper surfaces, ink text, hairline `line` borders, terracotta accent,
 dark `band` sections, `moss/amber(+amber-deep)/rust` status colors, Schibsted Grotesk + Instrument
 Serif italic display pairing (`.display` + `.display em`), numbered eyebrows. `ink-faint` is for

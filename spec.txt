@@ -313,9 +313,7 @@ Agentic CRM/
   spec.txt               THIS FILE — as-built system spec
   render.yaml            Render blueprint
   db.ps1                 read-only Postgres browser (dev)
-  sample-companies.csv   15 real B2B companies for exercising the pipeline
-  UI.webp                design reference
-  extra/                 gitignored, local-only: the original PRD pdf
+  extra/                 gitignored, local-only: original PRD pdf, sample-companies.csv, UI.webp
   backend/
     Dockerfile  docker-compose.yml  requirements.txt  .env.example
     alembic/ (env.py, versions/)
