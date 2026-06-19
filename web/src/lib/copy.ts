@@ -18,9 +18,9 @@ export const HERO = {
 } as const;
 
 export const STATS = [
-  { value: "6,142", label: "companies researched" },
-  { value: "15,659", label: "emails verified" },
-  { value: "306", label: "meetings booked" },
+  { value: "3,071", label: "companies researched" },
+  { value: "7,830", label: "emails verified" },
+  { value: "153", label: "meetings booked" },
 ] as const;
 
 export type Phase = {
