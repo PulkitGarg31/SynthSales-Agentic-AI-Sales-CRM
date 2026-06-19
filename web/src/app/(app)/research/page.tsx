@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import type { Company } from "@/lib/api-types";
 import { COMPANY_TONE, DOMAIN_TONE, MATCH_TONE } from "@/lib/constants";
+import { useAuth } from "@/components/AuthProvider";
+import { LockedPreview } from "@/components/access/LockedPreview";
 import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -95,6 +97,10 @@ function ResearchInner() {
   );
 
   const rows = companies.data ?? [];
+  const { me } = useAuth();
+  const hasAccess = me.is_admin || me.access_status === "approved";
+  // Non-approved users only got the first 2 companies enriched/scored — show those, lock the rest.
+  const display = hasAccess ? rows : rows.filter((c) => c.ai_score > 0);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -147,29 +153,36 @@ function ResearchInner() {
               }
             />
           ) : (
-            <Card flush>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-line">
-                      <th className={`${TH} text-right`}>Rank</th>
-                      <th className={TH}>Company</th>
-                      <th className={`${TH} text-right`}>Score</th>
-                      <th className={TH}>Match</th>
-                      <th className={TH}>Status</th>
-                      <th className={TH}>Site</th>
-                      <th className={`${TH} text-right`}>Confidence</th>
-                      <th className={`${TH} text-right`}>Contacts</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {rows.map((c) => (
-                      <CompanyRow key={c.id} company={c} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            <div className="space-y-4">
+              {display.length > 0 && (
+                <Card flush>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-line">
+                          <th className={`${TH} text-right`}>Rank</th>
+                          <th className={TH}>Company</th>
+                          <th className={`${TH} text-right`}>Score</th>
+                          <th className={TH}>Match</th>
+                          <th className={TH}>Status</th>
+                          <th className={TH}>Site</th>
+                          <th className={`${TH} text-right`}>Confidence</th>
+                          <th className={`${TH} text-right`}>Contacts</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        {display.map((c) => (
+                          <CompanyRow key={c.id} company={c} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+              {!hasAccess && (
+                <LockedPreview label="Request access to research and rank your whole list." />
+              )}
+            </div>
           )}
         </>
       )}

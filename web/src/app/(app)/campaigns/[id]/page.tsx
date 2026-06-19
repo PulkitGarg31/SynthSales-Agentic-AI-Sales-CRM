@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import { usePipeline } from "@/lib/usePipeline";
+import { useAuth } from "@/components/AuthProvider";
 import type { Campaign } from "@/lib/api-types";
 import { CAMPAIGN_TONE } from "@/lib/constants";
 import { BackLink } from "@/components/ui/BackLink";
@@ -199,6 +200,10 @@ function CampaignDetailInner() {
   const pipeline = usePipeline(id);
   const snapshot = useApi(() => api.campaignSnapshot(id), [id]);
   const { busy, run } = useAction();
+  const { me } = useAuth();
+  const hasAccess = me.is_admin || me.access_status === "approved";
+  // Non-approved users get ONE capped preview run; disable Run-all once it exists.
+  const previewUsed = !hasAccess && (campaign.data?.companies_researched ?? 0) > 0;
 
   // ?fresh=1 (set by the wizard) opens the run-all confirm exactly once:
   // seeded into state at mount, then stripped from the URL so a refresh or
@@ -289,7 +294,7 @@ function CampaignDetailInner() {
             <Button
               variant="accent"
               busy={busy === "run-all"}
-              disabled={anyRunning}
+              disabled={anyRunning || previewUsed}
               onClick={() => setRunAllOpen(true)}
             >
               {anyRunning ? "Pipeline running…" : "Run all agents"}
@@ -314,7 +319,12 @@ function CampaignDetailInner() {
           ) : pipeline.agents === null ? (
             <SkeletonRows n={8} />
           ) : (
-            <PipelineTimeline campaignId={id} agents={pipeline.agents} onStarted={started} />
+            <PipelineTimeline
+              campaignId={id}
+              agents={pipeline.agents}
+              onStarted={started}
+              hasAccess={hasAccess}
+            />
           )}
         </Card>
 
@@ -336,16 +346,24 @@ function CampaignDetailInner() {
           campaign.reload();
           started();
         }}
-        title="Run the full pipeline?"
+        title={hasAccess ? "Run the full pipeline?" : "Run a preview?"}
         body={
-          <p>
-            This{" "}
-            <strong className="font-semibold text-ink">
-              replaces this campaign&rsquo;s existing research, contacts and drafts
-            </strong>{" "}
-            with fresh results. Companies you marked Approved or Excluded keep their
-            status. Expect a few minutes.
-          </p>
+          hasAccess ? (
+            <p>
+              This{" "}
+              <strong className="font-semibold text-ink">
+                replaces this campaign&rsquo;s existing research, contacts and drafts
+              </strong>{" "}
+              with fresh results. Companies you marked Approved or Excluded keep their
+              status. Expect a few minutes.
+            </p>
+          ) : (
+            <p>
+              This runs a{" "}
+              <strong className="font-semibold text-ink">limited preview</strong> — the
+              first 2 companies and one contact. Request access for the full run.
+            </p>
+          )
         }
         confirmLabel="Run all agents"
         destructive

@@ -8,6 +8,8 @@ import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import type { Contact } from "@/lib/api-types";
 import { VERIFICATION_TONE } from "@/lib/constants";
+import { useAuth } from "@/components/AuthProvider";
+import { LockedPreview } from "@/components/access/LockedPreview";
 import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -200,6 +202,8 @@ function ContactsInner() {
   }, [idsKey]);
 
   const rows = contacts.data ?? [];
+  const { me } = useAuth();
+  const hasAccess = me.is_admin || me.access_status === "approved";
   // Stale-while-reload: only the very first fetch gets a skeleton; later
   // reloads (chip switch, toggle saves) repaint in place - no table flash.
   const initialLoad = contacts.loading && contacts.data === null;
@@ -263,6 +267,7 @@ function ContactsInner() {
               />
             )
           ) : (
+            <div className="space-y-4">
             <Card
               flush
               className={contacts.loading ? "opacity-60 transition-opacity" : "transition-opacity"}
@@ -298,6 +303,10 @@ function ContactsInner() {
                 </table>
               </div>
             </Card>
+            {!hasAccess && (
+              <LockedPreview label="Request access to find every decision-maker + verified email." />
+            )}
+            </div>
           )}
         </>
       )}

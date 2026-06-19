@@ -63,6 +63,7 @@ function AgentRow({
   campaignId,
   last,
   busy,
+  hasAccess,
   onRun,
   onRerun,
 }: {
@@ -71,6 +72,7 @@ function AgentRow({
   /** Last row in the rail - no connecting line below its dot. */
   last: boolean;
   busy: string | null;
+  hasAccess: boolean;
   onRun: (agent: PipelineAgent) => void;
   onRerun: (agent: PipelineAgent) => void;
 }) {
@@ -129,7 +131,7 @@ function AgentRow({
             <Button
               variant="secondary"
               busy={busy === `run:${agent.key}`}
-              disabled={locked}
+              disabled={locked || !hasAccess}
               onClick={() => onRun(agent)}
               className="px-3 py-1 text-xs"
             >
@@ -137,12 +139,15 @@ function AgentRow({
             </Button>
             <button
               type="button"
-              disabled={locked}
+              disabled={locked || !hasAccess}
               onClick={() => onRerun(agent)}
               className="text-xs font-medium text-ink-soft underline-offset-2 transition-colors hover:text-terracotta hover:underline disabled:pointer-events-none disabled:opacity-50"
             >
               Re-run fresh…
             </button>
+            {!hasAccess && (
+              <span className="text-xs italic text-ink-faint">Requires access</span>
+            )}
             {link && (
               <Link
                 href={link.href}
@@ -176,11 +181,14 @@ export function PipelineTimeline({
   campaignId,
   agents,
   onStarted,
+  hasAccess,
 }: {
   campaignId: number;
   agents: PipelineAgent[];
   /** Called after a run is accepted - refresh the pipeline and start polling. */
   onStarted: () => void;
+  /** Non-approved users can't run individual agents — only the one-time preview. */
+  hasAccess: boolean;
 }) {
   const { busy, run } = useAction();
   const [rerunning, setRerunning] = useState<PipelineAgent | null>(null);
@@ -212,6 +220,7 @@ export function PipelineTimeline({
             campaignId={campaignId}
             last={i === sorted.length - 1}
             busy={busy}
+            hasAccess={hasAccess}
             onRun={(a) => void start(a, false)}
             onRerun={setRerunning}
           />
