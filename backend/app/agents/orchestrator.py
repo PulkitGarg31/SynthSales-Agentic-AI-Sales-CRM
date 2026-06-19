@@ -379,7 +379,11 @@ def _preview_companies(db: Session, campaign: Campaign) -> list[Company]:
 
 def _find_one_contact(db: Session, company: Company, owner_id: int, force: bool) -> None:
     """Find a single contact for `company` — the non-approved contact cap."""
-    employee_finder_agent.run(db, company, owner_id, count=1, force=force)
+    # Cap the search ladder: we only keep ONE contact, so collecting the finder's
+    # default 8 candidates would burn search credits for profiles we discard. A
+    # small target stops the escalating queries after a hit or two while still
+    # giving the AI ranker a couple of candidates to choose the best from.
+    employee_finder_agent.run(db, company, owner_id, count=1, force=force, search_target=3)
     db.refresh(company)
     for extra in company.contacts[1:]:  # guard: keep exactly one
         db.delete(extra)

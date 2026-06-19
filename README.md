@@ -146,6 +146,26 @@ logged). DuckDuckGo search needs no key.
 
 ## Progress log
 
+### 2026-06-19 (deploy-ready web search — Serper backend + ddgs circuit breaker)
+The pipeline's only web-search backend was DuckDuckGo via the `ddgs` scraper, which gets rate-limited
+from **datacenter IPs** — so it silently returns nothing on a deploy (enrichment goes thin, the LinkedIn
+finder returns zero contacts). `providers/search.py` now routes its single `search()` chokepoint through a
+configurable backend chain (`SEARCH_ORDER`, default `ddgs,serper`):
+- **Serper.io** (real Google results) added as a paid backend — maps `organic[].{title,link,snippet}` to
+  the existing `{title,href,body}` shape, so every caller (`research_company`, `find_linkedin_profiles`,
+  `find_email_domain`) is unchanged. Configured via `SERPER_API_KEYS` (comma-separated **pool drained one
+  key at a time**: a key is used until it 403s "out of credits", then the next takes over — sequential, not
+  round-robin, to look like normal single-account use; a 429 just cools that key 60s).
+- **ddgs circuit breaker:** after 3 consecutive empty/failed ddgs calls (i.e. it's blocked) the breaker
+  trips and skips ddgs for 10 min, going straight to Serper — so a dead scraper can't add a failed
+  round-trip before every search. A single success resets the streak. Net: ddgs-first saves Serper credits
+  locally (residential IP) without crippling prod.
+- **Preview cost cut:** the credit-capped finder (non-approved users get 1 contact) now passes
+  `search_target=3` so the escalating query ladder stops after a hit or two instead of running ~18 queries
+  to gather 8 candidates it then discards.
+- `/health` `search` is now a string (`"ddgs → serper(3 keys)"` / `"none"`) instead of a bool; admin
+  System-health row + `HealthOut` type updated to match (mirrors `email_finder`/`email_mode`).
+
 ### 2026-06-19 (read-only demo account — frontend-only, static fixtures)
 Added a one-click **"View live demo"** button on the **signup** page that drops a visitor into a
 **read-only demo account** showing the full product with dummy data for every agent — and where

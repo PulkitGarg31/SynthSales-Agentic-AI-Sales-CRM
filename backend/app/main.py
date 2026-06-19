@@ -155,7 +155,7 @@ def health():
         "app": settings.app_name,
         "integrations": {
             "ai": ai.available,
-            "search": search.available,
+            "search": search.status,
             # Free syntax/MX verification always runs; paid layer is optional.
             "email_verification": verification.paid_mode or "free (syntax+MX)",
             "email_finder": "hunter" if hunter.available else "off",

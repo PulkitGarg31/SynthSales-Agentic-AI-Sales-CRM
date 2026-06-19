@@ -10,9 +10,62 @@ from typing import Literal
 
 import httpx
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 DomainStatus = Literal["live", "parked", "dead"]
+
+# --- Search backends -------------------------------------------------------
+# Two backends behind one `search()`: the free DuckDuckGo scraper (`ddgs`, no
+# key) and Serper.io (real Google results, key required). `SEARCH_ORDER` picks
+# which is tried first; the default `ddgs,serper` uses the free scraper locally
+# and falls through to Serper when ddgs returns nothing.
+SERPER_URL = "https://google.serper.dev/search"
+
+# ddgs circuit breaker. ddgs gets blocked from datacenter IPs (it scrapes HTML),
+# so on a deploy it fails on ~every call. After this many consecutive empty/failed
+# ddgs calls we stop hitting it for a cooldown window and go straight to Serper —
+# otherwise a dead scraper adds a failed round-trip (+ retry sleep) before every
+# single search. A single successful ddgs call resets the streak.
+_DDGS_FAIL_THRESHOLD = 3
+_DDGS_COOLDOWN_S = 600  # 10 min, then probe ddgs once more
+
+# Serper per-key cooldown for a transient 429 (QPS limit) — distinct from a hard
+# "out of credits" 403, which retires the key for the process lifetime.
+_SERPER_RATE_COOLDOWN_S = 60
+
+
+def _serper_search(api_key: str, query: str, max_results: int) -> tuple[list[dict], str]:
+    """One Serper (Google) call. Returns (results, status) where results are
+    mapped to the ddgs shape ``{title, href, body}`` so callers need no changes.
+    status ∈ ok | empty | rate_limited | exhausted | error."""
+    try:
+        with httpx.Client(timeout=20) as client:
+            resp = client.post(
+                SERPER_URL,
+                headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
+                json={"q": query, "num": max_results},
+            )
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Serper call failed for %r: %s", query, exc)
+        return [], "error"
+    if resp.status_code == 429:
+        return [], "rate_limited"
+    if resp.status_code in (401, 403):
+        # 403 "Not enough credits" (drained) or 401 (bad key) — retire this key.
+        logger.warning("Serper key rejected (HTTP %s): %s", resp.status_code, resp.text[:200])
+        return [], "exhausted"
+    if resp.status_code != 200:
+        logger.warning("Serper HTTP %s: %s", resp.status_code, resp.text[:200])
+        return [], "error"
+    organic = (resp.json() or {}).get("organic") or []
+    out = [
+        {"title": r.get("title", ""), "href": r.get("link", ""), "body": r.get("snippet", "")}
+        for r in organic
+        if r.get("link")
+    ]
+    return out, ("ok" if out else "empty")
 
 # Substrings (case-insensitive) commonly found on domain-parking pages and
 # placeholder responses. If any appears near the top of the homepage HTML we
@@ -313,8 +366,17 @@ def _is_corp_mail_domain(dom: str) -> bool:
 
 
 class SearchProvider:
-    @property
-    def available(self) -> bool:
+    def __init__(self) -> None:
+        # ddgs circuit-breaker state
+        self._ddgs_fail_streak = 0
+        self._ddgs_blocked_until = 0.0
+        # Serper key-pool state (drain one key at a time, never round-robin)
+        self._serper_idx = 0                       # current active key
+        self._serper_exhausted: set[int] = set()   # 403/401 keys, retired for the process
+        self._serper_cooldown: dict[int, float] = {}  # idx -> until-ts (transient 429)
+
+    @staticmethod
+    def _ddgs_available() -> bool:
         try:
             import ddgs  # noqa: F401
 
@@ -322,15 +384,89 @@ class SearchProvider:
         except Exception:
             return False
 
-    def search(self, query: str, max_results: int = 6) -> list[dict]:
+    @property
+    def available(self) -> bool:
+        return self._ddgs_available() or bool(settings.serper_api_keys_list)
+
+    @property
+    def status(self) -> str:
+        """Backend summary for /health, in configured order — e.g.
+        'ddgs → serper(3 keys)'."""
+        parts: list[str] = []
+        for b in settings.search_order_list:
+            if b == "ddgs" and self._ddgs_available():
+                parts.append("ddgs")
+            elif b == "serper":
+                n = len(settings.serper_api_keys_list)
+                if n:
+                    parts.append(f"serper({n} key{'s' if n != 1 else ''})")
+        return " → ".join(parts) if parts else "none"
+
+    # ------------------------------------------------------------- backends
+    def _ddgs_search(self, query: str, max_results: int) -> list[dict]:
+        """One ddgs call, guarded by the circuit breaker. Returns [] (and trips
+        the breaker after a streak of empties) when ddgs is blocked/unavailable."""
+        if time.time() < self._ddgs_blocked_until or not self._ddgs_available():
+            return []
         try:
             from ddgs import DDGS
 
             with DDGS() as ddg:
-                return list(ddg.text(query, max_results=max_results))
+                res = list(ddg.text(query, max_results=max_results))
         except Exception as exc:  # pragma: no cover
             logger.warning("DuckDuckGo search failed for %r: %s", query, exc)
+            res = []
+        if res:
+            self._ddgs_fail_streak = 0
+            return res
+        self._ddgs_fail_streak += 1
+        if self._ddgs_fail_streak >= _DDGS_FAIL_THRESHOLD:
+            self._ddgs_blocked_until = time.time() + _DDGS_COOLDOWN_S
+            self._ddgs_fail_streak = 0
+            logger.warning(
+                "ddgs looks blocked (%d empty in a row) — skipping it for %ds, using Serper.",
+                _DDGS_FAIL_THRESHOLD, _DDGS_COOLDOWN_S,
+            )
+        return []
+
+    def _serper_search(self, query: str, max_results: int) -> list[dict]:
+        """Try the Serper key pool, draining ONE key at a time: stay on the
+        current key until it's out of credits (403→retired) or rate-limited
+        (429→short cooldown), then advance to the next. Returns [] if no key
+        is usable or Google had no hits."""
+        keys = settings.serper_api_keys_list
+        if not keys:
             return []
+        now, n = time.time(), len(keys)
+        for offset in range(n):
+            idx = (self._serper_idx + offset) % n
+            if idx in self._serper_exhausted or now < self._serper_cooldown.get(idx, 0):
+                continue
+            results, st = _serper_search(keys[idx], query, max_results)
+            if st in ("ok", "empty"):
+                self._serper_idx = idx          # this key works — stick with it
+                return results                  # empty ⇒ Google genuinely had no hits
+            if st == "exhausted":
+                self._serper_exhausted.add(idx)  # drained — advance to next key
+            elif st == "rate_limited":
+                self._serper_cooldown[idx] = now + _SERPER_RATE_COOLDOWN_S
+            # error / exhausted / rate_limited → try the next key
+        return []
+
+    def search(self, query: str, max_results: int = 6) -> list[dict]:
+        """One web search through the configured backend chain (default
+        ddgs → serper). Returns a list of ``{title, href, body}`` dicts (the
+        ddgs shape every caller parses); never raises."""
+        for backend in settings.search_order_list:
+            if backend == "ddgs":
+                res = self._ddgs_search(query, max_results)
+            elif backend == "serper":
+                res = self._serper_search(query, max_results)
+            else:
+                continue
+            if res:
+                return res
+        return []
 
     def _search_resilient(self, query: str, max_results: int = 8, attempts: int = 2) -> list[dict]:
         """search() with a light retry/backoff — DuckDuckGo throttles bursts,

@@ -300,7 +300,7 @@ export interface HealthOut {
   app: string;
   integrations: {
     ai: boolean;
-    search: boolean;
+    search: string;
     email_verification: string;
     email_finder: string;
     email_mode: string;

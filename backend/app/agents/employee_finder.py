@@ -31,6 +31,7 @@ class EmployeeFinderAgent(Agent):
         owner_id: int,
         count: int = 3,
         force: bool = False,
+        search_target: int | None = None,
     ) -> list[Contact]:
         # Skip if we already have contacts — unless the caller asked for a
         # forced re-search. Forced re-runs wipe the prior contacts (and their
@@ -44,11 +45,14 @@ class EmployeeFinderAgent(Agent):
         #    forced re-run.
         profiles: list[dict] = []
         try:
-            profiles = search.find_linkedin_profiles(
-                company.name,
-                domain=company.domain or "",
-                max_per_query=6,
-            )
+            # `search_target` caps how many candidates the escalating query ladder
+            # collects before stopping — the credit-capped preview asks for ONE
+            # contact, so a small target stops the ladder after a query or two
+            # instead of running all ~18 queries to gather 8 (search.py default).
+            find_kwargs: dict = {"company_name": company.name, "domain": company.domain or "", "max_per_query": 6}
+            if search_target is not None:
+                find_kwargs["target"] = search_target
+            profiles = search.find_linkedin_profiles(**find_kwargs)
         except Exception as exc:  # pragma: no cover
             logger.warning("LinkedIn search failed for %s: %s", company.name, exc)
 

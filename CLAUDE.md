@@ -150,10 +150,19 @@ to drive the per-user `agent_configs` status the UI reads.
   `User.gmail_read_token`, `gmail.readonly`) with a stdlib `imaplib` global fallback. Returns
   normalized `InboundMessage`s; returns `[]` and never raises on any error. No mailbox connected
   → no ingestion.
-- **`search.py`** — DuckDuckGo (`ddgs`), no key. Exposes `domain_status() → live|parked|dead`,
-  `find_linkedin_profiles()`, and `find_email_domain()` (the company's real mail domain — scrapes the
-  company's own site for a published info@/sales@ first, then a DDG email-format search; rejects free
-  webmail, aggregators, and asset filenames like `logo@2x.png`).
+- **`search.py`** — web search behind one `search()` chokepoint, routed through a configurable backend
+  chain (`SEARCH_ORDER`, default `ddgs,serper`). **DuckDuckGo** (`ddgs`, no key) is free but gets
+  rate-limited from datacenter IPs, so it fails on a deploy; **Serper.io** (`SERPER_API_KEYS`, real Google
+  results) is the deploy backend — its `organic[]` results are mapped to the same `{title,href,body}` shape
+  so callers stay backend-agnostic. The key pool is **drained one key at a time** (a key is used until it
+  403s "out of credits", then the next — sequential, not round-robin; a 429 cools that key 60s). A **ddgs
+  circuit breaker** trips after 3 consecutive empty/failed ddgs calls and skips ddgs for 10 min (straight to
+  Serper) so a blocked scraper can't add a failed round-trip before every search; one success resets it.
+  With no Serper key + ddgs blocked, search degrades to `[]` (callers fall back). Exposes
+  `domain_status() → live|parked|dead`, `find_linkedin_profiles()`, and `find_email_domain()` (the
+  company's real mail domain — scrapes the company's own site for a published info@/sales@ first, then an
+  email-format search; rejects free webmail, aggregators, and asset filenames like `logo@2x.png`).
+  `/health` reports `search: "ddgs → serper(N keys)"|"none"`.
 
 ### Outbound email kill-switch (safety — do not bypass)
 

@@ -42,6 +42,16 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
 
+    # Web search. The free DuckDuckGo scraper (`ddgs`) needs no key but gets
+    # rate-limited from datacenter IPs, so for deployment configure Serper.io
+    # (real Google results). `serper_api_keys` is a comma-separated pool drained
+    # ONE key at a time (a key is used until it returns "out of credits", then
+    # the next takes over). `search_order` sets which backend is tried first; the
+    # ddgs→serper default uses the free scraper locally and falls through to
+    # Serper when ddgs is blocked (a circuit breaker stops retrying a dead ddgs).
+    serper_api_keys: str = ""
+    search_order: str = "ddgs,serper"
+
     # Email verification (paid layer — optional; the free MX/syntax layer always runs).
     # Verifalia is preferred when configured (more credits); ZeroBounce is the fallback.
     zerobounce_api_key: str = ""
@@ -113,6 +123,14 @@ class Settings(BaseSettings):
     @property
     def ai_providers_list(self) -> list[str]:
         return [p.strip().lower() for p in self.ai_providers.split(",") if p.strip()]
+
+    @property
+    def serper_api_keys_list(self) -> list[str]:
+        return [k.strip() for k in self.serper_api_keys.split(",") if k.strip()]
+
+    @property
+    def search_order_list(self) -> list[str]:
+        return [s.strip().lower() for s in self.search_order.split(",") if s.strip()]
 
     @property
     def admin_emails_list(self) -> list[str]:

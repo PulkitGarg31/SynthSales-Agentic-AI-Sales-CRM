@@ -67,9 +67,9 @@ function SystemHealth({ health }: { health: HealthOut }) {
         />
         <HealthRow
           name="Web search"
-          ok={i.search}
-          chip={i.search ? "DuckDuckGo" : "Off"}
-          note={i.search ? "Enrichment and the people finder can reach the web." : "Enrichment and the people finder are blind."}
+          ok={i.search !== "none"}
+          chip={i.search === "none" ? "Off" : i.search}
+          note={i.search !== "none" ? "Enrichment and the people finder can reach the web." : "Enrichment and the people finder are blind."}
         />
         <HealthRow
           name="Email verification"
