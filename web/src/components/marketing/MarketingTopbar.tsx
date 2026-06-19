@@ -5,8 +5,9 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 
 const NAV = [
-  { label: "Product", href: "/#features" },
+  { label: "Home", href: "/" },
   { label: "How it works", href: "/#how" },
+  { label: "Product", href: "/#features" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ] as const;

@@ -6,35 +6,40 @@ import { usePathname } from "next/navigation";
 
 export type NavItem = { label: string; href: string };
 
-// Landing-page section element ids the in-page anchors point at. Module-level so
-// the array identity stays stable across renders (it's an effect dependency).
-const SECTION_IDS = ["how", "features"] as const;
+// Landing-page section element ids -> the nav href they correspond to. A section
+// not listed here (Showcase, Testimonials, FAQ, the CTA band, ...) maps to null,
+// which clears the underline from every link while it's the one in view.
+const SECTION_HREF: Record<string, string> = {
+  home: "/",
+  how: "/#how",
+  features: "/#features",
+};
 
-/** Which landing-page section is currently under the viewport's reading line.
- *  Returns null off the landing page or before any tracked section is reached. */
-function useActiveSection(enabled: boolean): string | null {
-  const [active, setActive] = useState<string | null>(null);
+/** The nav href of the landing-page section currently under the viewport's
+ *  mid-line, or null off the landing page / inside an untracked section. */
+function useActiveHref(enabled: boolean): string | null {
+  const [href, setHref] = useState<string | null>(null);
   useEffect(() => {
     if (!enabled) {
-      setActive(null);
+      setHref(null);
       return;
     }
-    const els = SECTION_IDS.map((id) => document.getElementById(id)).filter(
-      (el): el is HTMLElement => el !== null
-    );
-    if (els.length === 0) return;
-    // A thin band near the top third of the viewport acts as the "reading line":
-    // whichever section crosses it is the active one.
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("main section"));
+    if (sections.length === 0) return;
+    // A zero-height line at the vertical middle: the page's sections are
+    // contiguous, so exactly one crosses it at a time -> unambiguous active id.
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) if (e.isIntersecting) setActive(e.target.id);
+        for (const e of entries) {
+          if (e.isIntersecting) setHref(SECTION_HREF[e.target.id] ?? null);
+        }
       },
-      { rootMargin: "-30% 0px -65% 0px", threshold: 0 }
+      { rootMargin: "-50% 0px -50% 0px", threshold: 0 }
     );
-    els.forEach((el) => observer.observe(el));
+    sections.forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, [enabled]);
-  return active;
+  return href;
 }
 
 /** Marketing nav links with an underline on the active route / in-view section. */
@@ -49,13 +54,13 @@ export function MarketingNav({
 }) {
   const pathname = usePathname();
   const onLanding = pathname === "/";
-  const activeSection = useActiveSection(onLanding);
+  const activeHref = useActiveHref(onLanding);
 
   function isActive(href: string): boolean {
-    // Anchor links (/#how, /#features) are active by scroll position on "/".
-    const hash = href.startsWith("/#") ? href.slice(2) : null;
-    if (hash) return onLanding && hash === activeSection;
-    // Page links are active on their own route and any nested route.
+    // Landing items (Home "/", anchors "/#...") follow scroll position; they go
+    // inactive in sections that aren't in the nav.
+    if (href === "/" || href.startsWith("/#")) return onLanding && href === activeHref;
+    // Page links follow the route.
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
