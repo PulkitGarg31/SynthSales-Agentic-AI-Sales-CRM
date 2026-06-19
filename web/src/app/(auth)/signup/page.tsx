@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ApiError, setToken } from "@/lib/api";
+import { api, ApiError, googleStartUrl, setToken } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { DevOtpNote, OtpInput } from "@/components/auth/OtpInput";
@@ -24,6 +24,23 @@ export default function SignupPage() {
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const cooldown = useCooldown(30);
+  const [google, setGoogle] = useState(false);
+
+  // Show the Google button only when the backend says OAuth is configured.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .authProviders()
+      .then((p) => {
+        if (!cancelled && p.google) setGoogle(true);
+      })
+      .catch(() => {
+        /* backend unreachable - keep the button hidden */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function submitForm(e: React.FormEvent) {
     e.preventDefault();
@@ -171,6 +188,26 @@ export default function SignupPage() {
           Create account
         </Button>
       </form>
+
+      {google && (
+        <>
+          <div className="flex items-center gap-3" aria-hidden>
+            <div className="h-px flex-1 bg-line" />
+            <span className="text-xs text-ink-faint">or</span>
+            <div className="h-px flex-1 bg-line" />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => {
+              window.location.href = googleStartUrl();
+            }}
+          >
+            Continue with Google
+          </Button>
+        </>
+      )}
 
       <p className="text-sm text-ink-soft">
         Already have an account?{" "}
