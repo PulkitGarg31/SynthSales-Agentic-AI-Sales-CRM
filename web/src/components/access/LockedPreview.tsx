@@ -28,9 +28,9 @@ export function LockedPreview({ label }: { label: string }) {
     );
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-line">
-      <div aria-hidden className="pointer-events-none select-none space-y-3 p-5 blur-[6px]">
-        {[0, 1, 2, 3, 4].map((i) => (
+    <div className="relative min-h-[60vh] overflow-hidden rounded-2xl border border-line">
+      <div aria-hidden className="pointer-events-none select-none space-y-4 p-5 blur-[6px]">
+        {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="flex items-center gap-4">
             <div className="h-3 w-8 rounded bg-ink/10" />
             <div className="h-3 flex-1 rounded bg-ink/10" />
