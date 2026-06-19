@@ -10,7 +10,7 @@ export function Hero() {
         <h1 className="display max-w-4xl text-[clamp(2.8rem,6vw,4.5rem)]">
           {HERO.headline.pre}
           <em>{HERO.headline.em}</em>
-          {HERO.headline.post}
+          <span className="text-terracotta">{HERO.headline.post}</span>
         </h1>
         <p className="max-w-2xl text-base leading-relaxed text-ink-soft md:text-lg">{HERO.sub}</p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">

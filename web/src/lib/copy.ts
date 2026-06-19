@@ -11,8 +11,7 @@ import { AGENT_LABELS } from "./constants";
 export const HERO = {
   eyebrow: "Introducing SynthSales",
   headline: { pre: "Outreach that ", em: "researches itself", post: "." },
-  sub:
-    "Struggling with sales? The fix is just one click away. SynthSales studies your market, finds the people who can actually say yes, and reaches out with emails that feel hand-written. All that's left for you is the meeting.",
+  sub: "Your next customer is already in the spreadsheet.",
   primaryCta: { label: "Get started", href: "/signup" },
   secondaryCta: { label: "How it works", href: "/#how" },
 } as const;
