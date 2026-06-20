@@ -51,9 +51,9 @@ services:
       - key: TRUST_PROXY
         value: "true" # Render fronts the app with a proxy → trust X-Forwarded-For.
       - key: CORS_ORIGINS
-        value: https://synthsales-web.onrender.com
+        value: https://synthsales.onrender.com
       - key: FRONTEND_URL
-        value: https://synthsales-web.onrender.com
+        value: https://synthsales.onrender.com
       - key: ENABLE_SCHEDULER
         value: "true"
       # — Web search (REQUIRED in prod: ddgs is blocked from datacenter IPs) —
@@ -117,7 +117,7 @@ services:
 
   # ── Frontend (Next.js 16, standalone) ──
   - type: web
-    name: synthsales-web
+    name: synthsales
     runtime: docker
     dockerfilePath: ./web/Dockerfile
     dockerContext: ./web
