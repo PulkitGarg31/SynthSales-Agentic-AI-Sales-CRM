@@ -1,0 +1,2 @@
+# Never commit the real VM env file (secrets).
+.env

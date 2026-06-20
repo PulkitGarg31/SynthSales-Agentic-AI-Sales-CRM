@@ -1,0 +1,6 @@
+# Replace the hostname below with YOUR DuckDNS subdomain.
+# Caddy automatically obtains + renews a free Let's Encrypt certificate for it
+# (requires ports 80/443 open and the DNS pointing at this VM).
+synthsales.duckdns.org {
+    reverse_proxy api:8000
+}
