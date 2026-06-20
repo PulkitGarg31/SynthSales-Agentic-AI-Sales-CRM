@@ -31,6 +31,10 @@ def _mime(subject: str, body: str, html: str | None) -> MIMEText | MIMEMultipart
 class EmailProvider:
     @property
     def mode(self) -> str:
+        # Brevo (HTTPS) takes precedence: cloud hosts like Render's free tier block
+        # outbound SMTP ports, so when a Brevo key is set we send over HTTPS instead.
+        if settings.brevo_api_key:
+            return "brevo"
         if settings.gmail_token_file and settings.gmail_credentials_file:
             return "gmail"
         if settings.smtp_host and settings.smtp_username and settings.smtp_password:
@@ -39,16 +43,63 @@ class EmailProvider:
 
     @property
     def available(self) -> bool:
-        return self.mode in ("gmail", "smtp")
+        return self.mode in ("gmail", "smtp", "brevo")
 
     def send(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
         mode = self.mode
+        if mode == "brevo":
+            return self._send_brevo(to, subject, body, html)
         if mode == "gmail":
             return self._send_gmail(to, subject, body, html)
         if mode == "smtp":
             return self._send_smtp(to, subject, body, html)
         logger.info("[console-email] To:%s | %s\n%s", to, subject, body)
         return True
+
+    def _sender(self) -> tuple[str, str]:
+        """(name, email) for the From address, parsed from `smtp_from` (falling
+        back to `smtp_username`). For Brevo the email must be a verified sender."""
+        from email.utils import parseaddr
+
+        name, addr = parseaddr(settings.smtp_from or "")
+        return (name or "SynthSales", addr or settings.smtp_username)
+
+    def _send_brevo(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
+        """Send via Brevo's transactional email API over HTTPS (443) — the path
+        that works on hosts which block outbound SMTP (e.g. Render's free tier)."""
+        import httpx
+
+        name, sender = self._sender()
+        payload: dict = {
+            "sender": {"email": sender, "name": name},
+            "to": [{"email": to}],
+            "subject": subject,
+            "textContent": body,
+        }
+        if html:
+            payload["htmlContent"] = html
+        try:
+            resp = httpx.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": settings.brevo_api_key,
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                },
+                json=payload,
+                timeout=20,
+            )
+            if resp.status_code in (200, 201):
+                logger.info("Brevo email sent to %s (%s)", to, subject)
+                return True
+            logger.warning(
+                "Brevo send to %s failed: HTTP %s %s",
+                to, resp.status_code, resp.text[:300],
+            )
+            return False
+        except Exception as exc:
+            logger.warning("Brevo send to %s failed: %s", to, exc)
+            return False
 
     def _send_smtp(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
         msg = _mime(subject, body, html)

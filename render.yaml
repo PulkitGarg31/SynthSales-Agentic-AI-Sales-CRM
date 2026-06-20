@@ -79,7 +79,12 @@ services:
         sync: false
       - key: HUNTER_API_KEY
         sync: false
-      # — Email sending (SMTP) —
+      # — Email sending. Render's free tier blocks outbound SMTP ports, so the
+      #   deploy sends via the Brevo HTTPS API (set BREVO_API_KEY, From = SMTP_FROM
+      #   which must be a Brevo-verified sender). The SMTP_* vars stay as a fallback
+      #   for paid tiers / hosts where outbound SMTP is allowed. —
+      - key: BREVO_API_KEY
+        sync: false
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
