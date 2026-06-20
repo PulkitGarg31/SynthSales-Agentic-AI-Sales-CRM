@@ -34,7 +34,7 @@ separate migration step. Both Docker images are already build-verified.
 
 You need:
 - ✅ The code on GitHub — **already done** (`origin/main`, repo
-  `PulkitGarg31/Agentic-AI-Sales-CRM`). Confirm with `git status` (clean) and
+  `PulkitGarg31/SynthSales-Agentic-AI-Sales-CRM`). Confirm with `git status` (clean) and
   `git log origin/main..main` (no unpushed commits).
 - ⬜ A **Render account** (free) — created in Phase 1.
 - ⬜ Your **API keys** — already in your local `backend/.env`. Keep that file open;
@@ -50,7 +50,7 @@ You need:
 2. Click **Get Started** / **Sign Up**.
 3. Choose **Sign up with GitHub** (simplest — it lets Render see your repos).
 4. When GitHub asks, **Authorize Render**. You can grant access to **all repos** or
-   just **`Agentic-AI-Sales-CRM`** (select "Only select repositories" → pick it).
+   just **`SynthSales-Agentic-AI-Sales-CRM`** (select "Only select repositories" → pick it).
 5. You land on the Render **Dashboard**.
 
 ---
@@ -58,7 +58,7 @@ You need:
 ## Phase 2 — Launch the Blueprint (creates all 4 resources)
 
 1. On the dashboard, click **New +** (top-right) → **Blueprint**.
-2. Render lists your GitHub repos. Find **`Agentic-AI-Sales-CRM`** and click
+2. Render lists your GitHub repos. Find **`SynthSales-Agentic-AI-Sales-CRM`** and click
    **Connect**. (If you don't see it: click **Configure account / repositories**,
    grant Render access to the repo, come back.)
 3. Render reads **`render.yaml`** from the repo root and shows a preview of the four
@@ -274,7 +274,7 @@ wires it from `synthsales-db` automatically, so don't override it.
 ## Quick reference — the whole flow in 8 lines
 
 1. render.com → sign up with GitHub.
-2. New + → Blueprint → connect `Agentic-AI-Sales-CRM` → Apply.
+2. New + → Blueprint → connect `SynthSales-Agentic-AI-Sales-CRM` → Apply.
 3. `synthsales-api` → Environment → add `SERPER_API_KEYS`, an AI key, SMTP creds,
    `ADMIN_EMAILS` (copy from local `backend/.env`) → Save.
 4. Watch both services build → **Live**.
