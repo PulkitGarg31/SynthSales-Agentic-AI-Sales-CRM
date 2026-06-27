@@ -1239,3 +1239,12 @@ mailbox" integration (gmail.readonly) only pairs with per-user *sending*, which 
 been marked **Upcoming** and disabled in the UI (Settings → Connections shows a "Coming soon"/disabled
 button; Integrations shows an "Upcoming" chip). The OAuth endpoints stay intact but dormant for when
 per-user sending is added. Google Calendar (genuinely per-user) is unchanged.
+
+## Deployment email fallback: Resend API
+
+Brevo can reject new accounts with `SMTP account is not yet activated` even when the API key is active.
+Added `RESEND_API_KEY` as a second HTTPS transactional email provider. Resend takes precedence over
+Brevo when both keys are present, uses the existing `SMTP_FROM` sender string, and is counted as real
+delivery for OTP responses. This keeps Render deploys on HTTPS email delivery instead of SMTP ports.
+
+Verified with backend `py_compile` for config, email provider, and auth router.

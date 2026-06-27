@@ -80,10 +80,11 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = "SynthSales <no-reply@synthsales.example>"
-    # Brevo transactional email API (HTTPS). Cloud hosts (Render's free tier, etc.)
-    # block outbound SMTP ports, so on a deploy set BREVO_API_KEY and mail sends over
-    # HTTPS instead. Takes precedence over SMTP when set; the From address is taken
-    # from `smtp_from` (which must be a Brevo-verified sender).
+    # Transactional email APIs over HTTPS. Cloud hosts (Render's free tier, etc.)
+    # block outbound SMTP ports, so prefer an HTTP provider on deploy. Resend takes
+    # precedence over Brevo when both are set; the From address is taken from
+    # `smtp_from` and must be verified with the active provider.
+    resend_api_key: str = ""
     brevo_api_key: str = ""
 
     # Google OAuth (sign-in / sign-up). Optional: leave the id/secret blank to

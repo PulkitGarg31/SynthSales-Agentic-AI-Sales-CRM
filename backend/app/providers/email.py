@@ -1,7 +1,7 @@
 """Email sending provider.
 
-Prefers Gmail API when GMAIL_TOKEN_FILE is configured; otherwise falls back to
-SMTP; otherwise runs in "console" mode (logs the message) so flows still work.
+Prefers HTTPS transactional APIs on cloud deploys, then Gmail API, then SMTP;
+otherwise runs in "console" mode (logs the message) so flows still work.
 """
 from __future__ import annotations
 
@@ -31,8 +31,10 @@ def _mime(subject: str, body: str, html: str | None) -> MIMEText | MIMEMultipart
 class EmailProvider:
     @property
     def mode(self) -> str:
-        # Brevo (HTTPS) takes precedence: cloud hosts like Render's free tier block
-        # outbound SMTP ports, so when a Brevo key is set we send over HTTPS instead.
+        # HTTPS APIs take precedence: cloud hosts like Render's free tier block
+        # outbound SMTP ports, so deploys should send over 443 instead.
+        if settings.resend_api_key:
+            return "resend"
         if settings.brevo_api_key:
             return "brevo"
         if settings.gmail_token_file and settings.gmail_credentials_file:
@@ -43,10 +45,12 @@ class EmailProvider:
 
     @property
     def available(self) -> bool:
-        return self.mode in ("gmail", "smtp", "brevo")
+        return self.mode in ("resend", "brevo", "gmail", "smtp")
 
     def send(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
         mode = self.mode
+        if mode == "resend":
+            return self._send_resend(to, subject, body, html)
         if mode == "brevo":
             return self._send_brevo(to, subject, body, html)
         if mode == "gmail":
@@ -63,6 +67,42 @@ class EmailProvider:
 
         name, addr = parseaddr(settings.smtp_from or "")
         return (name or "SynthSales", addr or settings.smtp_username)
+
+    def _send_resend(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
+        """Send via Resend's HTTPS email API."""
+        import httpx
+
+        name, sender = self._sender()
+        from_addr = f"{name} <{sender}>" if name else sender
+        payload: dict = {
+            "from": from_addr,
+            "to": [to],
+            "subject": subject,
+            "text": body,
+        }
+        if html:
+            payload["html"] = html
+        try:
+            resp = httpx.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "authorization": f"Bearer {settings.resend_api_key}",
+                    "content-type": "application/json",
+                },
+                json=payload,
+                timeout=20,
+            )
+            if resp.status_code in (200, 201):
+                logger.info("Resend email sent to %s (%s)", to, subject)
+                return True
+            logger.warning(
+                "Resend send to %s failed: HTTP %s %s",
+                to, resp.status_code, resp.text[:300],
+            )
+            return False
+        except Exception as exc:
+            logger.warning("Resend send to %s failed: %s", to, exc)
+            return False
 
     def _send_brevo(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
         """Send via Brevo's transactional email API over HTTPS (443) — the path
