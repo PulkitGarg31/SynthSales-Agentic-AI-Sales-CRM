@@ -60,12 +60,12 @@ def _new_otp() -> str:
 
 def _send_otp(email: str, otp: str, purpose: str = "verify") -> bool:
     """Email the OTP (branded HTML + plain-text fallback). Returns True only
-    when actually delivered to a real inbox (via SMTP/Gmail) — console mode
+    when actually delivered to a real inbox (via SMTP/Gmail/Brevo) — console mode
     counts as not delivered."""
     stamp = datetime.now(timezone.utc).astimezone().strftime("%H:%M")
     subject, body, html = otp_email(otp, stamp, purpose)
     sent = email_provider.send(email, subject, body, html)
-    return sent and email_provider.mode in ("smtp", "gmail")
+    return sent and email_provider.mode in ("smtp", "gmail", "brevo")
 
 
 def _dev_otp(otp: str, delivered: bool) -> str | None:

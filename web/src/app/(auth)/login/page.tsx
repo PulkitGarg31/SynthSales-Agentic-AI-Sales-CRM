@@ -9,7 +9,7 @@ import { Field, Input } from "@/components/ui/Field";
 import { DevOtpNote, OtpInput } from "@/components/auth/OtpInput";
 import { useCooldown } from "@/components/auth/useCooldown";
 
-const NETWORK_MSG = "Could not reach the server. Is the backend running?";
+const NETWORK_MSG = "The server is still starting. Please wait a moment and try again.";
 
 export default function LoginPage() {
   const router = useRouter();

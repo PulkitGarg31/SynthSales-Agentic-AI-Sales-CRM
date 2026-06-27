@@ -10,7 +10,7 @@ import { DevOtpNote, OtpInput } from "@/components/auth/OtpInput";
 import { PasswordHints, passwordOk } from "@/components/auth/PasswordHints";
 import { useCooldown } from "@/components/auth/useCooldown";
 
-const NETWORK_MSG = "Could not reach the server. Is the backend running?";
+const NETWORK_MSG = "The server is still starting. Please wait a moment and try again.";
 
 export default function SignupPage() {
   const router = useRouter();

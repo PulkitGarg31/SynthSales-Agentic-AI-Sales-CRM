@@ -1,5 +1,6 @@
 "use client";
 
+import { BackendWarmup } from "@/components/BackendWarmup";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,6 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <BackendWarmup />
       {/* Form panel: right half on sign-in, left half on sign-up. */}
       <div
         className={`flex min-h-screen flex-col px-6 py-8 sm:px-12 lg:absolute lg:inset-y-0 lg:left-0 lg:w-1/2 lg:px-12 lg:transition-transform lg:duration-500 lg:ease-in-out ${
