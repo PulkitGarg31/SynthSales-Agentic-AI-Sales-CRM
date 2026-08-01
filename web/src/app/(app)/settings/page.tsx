@@ -219,6 +219,11 @@ function SettingsInner() {
       void refresh();
     } else if (code === "denied") {
       toast("You declined the Google consent screen.", "error");
+    } else if (code === "mismatch") {
+      toast(
+        "That Google account doesn't match your login email. Connect the account you signed in with.",
+        "error",
+      );
     } else {
       // state (expired/forged state, missing code, unknown user) or exchange
       // (no refresh token from Google) - both mean "start the flow over".

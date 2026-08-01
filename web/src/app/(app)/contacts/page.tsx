@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import type { Contact } from "@/lib/api-types";
 import { VERIFICATION_TONE } from "@/lib/constants";
+import { safeUrl } from "@/lib/safe-url";
 import { useAuth } from "@/components/AuthProvider";
 import { LockedPreview } from "@/components/access/LockedPreview";
 import { BackLink } from "@/components/ui/BackLink";
@@ -67,9 +68,9 @@ function ContactRow({
       <td className="px-5 py-3">
         <div className="flex items-center gap-1.5">
           <p className="font-medium text-ink">{contact.name}</p>
-          {contact.linkedin && (
+          {safeUrl(contact.linkedin) && (
             <a
-              href={contact.linkedin}
+              href={safeUrl(contact.linkedin)}
               target="_blank"
               rel="noreferrer"
               aria-label={`${contact.name} on LinkedIn`}

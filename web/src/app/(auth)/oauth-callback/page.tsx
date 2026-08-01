@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -38,17 +38,27 @@ function Splash() {
 function CallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const token = params.get("token");
   const error = params.get("error");
+  // "checking" until the effect has inspected the URL fragment — starts the same
+  // on server and client so there's no hydration flash.
+  const [state, setState] = useState<"checking" | "done">("checking");
 
   useEffect(() => {
+    // The backend delivers the session token in the URL *fragment* (never sent to
+    // servers/logs). Read it, store it, then scrub the fragment from the URL.
+    const token = new URLSearchParams(window.location.hash.replace(/^#/, "")).get(
+      "token",
+    );
     if (token) {
       setToken(token);
+      window.history.replaceState(null, "", window.location.pathname);
       router.replace("/dashboard");
+    } else {
+      setState("done");
     }
-  }, [token, router]);
+  }, [router]);
 
-  if (token) return <Splash />;
+  if (state === "checking") return <Splash />;
 
   // No token: either an explicit error code, or someone landed here directly.
   const message = error

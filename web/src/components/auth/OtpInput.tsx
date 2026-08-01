@@ -93,6 +93,9 @@ export function OtpInput({
 
 /** Dev-mode callout for the `dev_otp` the backend returns in console email mode. */
 export function DevOtpNote({ code, onFill }: { code: string; onFill?: () => void }) {
+  // Never render a live OTP in a production build, regardless of what the API
+  // returns (defence-in-depth behind the backend's dev-only gate).
+  if (process.env.NODE_ENV === "production") return null;
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-ink px-4 py-3 text-cream">
       <p className="text-xs">

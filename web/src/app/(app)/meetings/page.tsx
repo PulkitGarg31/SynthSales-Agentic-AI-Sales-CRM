@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import type { Meeting } from "@/lib/api-types";
 import type { Tone } from "@/lib/constants";
+import { safeUrl } from "@/lib/safe-url";
 import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -117,9 +118,9 @@ function MeetingCard({ meeting, onSaved }: { meeting: Meeting; onSaved: () => vo
           {meeting.status !== "Upcoming" && (
             <Badge tone={MEETING_TONE[meeting.status] ?? "faint"}>{meeting.status}</Badge>
           )}
-          {meeting.link && (
+          {safeUrl(meeting.link) && (
             <a
-              href={meeting.link}
+              href={safeUrl(meeting.link)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink/[0.03]"

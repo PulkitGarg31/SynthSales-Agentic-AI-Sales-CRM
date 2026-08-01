@@ -13,6 +13,7 @@ import {
   VERIFICATION_TONE,
   type Tone,
 } from "@/lib/constants";
+import { safeUrl } from "@/lib/safe-url";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -99,9 +100,9 @@ function ContactRow({ contact, onSaved }: { contact: Contact; onSaved: () => voi
       <td className="px-5 py-3">
         <div className="flex items-center gap-1.5">
           <p className="font-medium text-ink">{contact.name}</p>
-          {contact.linkedin && (
+          {safeUrl(contact.linkedin) && (
             <a
-              href={contact.linkedin}
+              href={safeUrl(contact.linkedin)}
               target="_blank"
               rel="noreferrer"
               aria-label={`${contact.name} on LinkedIn`}
@@ -383,9 +384,9 @@ export function CompanyDetail({ id }: { id: number }) {
             </Badge>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
-            {c.domain && (
+            {c.domain && safeUrl(`https://${c.domain}`) && (
               <a
-                href={`https://${c.domain}`}
+                href={safeUrl(`https://${c.domain}`)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 font-mono text-xs text-ink-soft transition-colors hover:text-ink"

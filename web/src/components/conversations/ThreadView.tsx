@@ -31,11 +31,14 @@ function stamp(iso: string): string {
  *  X wrote:" + ">"-quoted lines / "Original Message" blocks), so only the prospect's
  *  actual new text shows. Falls back to the full body if it would strip everything. */
 function stripQuoted(body: string): string {
+  // Match on a bounded prefix with [ \t] (not \s, which also eats newlines) so a
+  // pathological all-newline body can't backtrack quadratically (ReDoS).
+  const text = body.slice(0, 20000);
   const markers = [
-    body.search(/\n\s*On\b[\s\S]{0,200}?\bwrote:/), // Gmail "On <date>, X wrote:"
-    body.search(/\n\s*>/), // first ">"-quoted line
-    body.search(/\n-{2,}\s*Original Message/i), // Outlook
-    body.search(/\n_{5,}/), // Outlook divider
+    text.search(/\n[ \t]*On\b[\s\S]{0,200}?\bwrote:/), // Gmail "On <date>, X wrote:"
+    text.search(/\n[ \t]*>/), // first ">"-quoted line
+    text.search(/\n-{2,}[ \t]*Original Message/i), // Outlook
+    text.search(/\n_{5,}/), // Outlook divider
   ].filter((i) => i >= 0);
   if (markers.length === 0) return body.trim();
   return body.slice(0, Math.min(...markers)).trim() || body.trim();

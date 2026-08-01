@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useAuth } from "@/components/AuthProvider";
 import type { Campaign, FunnelStage, Intent, Meeting, ThreadStage } from "@/lib/api-types";
+import { safeUrl } from "@/lib/safe-url";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -265,9 +266,9 @@ function MeetingRow({ meeting }: { meeting: Meeting }) {
           {meeting.contact} · {meetingWhen(meeting.scheduled_at)}
         </p>
       </div>
-      {meeting.link && (
+      {safeUrl(meeting.link) && (
         <a
-          href={meeting.link}
+          href={safeUrl(meeting.link)}
           target="_blank"
           rel="noreferrer"
           className="shrink-0 text-sm font-medium text-terracotta hover:underline"
