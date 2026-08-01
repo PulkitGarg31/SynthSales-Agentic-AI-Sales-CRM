@@ -3,8 +3,26 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+# Reject a recipient string that would fan one send out to several mailboxes or
+# smuggle a header (comma/semicolon/CRLF/angle brackets/whitespace). Empty is
+# allowed (an unknown contact email); a non-empty value must be a single address.
+_BAD_EMAIL_CHARS = re.compile(r"[,;<>\s]")
+
+
+def _clean_optional_email(v: str | None) -> str | None:
+    if v is None:
+        return v
+    v = v.strip()
+    if not v:
+        return ""
+    if len(v) > 255 or _BAD_EMAIL_CHARS.search(v) or v.count("@") != 1:
+        raise ValueError("Enter a single valid email address.")
+    return v
 
 
 class ORMModel(BaseModel):
@@ -33,7 +51,7 @@ def _validate_password_strength(value: str) -> str:
 
 # ---------- Auth ----------
 class RegisterIn(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=120)
     email: EmailStr
     password: str
 
@@ -41,6 +59,14 @@ class RegisterIn(BaseModel):
     @classmethod
     def _password_strength(cls, v: str) -> str:
         return _validate_password_strength(v)
+
+    @field_validator("name")
+    @classmethod
+    def _clean_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name can't be empty")
+        return v
 
 
 class VerifyOtpIn(BaseModel):
@@ -140,24 +166,28 @@ class AccessRequestIn(BaseModel):
 
 
 # ---------- Campaign ----------
+# Cap for free-text fields that flow into AI prompts (also bounds token spend).
+_TEXT_MAX = 5000
+
+
 class CampaignBase(BaseModel):
-    name: str
-    product: str = ""
-    tone: str = "professional"
-    top_n: int = 50
-    product_description: str = ""
-    value_proposition: str = ""
-    industry: str = ""
-    differentiators: str = ""
-    icp: str = ""
-    industry_pref: str = ""
-    geography: str = ""
-    company_size: str = ""
-    business_requirements: str = ""
-    ranking_criteria: str = ""
-    email_template: str = ""
-    footer: str = ""
-    personalization_level: int = 2
+    name: str = Field(min_length=1, max_length=200)
+    product: str = Field(default="", max_length=200)
+    tone: str = Field(default="professional", max_length=40)
+    top_n: int = Field(default=50, ge=1, le=500)
+    product_description: str = Field(default="", max_length=_TEXT_MAX)
+    value_proposition: str = Field(default="", max_length=_TEXT_MAX)
+    industry: str = Field(default="", max_length=120)
+    differentiators: str = Field(default="", max_length=_TEXT_MAX)
+    icp: str = Field(default="", max_length=_TEXT_MAX)
+    industry_pref: str = Field(default="", max_length=600)
+    geography: str = Field(default="", max_length=400)
+    company_size: str = Field(default="", max_length=120)
+    business_requirements: str = Field(default="", max_length=_TEXT_MAX)
+    ranking_criteria: str = Field(default="", max_length=_TEXT_MAX)
+    email_template: str = Field(default="", max_length=_TEXT_MAX)
+    footer: str = Field(default="", max_length=2000)
+    personalization_level: int = Field(default=2, ge=1, le=3)
 
 
 class CampaignCreate(CampaignBase):
@@ -165,14 +195,16 @@ class CampaignCreate(CampaignBase):
 
 
 class CampaignUpdate(BaseModel):
-    name: str | None = None
-    product: str | None = None
-    status: str | None = None
-    tone: str | None = None
-    top_n: int | None = None
-    email_template: str | None = None
-    footer: str | None = None
-    personalization_level: int | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    product: str | None = Field(default=None, max_length=200)
+    # Length-bounded (column is String(20)); no strict allowlist so valid lifecycle
+    # transitions (Draft/Running/Paused/Completed) aren't accidentally rejected.
+    status: str | None = Field(default=None, max_length=20)
+    tone: str | None = Field(default=None, max_length=40)
+    top_n: int | None = Field(default=None, ge=1, le=500)
+    email_template: str | None = Field(default=None, max_length=_TEXT_MAX)
+    footer: str | None = Field(default=None, max_length=2000)
+    personalization_level: int | None = Field(default=None, ge=1, le=3)
 
 
 class CampaignOut(ORMModel):
@@ -236,16 +268,23 @@ class ContactOut(ORMModel):
 class ContactUpdate(BaseModel):
     email: str | None = None
     approved: bool | None = None
-    role: str | None = None
-    name: str | None = None
+    role: str | None = Field(default=None, max_length=120)
+    name: str | None = Field(default=None, max_length=120)
     do_not_contact: bool | None = None
+
+    @field_validator("email")
+    @classmethod
+    def _clean_email(cls, v: str | None) -> str | None:
+        # A single valid address (or empty) — never a comma-list that would fan a
+        # send out to many mailboxes, nor a header-injection payload.
+        return _clean_optional_email(v)
 
 
 class ContactCreate(BaseModel):
-    name: str
-    role: str = ""
-    email: str = ""
-    linkedin: str | None = None
+    name: str = Field(min_length=1, max_length=120)
+    role: str = Field(default="", max_length=120)
+    email: str = Field(default="", max_length=255)
+    linkedin: str | None = Field(default=None, max_length=400)
 
     @field_validator("name")
     @classmethod
@@ -253,6 +292,11 @@ class ContactCreate(BaseModel):
         if not (v or "").strip():
             raise ValueError("Contact name is required.")
         return v.strip()
+
+    @field_validator("email")
+    @classmethod
+    def _clean_email(cls, v: str) -> str:
+        return _clean_optional_email(v) or ""
 
 
 class CompanyOut(ORMModel):
@@ -288,7 +332,11 @@ class CompanyDetailOut(CompanyOut):
 
 
 class CompanyStatusUpdate(BaseModel):
-    status: str  # Approved | Excluded | ...
+    # Allowlist the lifecycle states so a user can't set an arbitrary status that
+    # desyncs the pipeline's Qualified/Reviewed/Contacted filters.
+    status: Literal[
+        "Researching", "Qualified", "Reviewed", "Excluded", "Approved", "Contacted"
+    ]
 
 
 class CompanyMailDomainUpdate(BaseModel):
@@ -306,10 +354,10 @@ class EmailDraftOut(ORMModel):
 
 
 class EmailDraftUpdate(BaseModel):
-    subject: str | None = None
-    body: str | None = None
-    footer: str | None = None
-    state: str | None = None
+    subject: str | None = Field(default=None, max_length=300)
+    body: str | None = Field(default=None, max_length=_TEXT_MAX)
+    footer: str | None = Field(default=None, max_length=2000)
+    state: str | None = Field(default=None, max_length=20)
 
 
 # ---------- Threads / messages ----------
@@ -347,7 +395,7 @@ class ThreadDetailOut(ThreadOut):
 
 
 class ReplyIn(BaseModel):
-    body: str
+    body: str = Field(min_length=1, max_length=50_000)
 
 
 # ---------- Meetings ----------

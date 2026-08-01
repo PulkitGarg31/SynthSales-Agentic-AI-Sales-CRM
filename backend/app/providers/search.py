@@ -3,8 +3,10 @@ probe used by enrichment to avoid hallucinating about companies whose sites
 are dead, parked, or otherwise empty."""
 from __future__ import annotations
 
+import ipaddress
 import logging
 import re
+import socket
 import time
 from typing import Literal
 
@@ -15,6 +17,45 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 DomainStatus = Literal["live", "parked", "dead"]
+
+_HOSTNAME_RE = re.compile(r"[a-z0-9.\-]+\.[a-z]{2,}")
+
+
+def _is_public_host(host: str) -> bool:
+    """True only for a syntactically-valid public hostname that resolves entirely
+    to public IP addresses. Rejects IP literals, ``localhost``, and any address in
+    a private / loopback / link-local / reserved / multicast range — the guard
+    against SSRF via a user-supplied company "domain" (which the server fetches).
+    """
+    host = (host or "").strip().lower()
+    if not host or len(host) > 253 or not _HOSTNAME_RE.fullmatch(host):
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return False
+    for info in infos:
+        try:
+            addr = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return False
+        if (
+            addr.is_private or addr.is_loopback or addr.is_link_local
+            or addr.is_reserved or addr.is_multicast or addr.is_unspecified
+        ):
+            return False
+    return True
+
+
+def _safe_host(raw: str) -> str:
+    """Reduce a domain/URL value to a bare hostname (strip scheme/path/query/
+    fragment/userinfo/port) for the public-host check."""
+    d = (raw or "").strip().lower()
+    for pre in ("https://", "http://", "www."):
+        if d.startswith(pre):
+            d = d[len(pre):]
+    d = d.split("/")[0].split("?")[0].split("#")[0].split("@")[-1]
+    return d.split(":")[0].strip().strip(".")
 
 # --- Search backends -------------------------------------------------------
 # Two backends behind one `search()`: the free DuckDuckGo scraper (`ddgs`, no
@@ -596,12 +637,10 @@ class SearchProvider:
         """Fetch the company's own website (home + contact/about pages) and pull a
         corporate mail domain from any address it publishes (often an
         info@/sales@/contact@ in the footer). Free; returns '' on any failure."""
-        root = (website_domain or "").strip().lower()
-        for pre in ("https://", "http://", "www."):
-            if root.startswith(pre):
-                root = root[len(pre):]
-        root = root.split("/")[0].rstrip("/")
-        if not root or "." not in root:
+        root = _safe_host(website_domain)
+        # SSRF guard: only scrape a resolvable public host (never localhost / an
+        # internal IP / a userinfo|port-smuggled value).
+        if not _is_public_host(root):
             return ""
         headers = {"User-Agent": "Mozilla/5.0 (compatible; SynthSalesBot/1.0)"}
         counts: dict[str, int] = {}
@@ -610,6 +649,10 @@ class SearchProvider:
                 resp = httpx.get(f"https://{root}/{path}", timeout=7,
                                  follow_redirects=True, headers=headers)
                 if resp.status_code != 200 or not resp.text:
+                    continue
+                # If a redirect landed us off the validated public host, don't mine
+                # the body — stops this turning into an internal-data exfil channel.
+                if not _is_public_host(resp.url.host or ""):
                     continue
                 emails = re.findall(r"mailto:([^\"'?>\s]+)", resp.text, re.IGNORECASE)
                 emails += [m.group(0) for m in _EMAIL_RE.finditer(resp.text)]
@@ -649,11 +692,12 @@ class SearchProvider:
         """
         if not domain or not domain.strip():
             return "live"
-        d = domain.strip().lower()
-        for prefix in ("https://", "http://"):
-            if d.startswith(prefix):
-                d = d[len(prefix):]
-        d = d.rstrip("/")
+        host = _safe_host(domain)
+        if not _is_public_host(host):
+            # SSRF guard: an unresolvable/private/IP-literal/userinfo/port value is
+            # never fetched. It can't be a real prospect domain, so report it dead.
+            return "dead"
+        d = host
 
         # Present as a real browser — a default python-httpx UA gets bot pages or
         # outright blocks from many live sites. Mirrors _site_email_domain().
@@ -672,7 +716,10 @@ class SearchProvider:
             for attempt in range(attempts):
                 try:
                     # GET (not HEAD) so we can inspect content for parking markers.
-                    resp = httpx.get(url, timeout=8, follow_redirects=True, headers=headers)
+                    # follow_redirects=False: a 3xx still proves the server is live,
+                    # and not following stops a public host from bouncing us into an
+                    # internal address (SSRF via redirect).
+                    resp = httpx.get(url, timeout=8, follow_redirects=False, headers=headers)
                 except httpx.TransportError:
                     # DNS/connect/timeout/protocol failure — retry once, then give
                     # up on this scheme (the server may not exist at all).
@@ -684,7 +731,10 @@ class SearchProvider:
                     logger.debug("domain_status %s probe failed: %s", url, exc)
                     break
                 reachable = True
-                if 200 <= resp.status_code < 400:
+                # With redirects no longer followed, a 3xx is a live server that
+                # routes elsewhere — treat it as live (don't inspect an empty body,
+                # which would misread it as parked). Only a 200 body is inspected.
+                if resp.status_code == 200:
                     body = resp.text
                 break
             if body is not None:

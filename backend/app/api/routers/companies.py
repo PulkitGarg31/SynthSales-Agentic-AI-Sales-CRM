@@ -7,6 +7,7 @@ from app.agents.enrichment import enrichment_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.core.ratelimit import enforce
 from app.models import Company, Contact, Thread, User
 from app.schemas import (
     CompanyDetailOut,
@@ -81,6 +82,12 @@ def enrich(
     AI/search path even on dead/parked domains so the user actually gets a
     fresh attempt — that's the point of clicking the button."""
     c = _owned(db, user, company_id)
+    # Each call forces a fresh search+AI pass; cap per user so it can't be looped
+    # across a large upload to drain search/AI credits.
+    enforce(
+        f"enrich:{user.id}", 150, 3600,
+        "Too many re-research requests. Please wait a few minutes.",
+    )
     enrichment_agent.run(db, c, c.campaign, user.id, force_ai=True)
     return get_company(company_id, db, user)
 
@@ -90,6 +97,11 @@ def find_contacts(
     company_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     c = _owned(db, user, company_id)
+    # Spends search + paid-verification credits per call; cap per user.
+    enforce(
+        f"find-contacts:{user.id}", 150, 3600,
+        "Too many contact lookups. Please wait a few minutes.",
+    )
     # Non-approved users are capped to a single contact (credit guard).
     employee_finder_agent.run(db, c, user.id, count=3 if user.has_access else 1)
     if not user.has_access:

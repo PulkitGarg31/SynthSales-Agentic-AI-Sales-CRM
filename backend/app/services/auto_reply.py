@@ -91,15 +91,19 @@ def _record_us(db: Session, thread: Thread, subject: str, body: str) -> None:
 def _strip_quoted(body: str) -> str:
     """Drop the quoted reply history mail clients append, so AI prompts read only
     the prospect's new text (and don't, e.g., re-parse our own quoted proposed time)."""
+    # Truncate before matching, and use [ \t] (not \s, which also matches \n) so
+    # the quoted-line pattern can't backtrack quadratically on an attacker-supplied
+    # body full of newlines (ReDoS).
+    text = (body or "")[:20_000]
     cuts = [
         m.start()
         for p in (
-            re.compile(r"\n\s*On\b[\s\S]{0,200}?\bwrote:"),
-            re.compile(r"\n\s*>"),
-            re.compile(r"\n-{2,}\s*Original Message", re.IGNORECASE),
+            re.compile(r"\n[ \t]*On\b[\s\S]{0,200}?\bwrote:"),
+            re.compile(r"\n[ \t]*>"),
+            re.compile(r"\n-{2,}[ \t]*Original Message", re.IGNORECASE),
             re.compile(r"\n_{5,}"),
         )
-        if (m := p.search(body or ""))
+        if (m := p.search(text))
     ]
     if not cuts:
         return (body or "").strip()
@@ -151,7 +155,10 @@ def _requested_time(thread: Thread) -> datetime | None:
         return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    return dt if dt > utcnow() else None
+    # Sanity-bound the AI/prospect-derived time: in the future, but not absurdly
+    # far out (a prompt-injected reply shouldn't be able to book years ahead).
+    now = utcnow()
+    return dt if now < dt < now + timedelta(days=180) else None
 
 
 def _closing_note(db, owner, thread, contact, campaign, verdict) -> str:

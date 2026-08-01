@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.agents.meeting import meeting_agent
@@ -10,6 +10,7 @@ from app.agents.tracking import tracking_agent
 from app.api.deps import get_current_user
 from app.api.pagination import Page, paginate
 from app.core.database import get_db
+from app.core.ratelimit import enforce
 from app.models import (
     Campaign,
     Company,
@@ -40,6 +41,12 @@ def sync_inbox(
     """Read the user's connected mailbox now, ingest + classify new replies.
     No mailbox connected ⇒ {ingested:0, classified:0} (no error)."""
     require_access(user)
+    # Reads the mailbox + runs AI classification inline; throttle so it can't be
+    # hammered (also blunts the double-ingest race with the scheduler poll).
+    enforce(
+        f"inbox-sync:{user.id}", 30, 3600,
+        "Syncing too frequently. Please wait a moment.",
+    )
     result = reply_classifier_agent.run(db, user.id)
     return SyncResult(**result)
 
@@ -219,8 +226,23 @@ def send_from_draft(
 class BookMeetingIn(BaseModel):
     scheduled_at: datetime
     link: str | None = None
-    notes: str | None = None
-    duration_minutes: int | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+    duration_minutes: int | None = Field(default=None, ge=5, le=480)
+
+    @field_validator("link")
+    @classmethod
+    def _validate_link(cls, v: str | None) -> str | None:
+        # Only an https:// URL — the link is stored, shown, injected into a
+        # message body, and EMAILED to the prospect, so a javascript:/attacker
+        # URL here would make the product a phishing relay.
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            return None
+        if len(v) > 400 or not v.lower().startswith("https://"):
+            raise ValueError("Meeting link must be an https:// URL.")
+        return v
 
 
 @router.post("/{thread_id}/book-meeting", response_model=ThreadDetailOut)

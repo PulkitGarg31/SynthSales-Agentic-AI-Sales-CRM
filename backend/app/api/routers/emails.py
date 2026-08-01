@@ -5,6 +5,7 @@ from app.agents.outreach import nudge_missing_company, outreach_agent
 from app.api.deps import get_current_user
 from app.api.pagination import Page, paginate
 from app.core.database import get_db
+from app.core.ratelimit import enforce
 from app.models import Campaign, Company, Contact, EmailDraft, User
 from app.providers.email import email_provider
 from app.schemas import EmailDraftOut, EmailDraftUpdate
@@ -62,6 +63,10 @@ def regenerate(
     draft_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     d = _owned_draft(db, user, draft_id)
+    enforce(
+        f"regenerate:{user.id}", 100, 3600,
+        "Too many regenerations. Please wait a few minutes.",
+    )
     contact = db.get(Contact, d.contact_id)
     company = contact.company
     campaign = company.campaign
@@ -81,5 +86,12 @@ def send_test(
     draft_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     d = _owned_draft(db, user, draft_id)
+    # Exempt from the outbound gate (mails the user themselves), so throttle it:
+    # otherwise it can be looped to drain the shared transactional-email quota
+    # that signup/reset OTP delivery depends on.
+    enforce(
+        f"testmail:{user.id}", 10, 3600,
+        "Too many test emails. Please wait a few minutes.",
+    )
     email_provider.send(user.email, f"[TEST] {d.subject}", f"{d.body}\n\n{d.footer}")
     return {"detail": f"Test email sent to {user.email}", "mode": email_provider.mode}

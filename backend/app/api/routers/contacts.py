@@ -45,8 +45,17 @@ def update_contact(
     user: User = Depends(get_current_user),
 ):
     ct = _owned(db, user, contact_id)
-    for k, v in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
         setattr(ct, k, v)
+    # Re-enabling contact after a reply-driven opt-out is a compliance-relevant
+    # human override — always leave an audit trail.
+    if "do_not_contact" in data:
+        add_log(
+            db, user.id, "Campaign",
+            f"do_not_contact {'set' if data['do_not_contact'] else 'cleared'} "
+            f"for contact '{ct.name}'.",
+        )
     db.commit()
     db.refresh(ct)
     return ct

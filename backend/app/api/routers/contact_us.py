@@ -5,6 +5,8 @@ and the response never reveals delivery internals. The message is forwarded to
 CONTACT_INBOX via the email provider; in console mode it is logged, which keeps
 the zero-credential dev experience intact.
 """
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
@@ -13,6 +15,7 @@ from app.core.ratelimit import client_ip, limiter
 from app.providers.email import email_provider
 
 router = APIRouter(prefix="/api/contact", tags=["contact"])
+logger = logging.getLogger("synthsales")
 
 _RL_WINDOW = 600  # seconds (10 minutes)
 THROTTLE_MSG = "Too many messages. Please wait a few minutes and try again."
@@ -30,12 +33,19 @@ def contact_us(payload: ContactIn, request: Request):
     if not limiter.check(f"contact:ip:{ip}", 3, _RL_WINDOW):
         raise HTTPException(status_code=429, detail=THROTTLE_MSG)
 
-    name = payload.name.strip()
+    # Strip CR/LF from the name before it reaches an email Subject header
+    # (defence-in-depth against header injection).
+    name = payload.name.replace("\r", " ").replace("\n", " ").strip()
     body = (
         f"From: {name} <{payload.email}>\n"
         f"IP: {ip}\n\n"
         f"{payload.message.strip()}\n"
     )
+    if not settings.contact_inbox:
+        # No delivery mailbox configured — accept + log rather than 502 (keeps the
+        # zero-config dev experience working without a hardcoded address in source).
+        logger.info("[contact-form] from %s <%s>", name, payload.email)
+        return {"detail": "Message sent. We read everything."}
     sent = email_provider.send(
         to=settings.contact_inbox,
         subject=f"[SynthSales contact] {name}",

@@ -6,6 +6,7 @@ otherwise runs in "console" mode (logs the message) so flows still work.
 from __future__ import annotations
 
 import logging
+import re
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -13,6 +14,11 @@ from email.mime.text import MIMEText
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# A recipient must be exactly one address — no comma-list (which would fan one
+# send out to many mailboxes, bypassing per-contact suppression) and no
+# header-injection characters.
+_BAD_RECIPIENT = re.compile(r"[,;<>\r\n\s]")
 
 
 def _mime(subject: str, body: str, html: str | None) -> MIMEText | MIMEMultipart:
@@ -55,6 +61,11 @@ class EmailProvider:
         return self.mode in ("resend", "brevo", "gmail", "smtp")
 
     def send(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
+        # Guard every transport: exactly one well-formed recipient, no header
+        # injection. Defense-in-depth behind the schema-level validation.
+        if not to or _BAD_RECIPIENT.search(to) or to.count("@") != 1:
+            logger.warning("Refusing to send to a malformed recipient address.")
+            return False
         mode = self.mode
         if mode == "resend":
             return self._send_resend(to, subject, body, html)
@@ -64,7 +75,16 @@ class EmailProvider:
             return self._send_gmail(to, subject, body, html)
         if mode == "smtp":
             return self._send_smtp(to, subject, body, html)
-        logger.info("[console-email] To:%s | %s\n%s", to, subject, body)
+        # Console fallback. In dev we log the full body for convenience, but NEVER
+        # outside development — if a prod misconfig drops us here, the body could
+        # be a signup/reset OTP and must not land in the log stream.
+        if settings.environment == "development":
+            logger.info("[console-email] To:%s | %s\n%s", to, subject, body)
+        else:
+            logger.warning(
+                "[console-email] no email provider configured; To:%s | Subject:%s",
+                to, subject,
+            )
         return True
 
     def _sender(self) -> tuple[str, str]:

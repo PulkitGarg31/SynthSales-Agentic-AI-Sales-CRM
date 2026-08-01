@@ -17,9 +17,19 @@ from app.workers.scheduler import start_scheduler, stop_scheduler
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("synthsales")
 
+# httpx logs every request line at INFO, including the full URL — and three
+# providers pass their API key as a query parameter (Gemini, Hunter, ZeroBounce).
+# Quiet it to WARNING so those keys never land in the log stream.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Hard ceiling on any request body (bytes). The one large upload is the CSV
+# importer (frontend-capped at 20 MB); everything else is small JSON. Rejecting
+# oversized bodies up front stops a single POST from OOMing the single worker.
+MAX_BODY_BYTES = 25 * 1024 * 1024
+
 
 def _assert_production_config() -> None:
-    """Refuse to boot a non-development environment with insecure defaults."""
+    """Refuse to boot with insecure defaults."""
     if settings.environment != "development":
         if (
             settings.secret_key in ("", "dev-secret-change-me")
@@ -30,6 +40,20 @@ def _assert_production_config() -> None:
                 "when ENVIRONMENT is not 'development'. "
                 'Generate one: python -c "import secrets; print(secrets.token_urlsafe(48))"'
             )
+        return
+
+    # Fail CLOSED on the classic footgun: ENVIRONMENT defaults to "development", so
+    # a deploy that forgets to set it would otherwise boot with the publicly-known
+    # dev SECRET_KEY (forgeable JWTs for any account). If the key is still the dev
+    # default but the database is NOT local, this is a real deploy misconfigured —
+    # refuse to start.
+    db = settings.database_url.lower()
+    is_local_db = "@localhost" in db or "@127.0.0.1" in db or "localhost:" in db
+    if settings.secret_key == "dev-secret-change-me" and not is_local_db:
+        raise RuntimeError(
+            "Refusing to boot: SECRET_KEY is the known dev default but DATABASE_URL "
+            "is not local. Set ENVIRONMENT and a strong SECRET_KEY for this deploy."
+        )
 
 
 def _run_migrations() -> None:
@@ -43,10 +67,23 @@ def _run_migrations() -> None:
     from alembic import command
     from alembic.config import Config as AlembicConfig
 
+    from sqlalchemy import text
+
     backend_dir = Path(__file__).resolve().parents[1]  # .../backend
     cfg = AlembicConfig()
     cfg.set_main_option("script_location", str(backend_dir / "alembic"))
-    command.upgrade(cfg, "head")
+    # Serialize migrations across instances: Alembic takes no cross-process lock,
+    # so two instances booting at once (the Dockerfile advises scaling >1) could
+    # run the same DDL concurrently. A Postgres *session* advisory lock makes the
+    # loser wait for the winner, after which its upgrade is a no-op.
+    lock_key = 0x5717_5A15  # stable arbitrary constant ("SYNSALS"-ish)
+    with engine.connect() as conn:
+        conn.execute(text("SELECT pg_advisory_lock(:k)"), {"k": lock_key})
+        try:
+            command.upgrade(cfg, "head")
+        finally:
+            conn.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": lock_key})
+            conn.commit()
 
 
 @asynccontextmanager
@@ -102,6 +139,45 @@ app = FastAPI(
     redoc_url="/redoc" if _docs_enabled else None,
     openapi_url="/openapi.json" if _docs_enabled else None,
 )
+
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
+from starlette.responses import JSONResponse  # noqa: E402
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(request, exc: RequestValidationError):
+    """Strip the echoed ``input`` (and ctx/url) from validation errors — Pydantic
+    v2 includes the submitted value, which would reflect a password back in the
+    422 body of a failed register/reset."""
+    safe = [
+        {k: v for k, v in err.items() if k not in ("input", "ctx", "url")}
+        for err in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": safe})
+
+
+async def _security_and_limits(request, call_next):
+    """Reject oversized bodies and stamp defensive response headers on everything."""
+    cl = request.headers.get("content-length")
+    if cl and cl.isdigit() and int(cl) > MAX_BODY_BYTES:
+        return JSONResponse({"detail": "Request body too large."}, status_code=413)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    # HSTS only outside development (local dev is plain http); the API is HTTPS-only
+    # in prod behind Cloudflare/Render.
+    if settings.environment != "development":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+        )
+    return response
+
+
+# Registered BEFORE CORS so CORSMiddleware stays outermost — a 413 (or any error)
+# from this layer still gets the CORS headers the browser needs to read it.
+app.add_middleware(BaseHTTPMiddleware, dispatch=_security_and_limits)
 
 app.add_middleware(
     CORSMiddleware,

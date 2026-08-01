@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     seed_demo_data: bool = False
     cors_origins: str = "http://localhost:3000"
     # Where the public contact form delivers (marketing site "contact us").
-    contact_inbox: str = "brodomyjob@gmail.com"
+    # Set via CONTACT_INBOX in the deploy env — kept blank in source so no personal
+    # address is published in the public repo.
+    contact_inbox: str = ""
 
     # Security
     secret_key: str = "dev-secret-change-me"

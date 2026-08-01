@@ -82,6 +82,12 @@ class User(Base):
     access_requested_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Set whenever the password changes (reset flow). get_current_user rejects any
+    # token whose `iat` predates this, so a password reset invalidates every
+    # outstanding session — a stolen JWT can't outlive the account recovery.
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     @property

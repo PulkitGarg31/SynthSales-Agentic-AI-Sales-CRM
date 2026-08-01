@@ -1,5 +1,7 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -28,8 +30,8 @@ def list_meetings(
 
 
 class MeetingStatusIn(BaseModel):
-    status: str
-    notes: str | None = None
+    status: Literal["Upcoming", "Completed", "Cancelled", "No-show"]
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 @router.patch("/{meeting_id}", response_model=MeetingOut)

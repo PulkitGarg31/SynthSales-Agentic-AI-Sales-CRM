@@ -5,11 +5,14 @@ returns realistic data immediately (and matches the Next.js mock screens).
 
 Demo login:  jordan@apexcloud.com  /  password123
 """
+import logging
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
 from app.agents.orchestrator import ensure_agents
+from app.core.config import settings
 from app.core.security import hash_password
 from app.models import (
     Campaign,
@@ -35,11 +38,21 @@ def seed_demo(db: Session) -> None:
     if db.query(User).filter(User.email == DEMO_EMAIL).first():
         return  # already seeded
 
+    # Outside development (an explicit SEED_DEMO_DATA=true on a staging box), never
+    # ship the publicly-known "password123": that account is verified + approved and
+    # could run the paid pipeline. Use a random password logged once instead.
+    is_dev = settings.environment == "development"
+    demo_password = "password123" if is_dev else secrets.token_urlsafe(24)
+    if not is_dev:
+        logging.getLogger("synthsales").warning(
+            "Seeded demo user %s with a random password: %s", DEMO_EMAIL, demo_password
+        )
+
     user = User(
         name="Jordan Pierce",
         company_name="Apex Cloud",
         email=DEMO_EMAIL,
-        hashed_password=hash_password("password123"),
+        hashed_password=hash_password(demo_password),
         is_verified=True,
         access_status="approved",
     )

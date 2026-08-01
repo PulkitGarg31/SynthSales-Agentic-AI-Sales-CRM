@@ -22,6 +22,7 @@ from app.agents.orchestrator import (
 from app.api.deps import get_current_user
 from app.api.pagination import Page, paginate
 from app.core.database import SessionLocal, get_db
+from app.core.ratelimit import enforce
 from app.models import AgentConfig, Campaign, Company, Contact, EmailDraft, Meeting, Thread, User
 from app.schemas import (
     CampaignCreate,
@@ -137,6 +138,26 @@ def campaign_companies(
     return [company_out(db, c) for c in rows]
 
 
+# Server-side upload limits. The frontend enforces the same 20 MB, but those
+# checks are cosmetic — the API is the source of truth and must not trust them.
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_UPLOAD_ROWS = 50_000
+MAX_UPLOAD_COLS = 100
+
+
+def _normalize_domain(raw: str) -> str:
+    """Reduce a website/URL cell to a bare hostname — strip scheme, path, query,
+    fragment, userinfo and port. Keeps SSRF-shaped values (``user@host``,
+    ``host:port/path``) out of the DB and away from the enrichment fetcher."""
+    d = (raw or "").strip().lower()
+    for pre in ("https://", "http://"):
+        if d.startswith(pre):
+            d = d[len(pre):]
+    d = d.split("/")[0].split("?")[0].split("#")[0]
+    d = d.split("@")[-1].split(":")[0]
+    return d.strip().strip(".")
+
+
 @router.post("/{campaign_id}/companies/upload")
 async def upload_companies(
     campaign_id: int,
@@ -145,10 +166,24 @@ async def upload_companies(
     user: User = Depends(get_current_user),
 ):
     c = _owned(db, user, campaign_id)
-    raw = (await file.read()).decode("utf-8-sig", errors="replace")
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=415, detail="Upload a .csv file.")
+    # Bounded, chunked read — never pull an unbounded body into memory.
+    buf, total = [], 0
+    while chunk := await file.read(64 * 1024):
+        total += len(chunk)
+        if total > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="CSV is larger than 20 MB. Split it into smaller lists.",
+            )
+        buf.append(chunk)
+    raw = b"".join(buf).decode("utf-8-sig", errors="replace")
     reader = csv.DictReader(io.StringIO(raw))
     if not reader.fieldnames:
         raise HTTPException(status_code=400, detail="Empty or invalid CSV")
+    if len(reader.fieldnames) > MAX_UPLOAD_COLS:
+        raise HTTPException(status_code=400, detail="CSV has too many columns.")
 
     # Normalize header names.
     def pick(row: dict, *keys: str) -> str:
@@ -164,12 +199,18 @@ async def upload_companies(
     }
     added = 0
     skipped = 0
+    seen = 0
     for row in reader:
-        name = pick(row, "company_name", "company", "name")
+        seen += 1
+        if seen > MAX_UPLOAD_ROWS:
+            break  # cap the batch; ignore the rest rather than OOM/timeout
+        # Truncate each cell to its DB column width so one oversized value can't
+        # 500 the whole upload (Postgres rejects, not truncates, over-length text).
+        name = pick(row, "company_name", "company", "name")[:200]
         if not name:
             skipped += 1
             continue
-        domain = pick(row, "domain", "website", "url")
+        domain = _normalize_domain(pick(row, "domain", "website", "url"))[:200]
         key = (name.lower(), domain.lower())
         if key in existing:
             skipped += 1
@@ -180,8 +221,8 @@ async def upload_companies(
                 campaign_id=c.id,
                 name=name,
                 domain=domain,
-                industry=pick(row, "industry", "sector"),
-                location=pick(row, "country", "location", "region"),
+                industry=pick(row, "industry", "sector")[:120],
+                location=pick(row, "country", "location", "region")[:120],
                 status="Researching",
             )
         )
@@ -209,6 +250,13 @@ def run_campaign(
     user: User = Depends(get_current_user),
 ):
     c = _owned(db, user, campaign_id)
+    # Cap full-pipeline launches per user: each run opens several DB sessions and
+    # spends search/AI/verification credits, so unbounded triggering could exhaust
+    # the connection pool or drain paid quotas.
+    enforce(
+        f"pipeline-run:{user.id}", 12, 3600,
+        "You're starting pipeline runs too quickly. Please wait a few minutes.",
+    )
     count = db.query(Company).filter(Company.campaign_id == c.id).count()
     if count == 0:
         raise HTTPException(status_code=400, detail="Upload companies before running")

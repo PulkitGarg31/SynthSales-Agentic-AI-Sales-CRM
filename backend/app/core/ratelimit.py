@@ -154,21 +154,46 @@ def _build_limiter():
 limiter = _build_limiter()
 
 
+def enforce(key: str, limit: int, window_seconds: float, detail: str) -> None:
+    """Raise 429 when ``key`` exceeds ``limit`` per ``window_seconds``. Used to
+    cap authenticated but expensive/credit-spending actions per user (pipeline
+    runs, enrichment, test sends) so one account can't drain shared quotas or
+    the DB connection pool."""
+    from fastapi import HTTPException
+
+    if not limiter.check(key, limit, window_seconds):
+        raise HTTPException(status_code=429, detail=detail)
+
+
 def client_ip(request) -> str:
     """Best-effort client IP for rate-limit keying.
 
-    When ``trust_proxy`` is set — a trusted reverse proxy fronts the app, as on
-    every PaaS — use the left-most ``X-Forwarded-For`` entry (the original
-    client the proxy recorded). Without a proxy, ``X-Forwarded-For`` is
-    attacker-controlled, so we trust only the direct peer address. ``request`` is
-    a Starlette/FastAPI ``Request``.
+    ``X-Forwarded-For`` is a comma list a proxy *appends* to, so its LEFT-most
+    entry is fully client-controlled and must never be trusted — keying on it
+    lets an attacker rotate a fake header to defeat every per-IP throttle. When
+    ``trust_proxy`` is set we instead use, in order:
+
+    1. ``CF-Connecting-IP`` — Cloudflare (which fronts the deploy) sets this to
+       the real client and strips any client-supplied copy, so it can't be
+       spoofed. Authoritative when present.
+    2. The RIGHT-most ``X-Forwarded-For`` entry — the address the trusted edge
+       itself recorded; an attacker who pre-seeds the header only controls the
+       entries to its left. Conservative (a shared proxy IP may share a bucket)
+       but never bypassable.
+
+    Without a proxy (``trust_proxy`` off, e.g. local dev) forwarded headers are
+    attacker-controlled, so only the direct peer address is trusted. ``request``
+    is a Starlette/FastAPI ``Request``.
     """
     from app.core.config import settings
 
     if settings.trust_proxy:
+        cf = (request.headers.get("cf-connecting-ip") or "").strip()
+        if cf:
+            return cf
         xff = request.headers.get("x-forwarded-for")
         if xff:
-            first = xff.split(",")[0].strip()
-            if first:
-                return first
+            parts = [p.strip() for p in xff.split(",") if p.strip()]
+            if parts:
+                return parts[-1]
     return request.client.host if request.client else "unknown"

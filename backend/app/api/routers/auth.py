@@ -1,8 +1,7 @@
-import random
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -13,9 +12,9 @@ from app.core.database import get_db
 from app.core.ratelimit import client_ip, limiter
 from app.core.security import (
     create_access_token,
-    decode_access_token,
     decode_token,
     hash_password,
+    needs_rehash,
     verify_password,
 )
 from app.models import RevokedToken, User, utcnow
@@ -52,10 +51,17 @@ RESET_THROTTLE_MSG = (
     "Too many reset requests. Please wait a few minutes before trying again."
 )
 OTP_LOCKED_MSG = "Too many incorrect codes. Request a new code to continue."
+LOGIN_THROTTLE_MSG = "Too many sign-in attempts. Please wait a few minutes and try again."
+OTP_THROTTLE_MSG = "Too many attempts. Please wait a few minutes and try again."
+
+# Constant-cost hash compared against on a login miss so a nonexistent account
+# takes the same time as a real one (no account-enumeration timing oracle).
+_DUMMY_PW_HASH = hash_password("timing-safety-placeholder")
 
 
 def _new_otp() -> str:
-    return f"{random.randint(0, 999999):06d}"
+    # CSPRNG — auth codes must not come from the predictable Mersenne-Twister PRNG.
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def _send_otp(email: str, otp: str, purpose: str = "verify") -> bool:
@@ -155,8 +161,20 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
     return out
 
 
+def _throttle_otp(request: Request, email: str) -> None:
+    """Per-IP + per-email cap on OTP-consuming endpoints (verify / reset). The
+    per-code 5-attempt lockout stops guessing one code; this stops unauthenticated
+    request-flooding / distributed spraying across many accounts."""
+    ip = client_ip(request)
+    if not limiter.check(f"otp:ip:{ip}", 15, _RL_WINDOW) or not limiter.check(
+        f"otp:email:{email.lower()}", 10, _RL_WINDOW
+    ):
+        raise HTTPException(status_code=429, detail=OTP_THROTTLE_MSG)
+
+
 @router.post("/verify-otp", response_model=Token)
-def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
+def verify_otp(payload: VerifyOtpIn, request: Request, db: Session = Depends(get_db)):
+    _throttle_otp(request, payload.email)
     # Only signup-verification codes ("V" prefix) are accepted here: a code issued
     # by forgot-password can't flip is_verified (or reach the admin auto-grant).
     user = _consume_otp(db, payload.email, payload.code, "V", "OTP verification")
@@ -188,9 +206,13 @@ def resend_otp(
             level="warn",
         )
         raise HTTPException(status_code=429, detail=RESEND_THROTTLE_MSG)
+    # Anti-enumeration: an unknown address gets the same generic body as a real
+    # one (never a 404 "User not found" oracle), mirroring forgot-password.
+    is_dev = settings.environment == "development"
+    generic = {"detail": "If that account needs a code, one was sent."}
     user = db.query(User).filter(User.email == target).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        return {**generic, "email_sent": False if is_dev else True, "dev_otp": None}
     otp = _new_otp()
     user.otp_code = "V" + otp  # provenance tag: signup-verification channel
     user.otp_expires_at = utcnow() + timedelta(minutes=15)
@@ -198,8 +220,8 @@ def resend_otp(
     db.commit()
     delivered = _send_otp(user.email, otp)
     return {
-        "detail": "OTP resent" if delivered else "OTP regenerated (email not configured)",
-        "email_sent": delivered,
+        **generic,
+        "email_sent": delivered if is_dev else True,
         "dev_otp": _dev_otp(otp, delivered),
     }
 
@@ -242,37 +264,78 @@ def forgot_password(
 
 
 @router.post("/reset-password")
-def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
+def reset_password(payload: ResetPasswordIn, request: Request, db: Session = Depends(get_db)):
+    _throttle_otp(request, payload.email)
     # Only password-reset codes ("R" prefix) are accepted here: a signup code
     # can't be replayed to change the password.
     user = _consume_otp(db, payload.email, payload.code, "R", "Password-reset")
     user.hashed_password = hash_password(payload.new_password)
+    # Invalidate every outstanding session so a stolen token can't survive the
+    # reset (get_current_user rejects tokens issued before this instant).
+    user.password_changed_at = utcnow()
     db.commit()
     add_log(db, user.id, "User", f"Password reset for {user.email}.")
     return {"detail": "Password updated. You can sign in now."}
 
 
-@router.post("/login", response_model=Token)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user or not verify_password(payload.password, user.hashed_password):
+def _throttle_login(db: Session, request: Request, email: str) -> None:
+    """Cap credential-guessing per source IP and per targeted account. A blocked
+    hit is not recorded against the window, so an attacker can't keep extending
+    their own lockout. A successful login later resets the per-email counter so a
+    legitimate user who mistyped a few times isn't penalized after signing in."""
+    ip = client_ip(request)
+    if not limiter.check(f"login:ip:{ip}", 30, _RL_WINDOW) or not limiter.check(
+        f"login:email:{email.lower()}", 10, _RL_WINDOW
+    ):
+        add_log(
+            db, None, "User",
+            f"Login throttled for {email or '(blank)'} from {ip}.",
+            level="warn",
+        )
+        raise HTTPException(status_code=429, detail=LOGIN_THROTTLE_MSG)
+
+
+def _authenticate(db: Session, email: str, password: str) -> User:
+    """Verify credentials in constant time (a nonexistent account still pays a
+    hash comparison against a dummy) and transparently upgrade a legacy-cost
+    password hash on a successful sign-in."""
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        verify_password(password, _DUMMY_PW_HASH)
         raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if not verify_password(password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if needs_rehash(user.hashed_password):
+        user.hashed_password = hash_password(password)
+        db.commit()
+    return user
+
+
+@router.post("/login", response_model=Token)
+def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
+    _throttle_login(db, request, payload.email)
+    user = _authenticate(db, payload.email, payload.password)
     if not user.is_verified:
         raise HTTPException(
             status_code=403,
             detail="Please verify your email before signing in. Check your inbox for the code.",
         )
+    limiter.reset(f"login:email:{payload.email.lower()}")
     return Token(access_token=create_access_token(str(user.id)))
 
 
 @router.post("/token", response_model=Token, include_in_schema=True)
-def token(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def token(
+    request: Request,
+    form: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
     """OAuth2 password flow — lets Swagger's Authorize button work."""
-    user = db.query(User).filter(User.email == form.username).first()
-    if not user or not verify_password(form.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    _throttle_login(db, request, form.username)
+    user = _authenticate(db, form.username, form.password)
     if not user.is_verified:
         raise HTTPException(status_code=403, detail="Email not verified")
+    limiter.reset(f"login:email:{form.username.lower()}")
     return Token(access_token=create_access_token(str(user.id)))
 
 
@@ -375,6 +438,7 @@ def google_start():
         state,
         max_age=600,
         httponly=True,
+        secure=settings.environment != "development",
         samesite="lax",
         path="/api/auth",
     )
@@ -445,8 +509,11 @@ def google_callback(
     add_log(db, user.id, "User", f"Signed in with Google ({user.email}).")
 
     token = create_access_token(str(user.id))
+    # Deliver the session token in the URL *fragment*, not the query string: a
+    # fragment is never sent to the server, so the 7-day JWT stays out of Vercel/
+    # CDN access logs and Referer headers. The SPA reads it from location.hash.
     resp = RedirectResponse(
-        f"{settings.frontend_url}/oauth-callback?token={token}", status_code=307
+        f"{settings.frontend_url}/oauth-callback#token={token}", status_code=307
     )
     resp.delete_cookie("oauth_state", path="/api/auth")
     return resp
@@ -460,15 +527,40 @@ def google_callback(
 # a short-lived signed JWT binding the grant back to the logged-in user.
 
 
+def _state_user_id(state: str, purpose: str) -> str | None:
+    """Decode a purpose-scoped OAuth-connect `state` and return the bound user id,
+    or None if it's missing/invalid/expired or carries the wrong purpose. The
+    purpose claim also means this token can't be replayed as a Bearer session
+    (get_current_user rejects any token with a `purpose`)."""
+    if not state:
+        return None
+    payload = decode_token(state)
+    if not payload or payload.get("purpose") != purpose:
+        return None
+    return payload.get("sub")
+
+
+def _google_account_matches(access_token: str, user: User) -> bool:
+    """True only when the Google account just consented with is the logged-in
+    user's own account (verified email == account email). Prevents an attacker
+    from binding a victim's mailbox/calendar to the attacker's account: the
+    attacker mints a state for their own id, but the victim consents with the
+    victim's Google account, so the emails don't match and the bind is refused."""
+    info = oauth_provider.fetch_userinfo(access_token)
+    if not info or not info.get("email_verified"):
+        return False
+    return (info.get("email") or "").lower() == (user.email or "").lower()
+
+
 @router.get("/google/calendar/connect")
 def google_calendar_connect(user: User = Depends(get_current_user)):
     if not oauth_provider.available:
         raise HTTPException(status_code=404, detail="Google integration is not enabled")
-    # Signed, short-lived state both identifies the user on callback and acts as an
-    # unforgeable CSRF token (HMAC over our secret_key). No cookie is used: the SPA
-    # fetches this URL with its bearer token, then navigates the browser to it (a
-    # cross-origin fetch can't persist a Set-Cookie anyway).
-    state = create_access_token(str(user.id), expires_minutes=10)
+    # Signed, short-lived, PURPOSE-SCOPED state: it identifies the user on callback
+    # and is unforgeable (HMAC over our secret_key), but the `purpose` claim means
+    # it can't double as an API session token. The callback additionally verifies
+    # the consenting Google account is this user's own (see _google_account_matches).
+    state = create_access_token(str(user.id), expires_minutes=10, purpose="calendar_connect")
     return {"url": oauth_provider.calendar_authorization_url(state)}
 
 
@@ -484,20 +576,23 @@ def google_calendar_callback(
         raise HTTPException(status_code=404, detail="Google integration is not enabled")
     if error:
         return RedirectResponse(base + "denied", status_code=307)
-    # Verify the signed state (signature + expiry) and recover the user id.
-    user_id = decode_access_token(state) if state else None
+    # Verify the purpose-scoped signed state (signature + expiry + purpose).
+    user_id = _state_user_id(state, "calendar_connect")
     if not user_id or not code:
         return RedirectResponse(base + "state", status_code=307)
     tokens = oauth_provider.exchange_code(
         code, redirect_uri=settings.google_calendar_redirect_uri
     )
+    access_token = (tokens or {}).get("access_token")
     refresh_token = (tokens or {}).get("refresh_token")
-    if not refresh_token:
+    if not access_token or not refresh_token:
         # No refresh token ⇒ offline access wasn't granted; ask the user to retry.
         return RedirectResponse(base + "exchange", status_code=307)
     user = db.get(User, int(user_id))
     if not user:
         return RedirectResponse(base + "state", status_code=307)
+    if not _google_account_matches(access_token, user):
+        return RedirectResponse(base + "mismatch", status_code=307)
     user.google_calendar_token = refresh_token
     db.commit()
     add_log(db, user.id, "User", "Connected Google Calendar.")
@@ -526,7 +621,7 @@ def google_calendar_disconnect(
 def google_mailbox_connect(user: User = Depends(get_current_user)):
     if not oauth_provider.available:
         raise HTTPException(status_code=404, detail="Google integration is not enabled")
-    state = create_access_token(str(user.id), expires_minutes=10)
+    state = create_access_token(str(user.id), expires_minutes=10, purpose="mailbox_connect")
     return {"url": oauth_provider.mailbox_authorization_url(state)}
 
 
@@ -542,18 +637,21 @@ def google_mailbox_callback(
         raise HTTPException(status_code=404, detail="Google integration is not enabled")
     if error:
         return RedirectResponse(base + "denied", status_code=307)
-    user_id = decode_access_token(state) if state else None
+    user_id = _state_user_id(state, "mailbox_connect")
     if not user_id or not code:
         return RedirectResponse(base + "state", status_code=307)
     tokens = oauth_provider.exchange_code(
         code, redirect_uri=settings.google_mailbox_redirect_uri
     )
+    access_token = (tokens or {}).get("access_token")
     refresh_token = (tokens or {}).get("refresh_token")
-    if not refresh_token:
+    if not access_token or not refresh_token:
         return RedirectResponse(base + "exchange", status_code=307)
     user = db.get(User, int(user_id))
     if not user:
         return RedirectResponse(base + "state", status_code=307)
+    if not _google_account_matches(access_token, user):
+        return RedirectResponse(base + "mismatch", status_code=307)
     user.gmail_read_token = refresh_token
     db.commit()
     add_log(db, user.id, "User", "Connected Gmail (read replies).")
