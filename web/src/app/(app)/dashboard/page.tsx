@@ -328,7 +328,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Greeting band */}
-      <header>
+      <header data-tour="dashboard">
         <h1 className="display text-3xl sm:text-4xl">
           {greetingForHour(new Date().getHours())}, {firstName}.
         </h1>

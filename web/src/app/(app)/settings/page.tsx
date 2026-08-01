@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarClock, Inbox, type LucideIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
+import { resetOnboarding } from "@/lib/onboarding";
 import { useAuth } from "@/components/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -372,6 +373,23 @@ function SettingsInner() {
             >
               Reset password →
             </Link>
+          </Card>
+
+          <Card title="Product tour">
+            <p className="text-sm text-ink-soft">
+              New here, or want a refresher? Replay the guided walkthrough of the
+              core workflow.
+            </p>
+            <Button
+              variant="secondary"
+              className="mt-3"
+              onClick={() => {
+                resetOnboarding(me.id);
+                router.push("/dashboard");
+              }}
+            >
+              Replay product tour
+            </Button>
           </Card>
         </>
       )}

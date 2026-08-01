@@ -11,6 +11,15 @@ import { Wordmark } from "@/components/brand/Wordmark";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { isNavActive, NAV, type NavItem } from "@/lib/nav";
 
+// Anchors for the first-run product tour (see components/onboarding). Only the
+// items the tour spotlights get one; the rest render without the attribute.
+const TOUR_ANCHOR: Record<string, string> = {
+  "/campaigns": "nav-campaigns",
+  "/agents": "nav-agents",
+  "/conversations": "nav-conversations",
+  "/settings": "nav-settings",
+};
+
 /**
  * Campaigns nav row: the label links to the list page; the chevron expands an
  * inline, scrollable list of the user's campaigns (each opens its pipeline).
@@ -44,6 +53,7 @@ function CampaignsNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: ()
         <Link
           href={item.href}
           onClick={onNavigate}
+          data-tour={TOUR_ANCHOR[item.href]}
           aria-current={parentActive ? "page" : undefined}
           className={`relative flex flex-1 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
             parentActive ? "font-medium text-ink" : "text-ink-soft hover:bg-paper hover:text-ink"
@@ -138,6 +148,7 @@ function NavColumn({ onNavigate }: { onNavigate?: () => void }) {
                     <Link
                       href={item.href}
                       onClick={onNavigate}
+                      data-tour={TOUR_ANCHOR[item.href]}
                       aria-current={active ? "page" : undefined}
                       className={`relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                         active

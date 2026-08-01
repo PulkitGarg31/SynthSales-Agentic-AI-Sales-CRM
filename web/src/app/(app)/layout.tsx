@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
+import { OnboardingController } from "@/components/onboarding/OnboardingController";
 
 /**
  * Authenticated app shell: ToastProvider must sit OUTSIDE AuthProvider so
@@ -32,6 +33,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Topbar onMenu={() => setMenuOpen(true)} />
             <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
           </div>
+          <OnboardingController
+            onOpenNav={() => setMenuOpen(true)}
+            onCloseNav={() => setMenuOpen(false)}
+          />
         </div>
       </AuthProvider>
     </ToastProvider>
