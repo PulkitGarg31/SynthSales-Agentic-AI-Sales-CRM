@@ -1399,3 +1399,38 @@ token, keep the splash, retry every 3s until the server wakes — and after the 
 the splash shows "Waking the server — this can take up to a minute…" so a cold start doesn't look
 broken. (`SECRET_KEY` rotation and token expiry were ruled out: Render `generateValue` is stable
 across deploys and the token lives 7 days.)
+
+### 2026-08-01 (pre-launch security hardening + first-run onboarding tour)
+
+Full production-readiness pass ahead of launch. **Security** (multi-area audit; no Critical/IDOR/
+privilege-escalation found — auth model, tenant scoping and admin gating verified sound). Fixed:
+- **Auth/session:** login/token brute-force throttling (per-IP + per-email) with a dummy-hash
+  timing defense; JWT pinned to HS256 + `exp` required; tokens without a `jti` and purpose-scoped
+  tokens are rejected as sessions; pbkdf2 rounds raised to 600k with rehash-on-login; CSPRNG OTP;
+  per-IP throttle on verify/reset OTP; anti-enumeration `resend-otp`; **password reset now
+  invalidates every outstanding session** (`User.password_changed_at`, migration `c1a2b3d4e5f6`).
+- **OAuth:** sign-in token delivered in the URL **fragment** (out of server logs), `Secure` state
+  cookie, and the calendar/mailbox connect flow is now **purpose-scoped + Google-email-matched** so
+  an attacker can't bind a victim's mailbox to their own account.
+- **Injection/DoS:** SSRF guard on domain probes (public-host allowlist, no redirect/exfil); CSV
+  upload bounded (chunked read, extension/row/column caps, per-cell truncation, hostname
+  normalization) + a global request-body size limit; per-user quotas on the pipeline/enrich/
+  find-contacts/sync/test/regenerate endpoints; Pydantic constraints across request models
+  (bounded ints, length caps, status/recipient allowlists); single-recipient guard in the email
+  provider.
+- **Config/infra:** security-headers middleware (API) + `next.config` headers (CSP `frame-ancestors`,
+  HSTS, nosniff, Referrer-Policy, `poweredByHeader` off); httpx URL logging silenced (was leaking
+  provider API keys); advisory-locked Alembic migrations; validation handler strips the echoed
+  input (was reflecting submitted passwords in 422s); fail-closed on dev `SECRET_KEY` + non-local DB;
+  random-password demo seed outside dev; personal emails removed from source/templates.
+- **Dependencies:** `next` 16.2.6 → 16.2.12 (SSRF/middleware-bypass/DoS advisories); backend deps
+  pinned to patched versions (`python-multipart`, `starlette`, `cryptography`, `httplib2`, `pyasn1`,
+  `pydantic-settings`). `frontend safeUrl()` guards every data-derived `href` (`javascript:`), and
+  the quoted-reply regexes (front + back) are bounded (ReDoS). Verified: `npm run build` green,
+  backend imports clean, `pip-audit` clear of application deps.
+
+**Onboarding:** first-run spotlight/tooltip tour (`components/onboarding/`, `lib/onboarding.ts`) that
+auto-starts once per account on the dashboard, anchors to the greeting + sidebar nav items (opens the
+mobile sheet for those on small screens), has Next/Back + a step counter + progress dots + Skip at
+every step, keyboard nav, and a "Replay product tour" control in Settings → Profile. Trigger flag is
+device-local (`synthsales_onboarded_<id>`); a DB-backed flag (cross-device) is a possible follow-up.
