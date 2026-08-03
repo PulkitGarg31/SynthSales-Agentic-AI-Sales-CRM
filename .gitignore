@@ -44,6 +44,15 @@ Thumbs.db
 .cursor/
 *.log
 
+# --- AI-assistant instructions & internal design docs (local-only, not public) ---
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+**/CLAUDE.md
+**/GEMINI.md
+**/AGENTS.md
+spec.txt
+
 # --- Binary / large assets we don't want in the repo ---
 *.pdf
 
