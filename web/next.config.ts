@@ -1,16 +1,17 @@
 import type { NextConfig } from "next";
 
-// Security response headers applied to every route. The CSP intentionally sets
-// only directives that cannot break the SPA's own scripts/styles/fetches
-// (frame-ancestors, base-uri, object-src, form-action) — enough to close
-// clickjacking, base-tag injection, object embedding and form hijacking. A
+// Security response headers applied to every route. The CSP intentionally OMITS
+// `default-src` — that directive is the fallback for script-src/connect-src/etc.,
+// so setting it would block Next's inline hydration script and the SPA's fetches
+// to the API origin. We ship only directives that don't touch resource/script
+// loading (frame-ancestors, base-uri, object-src, form-action) — enough to close
+// clickjacking, base-tag injection, object embedding and form hijacking. A full
 // script-src/connect-src lock-down needs a per-request nonce (Next middleware)
 // and end-to-end testing; it's tracked as a follow-up, not shipped untested.
 const securityHeaders = [
   {
     key: "Content-Security-Policy",
     value: [
-      "default-src 'self'",
       "base-uri 'self'",
       "object-src 'none'",
       "frame-ancestors 'none'",
