@@ -9,6 +9,83 @@ and a Schibsted Grotesk + Instrument Serif (italic display) type pairing.
 > **This README is the running context log.** It is updated after each task so work can
 > resume with full context. See the "Progress log" section at the bottom.
 
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-v4-38BDF8?logo=tailwindcss&logoColor=white)
+![License](https://img.shields.io/badge/status-pre--launch-blueviolet)
+
+**Live:** frontend → `https://synthsales.vercel.app` · API health → `https://synthsales-api.onrender.com/health`
+
+---
+
+## What is SynthSales?
+
+SynthSales turns a plain CSV of target companies into booked meetings. You upload a list and
+describe your product and ideal customer; an **8-agent pipeline** then researches each company,
+scores it against your ICP, finds real decision-maker contacts, verifies their emails, drafts
+personalized outreach, tracks replies, and books meetings with a Google Meet link, reading and
+classifying every inbound reply along the way. Every agent degrades gracefully with zero
+credentials, and **no email ever reaches a prospect until the user flips the sending kill-switch on.**
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U["Sales rep"] -->|browser| FE["Next.js 16 SPA<br/>(Vercel)"]
+    FE -->|"REST + JWT"| API["FastAPI API<br/>(Render, Docker)"]
+    API --> DB[("PostgreSQL<br/>Neon")]
+    API --> RD[("Redis<br/>rate limits")]
+    API --> PIPE["8-Agent Pipeline"]
+    PIPE --> AI["AI chain<br/>Gemini → Groq → OpenRouter"]
+    PIPE --> SR["Web search<br/>Serper → DuckDuckGo"]
+    PIPE --> VF["Email verify<br/>MX → Verifalia/ZeroBounce"]
+    PIPE --> HN["Hunter.io"]
+    API --> EM["Email<br/>Gmail API / SMTP"]
+    API --> CAL["Google Calendar + Meet"]
+    API --> INB["Inbound reader<br/>Gmail / IMAP"]
+```
+
+## How it works: the 8-agent pipeline
+
+```mermaid
+flowchart TD
+    CSV["Upload CSV + product / ICP"] --> A1["1 · Enrichment<br/>research + domain liveness"]
+    A1 --> A2["2 · Scoring<br/>rank against your ICP"]
+    A2 --> A3["3 · Employee Finder<br/>real LinkedIn decision-makers"]
+    A3 --> A4["4 · Email Guess + Verify<br/>confirm a deliverable address"]
+    A4 --> A5["5 · Outreach<br/>personalized draft"]
+    A5 --> A6["6 · Tracking<br/>automatic follow-ups"]
+    A6 --> A7["7 · Meeting<br/>book + Google Meet link"]
+    A5 --> A8["8 · Reply Classifier<br/>read inbound, classify intent"]
+    A8 -->|"interested / meeting-ready"| A7
+    A8 -->|"not interested"| STOP["Suppress + close thread"]
+```
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js 16 (App Router), React 19, Tailwind v4, TypeScript — deployed on Vercel |
+| Backend | FastAPI, SQLAlchemy 2.0, Pydantic v2, Alembic — Dockerized on Render |
+| Database | PostgreSQL 16 (Neon), Redis for shared rate-limit state |
+| Auth | JWT (HS256) + email-OTP verification + Google OAuth sign-in |
+| AI | Gemini → Groq → OpenRouter with automatic failover (OpenAI-style REST, no SDKs) |
+| Data | Serper / DuckDuckGo search, Verifalia / ZeroBounce verification, Hunter.io, Gmail API, Google Calendar |
+| Ops | Alembic migrations on boot (advisory-locked), APScheduler for follow-up + inbound polling |
+
+## Production hardening (pre-launch security pass)
+
+- **Auth:** per-IP + per-account login throttling, HS256-pinned JWTs with `exp` required, session
+  invalidation on password reset, 600k-round PBKDF2, CSPRNG OTPs.
+- **App:** SSRF-guarded outbound fetches, bounded/validated CSV uploads, request-body size limits,
+  per-user quotas on credit-spending endpoints, strict input validation.
+- **Web:** CSP + `frame-ancestors 'none'`, HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`;
+  `javascript:`-scheme href guards; OAuth token delivered via URL fragment.
+- **Supply chain:** `npm audit` + `pip-audit` clean of application dependencies.
+- **Access control:** anti-abuse access gating + an outbound-email kill-switch (off by default).
+
 ## Scope (agreed with user, 2026-05-27)
 
 - **Frontend:** Next.js (React) MVP. ✅ Done.
@@ -29,7 +106,7 @@ The frontend reads the API base URL from `web/.env.local` (`NEXT_PUBLIC_API_URL`
 
 ```
 Agentic CRM/
-  spec.txt                      # as-built system spec (kept in sync with the code)
+  spec.txt                      # as-built system spec (local-only, gitignored — not in the public repo)
   extra/                        # gitignored, local-only: the original PRD pdf (source of truth)
   README.md                     # THIS FILE — running progress + context
   web/                          # the Next.js frontend
