@@ -27,7 +27,7 @@ export const ONBOARDING_STEPS: TourStep[] = [
     id: "welcome",
     target: "dashboard",
     title: "Welcome to SynthSales",
-    body: "This is your dashboard — your outreach funnel and reply outcomes at a glance. Here's the 60-second tour of how it works.",
+    body: "This is your dashboard: your outreach funnel and reply outcomes at a glance. Here's the 60-second tour of how it works.",
     placement: "bottom",
   },
   {
@@ -43,7 +43,7 @@ export const ONBOARDING_STEPS: TourStep[] = [
     target: "nav-agents",
     sidebar: true,
     title: "2 · Let the agents work",
-    body: "The 8-agent pipeline researches and scores each company, then finds and verifies real decision-maker contacts — never fabricated ones. Watch and tune them here.",
+    body: "The 8-agent pipeline researches and scores each company, then finds and verifies real decision-maker contacts, never fabricated ones. Watch and tune them here.",
     placement: "right",
   },
   {
