@@ -84,14 +84,6 @@ flowchart TD
 - **Supply chain:** `npm audit` + `pip-audit` clean of application dependencies.
 - **Access control:** anti-abuse access gating + an outbound-email kill-switch (off by default).
 
-## Scope (agreed with user, 2026-05-27)
-
-- **Frontend:** Next.js (React) MVP. ✅ Done.
-- **Backend:** FastAPI + **PostgreSQL (Docker)**, real integrations behind provider
-  interfaces with `.env` placeholder keys (app boots without them). ✅ Done.
-- **Frontend ↔ backend wiring:** ✅ Done — the UI now runs on live API data with real
-  JWT auth (no more mock imports in the app pages).
-
 ## Try it live
 
 **[synthsales.vercel.app](https://synthsales.vercel.app)** — create an account to run the full
@@ -124,7 +116,7 @@ Agentic CRM/
       api/routers/              # auth, campaigns, companies, contacts, emails,
                                 #   conversations, meetings, notifications, agents, logs,
                                 #   dashboard, admin, contact (contact_us)
-      agents/                   # 8-agent pipeline + orchestrator (PRD §3)
+      agents/                   # 8-agent pipeline + orchestrator
       providers/                # ai (Gemini→Groq→OpenRouter), search (DuckDuckGo),
                                 #   verification (MX + Verifalia/ZeroBounce), email
                                 #   (Gmail/SMTP/console), calendar, inbound (reply reader)
@@ -171,9 +163,9 @@ Fill the blank keys in `backend/.env` to switch integrations on:
 Without them the app still runs: AI and paid verification degrade gracefully, and email falls back
 to a console mode that logs messages instead of sending them.
 
-## PRD frontend modules → implementation status
+## Feature coverage — app
 
-| # | PRD Module | Route(s) | Status |
+| # | Module | Route(s) | Status |
 |---|---|---|---|
 | 1 | Authentication | `/login`, `/signup` (+OTP), `/forgot-password` | ✅ Done |
 | 2 | Dashboard | `/dashboard` | ✅ Done |
@@ -194,9 +186,9 @@ to a console mode that logs messages instead of sending them.
 | 17 | Error Handling & Empty States | `not-found.tsx`, `EmptyState`, CSV validation | ✅ Partial |
 | 18 | Admin Panel (optional) | `/admin` | ✅ Done (cross-tenant user/campaign drill-downs) |
 
-## PRD backend (Tech Stack §1–8) → implementation status
+## Feature coverage — backend
 
-| PRD area | Status |
+| Area | Status |
 |---|---|
 | FastAPI services + REST layer | ✅ REST API across 13 routers, OpenAPI at `/docs` (development only) |
 | Database (PostgreSQL) | ✅ Postgres 16 in Docker; SQLAlchemy 2.0 models; schema managed by Alembic (auto-upgrades on boot) |
@@ -207,7 +199,7 @@ to a console mode that logs messages instead of sending them.
 | Search + scraping | ✅ DuckDuckGo (ddgs) provider, no key required |
 | Email verification | ✅ Free MX/syntax layer + Verifalia/ZeroBounce (httpx); returns Verified/Risky/Invalid/Unknown |
 | Realtime updates | ✅ REST polling (notifications 30s, activity/live-log 5s, pipeline 3s); the WebSocket layer was removed |
-| Background jobs | ✅ APScheduler: follow-up polling (15 min) + inbound reply polling (5 min) (PRD Phase 7) |
+| Background jobs | ✅ APScheduler: follow-up polling (15 min) + inbound reply polling (5 min) |
 | Gmail + Calendar integration | ✅ Email send wired; per-user Google Calendar creates real Meet links on booking (falls back to a user-supplied link) |
 | Migrations (Alembic) | ✅ Alembic owns the schema; `alembic upgrade head` runs on boot |
 | Deployment / CI-CD | ✅ Production Dockerfiles (backend + web standalone) + Render `render.yaml` blueprint (api + web + Postgres + Redis); see `DEPLOY.md` |
