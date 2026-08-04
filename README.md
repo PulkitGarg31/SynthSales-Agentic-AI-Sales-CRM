@@ -1,10 +1,8 @@
 # Agentic CRM — AI-Powered B2B Outreach & Lead Generation Platform
 
-This repo implements the platform described in
-`AI-Powered B2B Outreach & Lead Generation Platform.pdf` (the PRD).
-The frontend visual design follows the `UI.webp` reference: warm cream editorial
-minimalism — cream/paper surfaces, ink text, hairline borders, a terracotta accent,
-and a Schibsted Grotesk + Instrument Serif (italic display) type pairing.
+An AI-powered B2B outreach platform that turns a CSV of target companies into booked meetings.
+The interface is warm cream editorial minimalism — cream/paper surfaces, ink text, hairline
+borders, a terracotta accent, and a Schibsted Grotesk + Instrument Serif (italic display) pairing.
 
 > **This README is the running context log.** It is updated after each task so work can
 > resume with full context. See the "Progress log" section at the bottom.
@@ -94,28 +92,30 @@ flowchart TD
 - **Frontend ↔ backend wiring:** ✅ Done — the UI now runs on live API data with real
   JWT auth (no more mock imports in the app pages).
 
-## Running both together
+## Try it live
 
-1. **Backend** (terminal 1): `cd backend; docker compose up -d; .\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000`
-2. **Frontend** (terminal 2): `cd web; npm run dev`
-3. Open http://localhost:3000 → sign in with **jordan@apexcloud.com / password123**.
+**[synthsales.vercel.app](https://synthsales.vercel.app)** — create an account to run the full
+pipeline, or click **"View live demo"** on the signup page for a read-only tour of the product
+with sample data (no sign-up needed).
 
-The frontend reads the API base URL from `web/.env.local` (`NEXT_PUBLIC_API_URL`).
+API health: **[synthsales-api.onrender.com/health](https://synthsales-api.onrender.com/health)**
+(the API sleeps when idle, so the first request can take a moment to wake).
 
 ## Where things live
 
 ```
 Agentic CRM/
-  spec.txt                      # as-built system spec (local-only, gitignored — not in the public repo)
-  extra/                        # gitignored, local-only: the original PRD pdf (source of truth)
   README.md                     # THIS FILE — running progress + context
+  DEPLOY.md                     # deployment reference (Render / Railway / Fly)
+  DEPLOYMENT_GUIDE.md           # step-by-step Render walkthrough
+  render.yaml                   # Render Blueprint (API + Postgres + Key Value)
   web/                          # the Next.js frontend
     src/app/                    # routes (App Router + route groups)
-    src/components/             # shell, sidebar, topbar, icons, ui primitives
+    src/components/             # shell, sidebar, topbar, onboarding tour, ui primitives
     src/lib/                    # api.ts, api-types.ts, hooks.ts, constants.ts, nav.ts
   backend/                      # the FastAPI backend
     docker-compose.yml          # PostgreSQL 16 (host port 5433 → container 5432)
-    .env / .env.example         # config + placeholder integration keys
+    .env.example                # config template + placeholder integration keys
     requirements.txt
     app/
       main.py                   # FastAPI app, lifespan (Alembic upgrade + seed + scheduler)
@@ -132,46 +132,44 @@ Agentic CRM/
       workers/scheduler.py      # APScheduler — follow-up + inbound reply polling (advisory-locked)
 ```
 
-## Run it
+## Run it locally
+
+Copy `backend/.env.example` → `backend/.env` first. The backend **boots with zero credentials** —
+every external integration degrades gracefully — so you can run the whole stack before adding a
+single API key.
 
 ### Frontend
 ```powershell
-# Node lives at C:\Program Files\nodejs if not on PATH in a fresh shell
-cd "c:\My Work\Agentic CRM\web"
-npm run dev      # http://localhost:3000
+cd web
+npm install
+npm run dev      # dev server
 npm run build    # production build + typecheck
 ```
 
 ### Backend
 ```powershell
-cd "c:\My Work\Agentic CRM\backend"
-docker compose up -d                       # start PostgreSQL (host port 5433)
+cd backend
+docker compose up -d                       # PostgreSQL 16 (host port 5433)
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
-# API:   http://127.0.0.1:8000
-# Docs:  http://127.0.0.1:8000/docs   (Swagger; click "Authorize" to use the token)
-# Health http://127.0.0.1:8000/health (shows which integrations are configured)
 ```
-Demo login (seeded automatically): **jordan@apexcloud.com / password123**
+Alembic migrations run automatically on boot. `GET /health` reports which integrations are
+configured, and interactive Swagger docs are served at `/docs` in development.
 
-### OTP email (signup verification)
-The signup OTP is sent via the email provider. By default email is **not configured**, so the
-backend runs in **console mode**: the code is logged to the backend terminal *and* returned to the
-signup screen (`dev_otp`, dev only) so you can verify without any email setup.
+### Configuration
+Fill the blank keys in `backend/.env` to switch integrations on:
 
-To send **real OTP emails via Gmail**, edit `backend/.env`:
-- `SMTP_USERNAME` = your Gmail address (pre-filled)
-- `SMTP_PASSWORD` = a 16-char **Gmail App Password** (Google Account → Security → 2-Step
-  Verification → App passwords). *Not* your normal password.
-- `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587` (already set)
+| Variable | Enables |
+| --- | --- |
+| `GEMINI_API_KEY` / `GROQ_API_KEY` / `OPENROUTER_API_KEY` | AI research, scoring, and drafting (failover chain) |
+| `SERPER_API_KEYS` | Google-quality web search (required on a deploy — the free scraper is blocked from datacenter IPs) |
+| `VERIFALIA_*` / `ZEROBOUNCE_API_KEY` | Paid email verification (the free syntax + MX layer always runs) |
+| `HUNTER_API_KEY` | Hunter.io email finder |
+| `RESEND_API_KEY` / `BREVO_API_KEY` / `GMAIL_SEND_*` / `SMTP_*` | Real outbound + OTP email |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in, Calendar booking, Gmail reply reading |
+| `REDIS_URL` | Rate-limit state shared across workers/instances |
 
-Then restart the backend. Once a password is present the provider switches to `smtp` mode,
-emails the code for real, and stops surfacing `dev_otp`.
-
-To enable other integrations, fill the blank keys in `backend/.env`
-(`GEMINI_API_KEY`/`GROQ_API_KEY`/`OPENROUTER_API_KEY`, `VERIFALIA_*` or
-`ZEROBOUNCE_API_KEY`, Gmail/SMTP). Without them the app still runs: AI and paid
-email-verification degrade gracefully and email uses "console" mode (messages are
-logged). DuckDuckGo search needs no key.
+Without them the app still runs: AI and paid verification degrade gracefully, and email falls back
+to a console mode that logs messages instead of sending them.
 
 ## PRD frontend modules → implementation status
 
@@ -620,7 +618,7 @@ up front; Alembic, WS agent-progress events, the Redis-backed WS/rate-limiter it
 - ✅ Verified the **full agent pipeline**: created a campaign, uploaded a CSV, ran it — companies
   were enriched, scored & ranked (Logistics > Technology via the ICP heuristic), top-N qualified,
   3 contacts found per company, and 9 personalized drafts generated — all in ~4 seconds.
-- **Backend runs at http://127.0.0.1:8000** (`/docs` for Swagger). Demo: jordan@apexcloud.com / password123.
+- **Backend serves Swagger at `/docs`** in development, with a seeded demo account for local testing.
 
 ### 2026-05-27 (frontend ↔ backend wiring)
 - Added `web/.env.local` (`NEXT_PUBLIC_API_URL`), a typed **API client** (`web/src/lib/api.ts`)
