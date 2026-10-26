@@ -90,7 +90,16 @@ class ScoringAgent(Agent):
             "Score how well this company fits our Ideal Customer Profile (ICP). "
             "Rate EACH factor 0-100 based ONLY on the evidence below — do not "
             "invent facts that aren't in the research profile. If the profile is "
-            "thin, score conservatively (40-60), never high.\n\n"
+            "thin, score conservatively (40-60), never high.\n"
+            "Read news and signals by what they mean for buying OUR product, not by "
+            "whether they sound good or bad. News showing a problem our product "
+            "solves (e.g. falling sales or a weak pipeline, if we sell a sales "
+            "product) is a buying need: it raises Product fit and Requirement "
+            "satisfaction. News that blocks buying (layoffs, hiring or spending "
+            "freeze, budget cuts, insolvency, pending acquisition) lowers them. "
+            "Growth indicators rates actual growth only (funding, hiring, "
+            "expansion): a sign of need doesn't raise it, and weak growth doesn't "
+            "lower Product fit. If news moved a score, say so in match_explanation.\n\n"
             "=== WHAT WE SELL ===\n"
             f"Product: {campaign.product}\n"
             f"Description: {campaign.product_description}\n"
@@ -132,7 +141,9 @@ class ScoringAgent(Agent):
     def _score_heuristic(self, c: Company, campaign: Campaign):
         """Score from REAL signals only — no name-hash randomness. Research
         depth (number of honest bullets) sets the baseline; industry match,
-        funding, hiring and news adjust it. On the heuristic enrichment path the
+        funding and hiring adjust it. News is neutral here: without the AI we
+        can't tell whether it signals need (good for us) or a blocker (bad), so
+        it neither helps nor hurts. On the heuristic enrichment path the
         funding/news/hiring signals are always absent, so a low-evidence company
         stays low and the confidence ceiling then keeps it out of Strong/Good."""
         prefs = [p.strip().lower() for p in (campaign.industry_pref or "").split(",") if p.strip()]
@@ -143,7 +154,6 @@ class ScoringAgent(Agent):
         base = 45 + min(evidence, 6) * 3             # 45–63 from research depth
         funding = 12 if c.recent_funding else 0
         hiring = 10 if c.active_hiring else 0
-        news_pen = 14 if c.recent_news else 0
         ind_bonus = 20 if industry_match else 0
         has_reqs = bool((campaign.business_requirements or "").strip())
 
@@ -153,7 +163,7 @@ class ScoringAgent(Agent):
             "Company relevance": base + min(evidence, 6) * 2,
             "Requirement satisfaction": base + (8 if has_reqs and evidence >= 3 else 0),
             "Market compatibility": base + ind_bonus // 2,
-            "Growth indicators": base + funding + hiring - news_pen,
+            "Growth indicators": base + funding + hiring,
         }
         factors = self._build_factors(c, lambda label: per_factor[label])
         return factors, self._auto_explanation(c, factors)

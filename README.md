@@ -1574,3 +1574,19 @@ proposition, differentiators) and the rule: lead with the value proposition, sta
 product does, and mention at most one differentiator where it matters to the recipient. The no-AI
 fallback template is unchanged. Verified: prompt-capture checks (all four fields present; blanks
 omitted) plus one live draft that used the value proposition, the description and one differentiator.
+
+### 2026-10-26 (news is judged by what it means for buying our product)
+Bad-sounding news can be a buying need: falling sales is a reason to buy a sales product. Before, the
+scoring AI got news with no guidance (declining sales most likely dragged "Growth indicators" and the
+score down), the no-AI scorer took 14 points off Growth indicators for *any* news (even good news),
+and outreach could quote bad news back at the prospect.
+- **Scoring (AI):** the prompt now says to read news by what it means for buying *our* product. A
+  problem we solve raises Product fit and Requirement satisfaction; blockers (layoffs, hiring or
+  spending freeze, budget cuts, insolvency, pending acquisition) lower them; Growth indicators rates
+  actual growth only; the explanation says when news moved a score.
+- **Scoring (no AI):** news is neutral, since without the AI it can't tell need from blocker.
+- **Outreach:** a setback in the research is addressed as the underlying challenge, never quoted back.
+- Verified live for a sales product, same company with three kinds of news: no news gave Product fit
+  85, Requirement 70, Growth 40; falling sales gave 90, 90, 40 ("strongly indicate a need"); layoffs
+  plus a freeze gave 40, 40, 5. The draft for the falling-sales case spoke to "pipeline is a key focus"
+  without mentioning the decline. No-AI scoring is unchanged with or without news.

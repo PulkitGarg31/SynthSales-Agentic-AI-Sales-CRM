@@ -130,7 +130,9 @@ class OutreachAgent(Agent):
                 "'[Your Company]', no '[briefly mention ...]', no '{{name}}'). "
                 "Lead with the value proposition, stay accurate to what the product "
                 "does, and mention at most one differentiator, only where it matters "
-                "to this recipient. "
+                "to this recipient. If the research mentions a setback (falling "
+                "sales, layoffs, losses), speak to the underlying challenge in "
+                "general terms; never quote the negative news back at them. "
                 + identity_rule +
                 "If the product info above is thin, keep the pitch to one short "
                 "sentence using only what is given rather than padding with template "
