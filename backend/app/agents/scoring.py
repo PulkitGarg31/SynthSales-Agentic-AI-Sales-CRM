@@ -121,7 +121,13 @@ class ScoringAgent(Agent):
                 _aged("recent news", c.recent_news, today) if c.recent_news else None,
             ) if s
         ]
-        signals.append(f"actively hiring: {bool(c.active_hiring)}")
+        # active_hiring=False usually means research found no hiring evidence,
+        # not that the company isn't hiring - so it must not read as a negative.
+        # (A real hiring freeze arrives as news, which the rules treat as a blocker.)
+        signals.append(
+            "actively hiring: yes" if c.active_hiring
+            else "hiring: no evidence found (unknown; do not treat as a negative)"
+        )
 
         prompt = (
             "Score how well this company fits our Ideal Customer Profile (ICP). "
@@ -285,7 +291,7 @@ class ScoringAgent(Agent):
         if c.recent_funding:
             bits.append("recent funding")
         if c.recent_news:
-            bits.append("recent news affecting timing")
+            bits.append("recent news")
         if conf < 20:
             bits.append("very low research confidence — domain unreachable or parked")
         elif conf < 40:

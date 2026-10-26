@@ -1608,3 +1608,12 @@ never saw a date (or today's date), and scoring couldn't tell a 2019 headline fr
 - Verified live: Serper past-year results came back dated Apr–Aug 2026. Same company, funding dated
   1 month / 7 months / 3.5 years ago gave Growth indicators 90 / 70 / 40, and 40 with no funding. Vanta
   research picked up undated past-year news ("new London office"); Sprinto correctly got none.
+
+### 2026-10-26 (no hiring evidence is no longer a negative)
+`active_hiring=False` usually means research found no hiring evidence, not that the company isn't
+hiring, but the scoring AI received "actively hiring: False" and read it as no growth (it lowered
+Growth indicators). It now gets "actively hiring: yes" or "hiring: no evidence found (unknown; do not
+treat as a negative)". A real hiring freeze still counts against a company: it arrives as news, which
+the scoring rules treat as a blocker. The no-AI scorer was already neutral (+10 for hiring, 0
+otherwise). Verified by capturing the prompt; the live AI comparison couldn't run because Gemini was
+rate-limited and both fallback models (Groq, OpenRouter) returned "model not found".
