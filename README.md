@@ -1541,3 +1541,27 @@ browser darkened the cream background and left the already-dark buttons and band
 opt-out keyword; `.dark` still switches to `color-scheme: dark`). Verified with headless Chrome over CDP
 (`Emulation.setAutoDarkModeOverride` + saved theme): live site reproduced the bug exactly; with the fix,
 light renders the true light theme and dark the true dark theme under auto-dark. `npm run build` green.
+
+### 2026-10-26 (wrong or missing CSV data: domain check, logged corrections, no invented values)
+- **Domain check (enrichment, step 0):** on a first or forced pass, a name-only search
+  (`"<name> official website"`, directory/social sites filtered out) confirms the CSV domain. If the
+  domain isn't in the results, the AI judges them with the CSV industry and country as context. A domain
+  that belongs to another company, or a typo, is replaced by the official one, but only if that
+  domain is one of the search results (no made-up domains); otherwise it's dropped and research goes
+  by name. A missing domain is filled the same way. Each change is logged (`warn`) and noted at the
+  top of the research profile. Cost: +1 search per company, plus 1 small AI call only when the domain
+  isn't confirmed.
+- **Industry/country corrections are logged:** the CSV value is kept unless research contradicts it
+  with confidence ≥ 70. The country now uses that gate too (it used to be overwritten silently). A
+  more specific version of the same place ("India" → "Bengaluru, India") is a silent refinement
+  (aliases like US/USA/United States are handled); real overrides log "Corrected <company>'s CSV
+  data from research: …".
+- **No invented values:** the AI-less fallback used to pick a country and size from a fixed list and
+  set the industry to the campaign's first target industry. These now stay "Unknown". The email agent
+  no longer falls back to a made-up `<companyname>.com` (which could be another company's domain and
+  feed the best-guess floor); with no domain from the CSV, discovery or Hunter it skips guessing and
+  logs why.
+- Verified: 17 stubbed checks on the real agents (confirmed, wrong-live, made-up-official, missing
+  domain, industry/country override vs. low confidence, fallback, email with no domain) plus a live
+  run of the domain check (vanta.com kept; stripe.com for Drata → drata.com; Sprinto's missing
+  domain → sprinto.com).

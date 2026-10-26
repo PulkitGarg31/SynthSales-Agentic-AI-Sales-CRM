@@ -118,7 +118,9 @@ class EmailGuessVerificationAgent(Agent):
                     db, owner_id,
                     f"Email domain for {company.name}: {real_domain} — site is {company.domain or 'n/a'}.",
                 )
-        domain = real_domain or company.domain or f"{company.name.lower().replace(' ', '')}.com"
+        # No invented "<companyname>.com" fallback: it can be someone else's
+        # domain, and the best-guess floor below would then email them.
+        domain = real_domain or (company.domain or "").strip().lower()
 
         # 2) Hunter.io (ONE lookup per company): resolve the top contact's real
         #    email — unless it's ALREADY Verified (keep it, don't spend a credit).
@@ -144,6 +146,18 @@ class EmailGuessVerificationAgent(Agent):
                     db, owner_id,
                     f"Hunter.io: {top.name} → {hit['email']} ({hit['verdict']}).",
                 )
+
+        # No domain from the CSV, discovery or Hunter: there's nothing to guess
+        # against, so leave the addresses blank instead of making one up.
+        if not domain:
+            db.commit()
+            self.log(
+                db, owner_id,
+                f"No email domain found for {company.name} (none in the CSV and none "
+                "discovered) — skipped guessing rather than invent one.",
+            )
+            contact_directory.record_verified(db, company)
+            return
 
         # 3) Remaining contacts: guess + verify via the paid layer (Verifalia/
         #    ZeroBounce), with the per-domain catch-all short-circuit.

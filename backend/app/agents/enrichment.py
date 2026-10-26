@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import hashlib
+import re
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
@@ -19,8 +20,45 @@ METRIC_KEYS = (
 )
 
 
-def _seed(text: str) -> int:
-    return int(hashlib.sha256(text.encode()).hexdigest(), 16)
+def _host(url_or_domain: str) -> str:
+    """Bare lowercase hostname of a URL or domain, minus a leading www."""
+    raw = (url_or_domain or "").strip().lower()
+    host = urlparse(raw if "://" in raw else f"//{raw}").hostname or ""
+    return host[4:] if host.startswith("www.") else host
+
+
+def _same_site(a: str, b: str) -> bool:
+    """Same site, or one is a subdomain of the other (app.x.com ~ x.com)."""
+    return bool(a and b) and (a == b or a.endswith("." + b) or b.endswith("." + a))
+
+
+# Directory/social sites that rank for "<company> official website" but are
+# never the company's own site.
+_DIRECTORY_SITES = (
+    "linkedin.com", "facebook.com", "twitter.com", "x.com", "instagram.com",
+    "youtube.com", "wikipedia.org", "crunchbase.com", "glassdoor.com", "indeed.com",
+    "zoominfo.com", "bloomberg.com", "g2.com", "capterra.com", "pitchbook.com",
+    "tracxn.com", "owler.com", "craft.co", "apollo.io", "rocketreach.co",
+)
+
+# Common ways of writing the same country, so "US" and "San Francisco, United
+# States" count as the same place (a refinement, not a correction).
+_PLACE_ALIASES = {
+    "us": "united states", "usa": "united states", "u.s.": "united states",
+    "u.s.a.": "united states", "united states of america": "united states",
+    "uk": "united kingdom", "u.k.": "united kingdom", "great britain": "united kingdom",
+    "britain": "united kingdom", "england": "united kingdom",
+    "uae": "united arab emirates",
+}
+
+
+def _same_place(a: str, b: str) -> bool:
+    def parts(text: str) -> set[str]:
+        return {
+            _PLACE_ALIASES.get(p.strip().lower(), p.strip().lower())
+            for p in re.split(r"[,/|;]", text) if p.strip()
+        }
+    return bool(parts(a) & parts(b))
 
 
 def _has_real_snippets(snippets: dict) -> bool:
@@ -71,7 +109,13 @@ class EnrichmentAgent(Agent):
         #    status instead of re-probing. force_ai (Re-research) always
         #    re-probes, which covers a domain that has since recovered/broken.
         known = (company.domain_status or "").strip().lower()
+        domain_note = None
         if force_ai or known in ("", "unknown"):
+            # 0. On a first/forced pass, confirm the CSV domain is this
+            #    company's site (or find it when the CSV had none) before
+            #    probing or researching it - a wrong domain poisons everything.
+            if ai.available:
+                domain_note = self._check_domain(db, company, owner_id)
             status = search.domain_status(company.domain)
             company.domain_status = status
         else:
@@ -93,7 +137,13 @@ class EnrichmentAgent(Agent):
         if ai.available:
             snippets = search.research_company(company.name, company.domain)
             had_snippets = _has_real_snippets(snippets)
-            self._enrich_with_ai(company, campaign, snippets, had_snippets, status)
+            corrections = self._enrich_with_ai(company, campaign, snippets, had_snippets, status)
+            if corrections:
+                self.log(
+                    db, owner_id,
+                    f"Corrected {company.name}'s CSV data from research: {'; '.join(corrections)}.",
+                    level="warn",
+                )
             src = "search+AI" if had_snippets else "AI (no snippets)"
         else:
             self._enrich_heuristic(company, campaign, reason="no_ai_key")
@@ -109,6 +159,9 @@ class EnrichmentAgent(Agent):
             warning = self._site_warning_prefix(company, status)
             company.research_points = [warning] + list(company.research_points or [])
             company.research_summary = self._summary_from_points(company.research_points)
+        if domain_note:
+            company.research_points = [domain_note] + list(company.research_points or [])
+            company.research_summary = self._summary_from_points(company.research_points)
 
         # Once enrichment has run, status must move out of "Researching" (which
         # means "not yet processed"). Promote to "Qualified" if we have enough
@@ -119,6 +172,74 @@ class EnrichmentAgent(Agent):
         self.log(
             db, owner_id,
             f"Researched {company.name} ({src}, confidence {company.enrichment_confidence}).",
+        )
+
+    # ---- CSV domain check ----------------------------------------------------
+    def _check_domain(self, db: Session, company: Company, owner_id: int) -> str | None:
+        """Confirm the CSV domain is this company's own site with a name-only
+        search. If it appears in the results it's confirmed; otherwise the AI
+        judges them. A domain that belongs to someone else (or a typo) is
+        replaced by the official one when a result proves it, else dropped so
+        research goes by name; a missing domain is filled the same way. Never
+        invents a domain - the official one must be one of the results.
+        Returns a profile note when the CSV domain was rejected, else None."""
+        results = search.search(f"{company.name} official website", max_results=8)
+        results = [
+            r for r in results
+            if _host(r.get("href", "")) and not any(
+                _same_site(_host(r.get("href", "")), d) for d in _DIRECTORY_SITES
+            )
+        ]
+        hosts = [_host(r.get("href", "")) for r in results]
+        if not hosts:
+            return None  # no evidence either way - keep what the CSV said
+        csv_domain = _host(company.domain)
+        if csv_domain and any(_same_site(h, csv_domain) for h in hosts):
+            return None  # confirmed
+
+        listing = "\n".join(
+            f"- {r.get('href', '')} | {r.get('title', '')} | {(r.get('body') or '')[:200]}"
+            for r in results
+        )
+        data = ai.complete_json(
+            f"Company: {company.name}\n"
+            f"Domain from the user's CSV: {csv_domain or '(none)'}\n"
+            f"CSV industry: {company.industry or 'n/a'}; CSV location: {company.location or 'n/a'}\n"
+            f"Web results for '{company.name} official website':\n{listing}\n\n"
+            "1. official_domain: this company's own website domain, ONLY if one of "
+            "the results above is clearly the company's own site. Otherwise null.\n"
+            "2. verdict: 'match' if the CSV domain is this company's website; "
+            "'mismatch' only if the results show the CSV domain belongs to a "
+            "different organisation or the company's real site is a different "
+            "domain (e.g. a typo); otherwise 'unclear'.\n"
+            'Return JSON: {"verdict": "match" | "mismatch" | "unclear", '
+            '"official_domain": string | null}',
+            system="You verify company websites. Use only the evidence given; never guess.",
+        ) or {}
+        official = _host(str(data.get("official_domain") or ""))[:200]
+        if official and not any(_same_site(h, official) for h in hosts):
+            official = ""  # not among the results - don't trust it
+
+        if not csv_domain:
+            if official:
+                company.domain = official
+                company.domain_status = ""
+                self.log(db, owner_id, f"Found {company.name}'s website: {official} (none in the CSV).")
+            return None
+        if data.get("verdict") != "mismatch" or (official and _same_site(official, csv_domain)):
+            return None
+
+        company.domain = official  # "" when the real site wasn't found
+        company.domain_status = ""
+        used = official or "the company name only"
+        self.log(
+            db, owner_id,
+            f"CSV domain {csv_domain} isn't {company.name}'s website; researching with {used} instead.",
+            level="warn",
+        )
+        return (
+            f"Note: the CSV domain {csv_domain} isn't {company.name}'s website, "
+            f"so research used {used} instead."
         )
 
     # ---- Dead / parked domain paths -----------------------------------------
@@ -168,7 +289,9 @@ class EnrichmentAgent(Agent):
         snippets: dict,
         had_snippets: bool,
         domain_status: str = "live",
-    ) -> None:
+    ) -> list[str]:
+        """Fill the profile from search snippets. Returns the CSV values the
+        research overrode (e.g. "industry 'Retail' → 'SaaS'") so they're logged."""
         context = "\n".join(
             f"{k}: " + " | ".join(s.get("body", "") for s in v[:3])
             for k, v in snippets.items() if v
@@ -231,20 +354,32 @@ class EnrichmentAgent(Agent):
                 company, campaign,
                 reason="no_snippets" if not had_snippets else "ai_unusable",
             )
-            return
+            return []
 
         confidence = int(data.get("confidence") or 0)
         if not had_snippets:
             confidence = min(confidence, 25)
 
+        # CSV industry/location are kept unless research contradicts them with
+        # solid evidence (confidence >= 70); every override is reported.
+        corrections: list[str] = []
         ai_industry = (data.get("industry") or "").strip()
         if not company.industry:
             company.industry = ai_industry or "Unknown"
         elif ai_industry and confidence >= 70 and ai_industry.lower() != company.industry.lower():
+            corrections.append(f"industry '{company.industry}' → '{ai_industry}'")
             company.industry = ai_industry
 
         company.size = (data.get("size") or company.size or "Unknown").strip() or "Unknown"
-        company.location = (data.get("location") or company.location or "Unknown").strip() or "Unknown"
+
+        ai_location = (data.get("location") or "").strip()
+        if not company.location:
+            company.location = ai_location or "Unknown"
+        elif ai_location and _same_place(company.location, ai_location):
+            company.location = ai_location  # same place, just more specific
+        elif ai_location and confidence >= 70:
+            corrections.append(f"location '{company.location}' → '{ai_location}'")
+            company.location = ai_location
 
         points = self._clean_points(data.get("research_points"))
         if not points:
@@ -270,6 +405,7 @@ class EnrichmentAgent(Agent):
                 if k in mc:
                     mc[k] = min(mc[k], 20)
         company.metric_confidence = mc
+        return corrections
 
     # ---- Deterministic fallback (used when AI absent OR returns empty) -----
     def _enrich_heuristic(
@@ -278,14 +414,11 @@ class EnrichmentAgent(Agent):
         campaign: Campaign,
         reason: str = "no_ai_key",
     ) -> None:
-        s = _seed(company.name)
-        if not company.industry:
-            first_pref = (campaign.industry_pref or "").split(",")[0].strip()
-            company.industry = first_pref or "Unknown"
-        if not company.size:
-            company.size = SIZES[s % len(SIZES)]
-        if not company.location:
-            company.location = ["US", "UK", "Germany", "India", "Canada"][s % 5]
+        # No research ran, so there's no evidence: anything the CSV didn't give
+        # stays "Unknown" rather than a guess (agents never fabricate).
+        company.industry = company.industry or "Unknown"
+        company.size = company.size or "Unknown"
+        company.location = company.location or "Unknown"
         company.research_points = self._fallback_points(company, reason=reason)
         company.research_summary = self._summary_from_points(company.research_points)
         # Per-metric confidence is empty on the heuristic path — we have no real
