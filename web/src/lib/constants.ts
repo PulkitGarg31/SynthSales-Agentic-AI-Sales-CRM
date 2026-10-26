@@ -113,3 +113,19 @@ export const LOG_CATEGORIES = [
   "Verification",
   "User",
 ] as const;
+
+/** Outreach tone options (campaign wizard + edit modal). */
+export const TONES = [
+  { label: "Professional", value: "professional" },
+  { label: "Friendly", value: "friendly" },
+  { label: "Concise & direct", value: "concise" },
+  { label: "Consultative", value: "consultative" },
+  { label: "Enthusiastic", value: "enthusiastic" },
+];
+
+/** Outreach personalization levels (Campaign.personalization_level). */
+export const PERSONALIZATION_LABELS: Record<number, string> = {
+  1: "Low: template-first",
+  2: "Balanced",
+  3: "High: researched per contact",
+};

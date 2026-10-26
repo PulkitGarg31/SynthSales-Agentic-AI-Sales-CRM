@@ -8,7 +8,7 @@ import { useDemo } from "@/lib/demo";
 import { usePipeline } from "@/lib/usePipeline";
 import { useAuth } from "@/components/AuthProvider";
 import type { Campaign } from "@/lib/api-types";
-import { CAMPAIGN_TONE } from "@/lib/constants";
+import { CAMPAIGN_TONE, TONES } from "@/lib/constants";
 import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -18,19 +18,12 @@ import { ErrorCard } from "@/components/ui/ErrorCard";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { ConfirmModal, Modal } from "@/components/ui/Modal";
 import { SkeletonRows } from "@/components/ui/Skeleton";
+import { CampaignDetailsModal } from "@/components/campaigns/CampaignDetailsModal";
 import { CsvModal } from "@/components/campaigns/CsvModal";
 import { PipelineTimeline } from "@/components/campaigns/PipelineTimeline";
 import { UndoLastRun } from "@/components/campaigns/UndoLastRun";
 
 // ---- helpers ---------------------------------------------------------------
-
-const TONES = [
-  { label: "Professional", value: "professional" },
-  { label: "Friendly", value: "friendly" },
-  { label: "Concise & direct", value: "concise" },
-  { label: "Consultative", value: "consultative" },
-  { label: "Enthusiastic", value: "enthusiastic" },
-];
 
 /** HH:MM:SS for the mono log timestamps. */
 function timeHMS(d: Date): string {
@@ -220,6 +213,7 @@ function CampaignDetailInner() {
 
   const [editing, setEditing] = useState(false);
   const [viewingCsv, setViewingCsv] = useState(false);
+  const [viewingDetails, setViewingDetails] = useState(false);
 
   // After a run is accepted: pick up "Running" rows right away, then poll.
   const started = () => {
@@ -280,6 +274,9 @@ function CampaignDetailInner() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={() => setViewingDetails(true)}>
+              Details
+            </Button>
             {campaign.data.has_csv && (
               <Button variant="secondary" onClick={() => setViewingCsv(true)}>
                 View CSV
@@ -386,6 +383,9 @@ function CampaignDetailInner() {
       )}
 
       {viewingCsv && <CsvModal campaignId={id} onClose={() => setViewingCsv(false)} />}
+      {viewingDetails && (
+        <CampaignDetailsModal campaignId={id} onClose={() => setViewingDetails(false)} />
+      )}
     </div>
   );
 }

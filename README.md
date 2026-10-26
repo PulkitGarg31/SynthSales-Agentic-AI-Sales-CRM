@@ -1635,3 +1635,16 @@ is no longer free on OpenRouter. Every agent then dropped silently to its no-AI 
   provider 404s, or spent their whole budget reasoning.
 - **Deploy note:** if `GROQ_MODEL` or `OPENROUTER_MODEL` are set in Render's environment, they override
   these defaults and must be updated there.
+
+### 2026-10-26 (campaign Details view)
+The wizard inputs weren't visible anywhere after a campaign was created. A **Details** button on the
+campaign page (next to View CSV / Edit) now opens a read-only popup grouped like the wizard: 01
+Product (name, description, your industry, value proposition, differentiators), 02 Targeting (ICP,
+target industries, sizes and countries as chips, top companies), 03 Outreach (tone, personalization,
+template, signature). Blank fields read "Not provided". It's backed by a new owner-scoped
+`GET /api/campaigns/{id}/details` (`CampaignDetailsOut`), which leaves out the system-set buying
+signals and ranking factors. View only by choice: Edit still changes just name, tone and top
+companies. `TONES` and `PERSONALIZATION_LABELS` moved to `lib/constants.ts` (the wizard and edit modal
+had their own copies). The demo serves details for each demo campaign. Verified: API (200 with only
+wizard fields, 404 for an unknown campaign, 401 with no login) and the popup in the browser for a
+real campaign and in the demo; `npm run build` green.

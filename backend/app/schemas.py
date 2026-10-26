@@ -224,6 +224,27 @@ class CampaignOut(ORMModel):
     has_csv: bool = False  # the original upload is stored (GET /{id}/csv)
 
 
+class CampaignDetailsOut(ORMModel):
+    """What the user entered in the wizard, for the read-only Details view.
+    The system-set buying signals / ranking factors are left out on purpose."""
+    name: str
+    created_at: datetime
+    product: str
+    product_description: str
+    industry: str
+    value_proposition: str
+    differentiators: str
+    icp: str
+    industry_pref: str
+    company_size: str
+    geography: str
+    top_n: int
+    tone: str
+    personalization_level: int
+    email_template: str
+    footer: str
+
+
 class CampaignCsvOut(BaseModel):
     """Preview of a campaign's stored CSV: headers + the first rows, parsed
     server-side. `total_rows` is the full count; download for everything."""

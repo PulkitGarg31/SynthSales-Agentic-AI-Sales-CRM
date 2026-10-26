@@ -40,6 +40,7 @@ from app.models import (
 from app.schemas import (
     CampaignCreate,
     CampaignCsvOut,
+    CampaignDetailsOut,
     CampaignOut,
     CampaignUpdate,
     CompanyOut,
@@ -92,6 +93,14 @@ def get_campaign(
     campaign_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     return campaign_rollups(db, _owned(db, user, campaign_id))
+
+
+@router.get("/{campaign_id}/details", response_model=CampaignDetailsOut)
+def get_campaign_details(
+    campaign_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """Everything the user entered in the wizard (read-only Details view)."""
+    return _owned(db, user, campaign_id)
 
 
 @router.patch("/{campaign_id}", response_model=CampaignOut)

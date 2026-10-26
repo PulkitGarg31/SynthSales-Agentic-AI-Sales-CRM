@@ -9,6 +9,7 @@ import type {
   AppNotification,
   Campaign,
   CampaignCsv,
+  CampaignDetails,
   Company,
   CompanyDetail,
   Contact,
@@ -267,6 +268,87 @@ const DASHBOARD: Dashboard = {
   ],
 };
 
+// What each demo campaign was created with (the read-only Details view).
+const DETAILS: Record<number, Omit<CampaignDetails, "name" | "created_at" | "product" | "tone" | "top_n">> = {
+  1: {
+    product_description: "A unified data platform that serves operational data to teams in real time, with no custom pipelines.",
+    industry: "Technology",
+    value_proposition: "Cut reporting lead time by 60% and retire 3–4 point tools.",
+    differentiators: "Real-time, no-pipeline setup",
+    icp: "Mid-to-large companies modernizing their data stack after a cloud migration, consolidating analytics vendors and hiring data engineers.",
+    industry_pref: "Logistics, Manufacturing, Retail, Healthcare",
+    company_size: "1,000–5,000, 5,000+",
+    geography: "United States, Canada",
+    personalization_level: 3,
+    email_template: "",
+    footer: FOOTER,
+  },
+  2: {
+    product_description: "A payments API that lets mid-market finance teams accept, reconcile and report on payments in one place.",
+    industry: "Financial Services",
+    value_proposition: "Close the books two days faster with automatic reconciliation.",
+    differentiators: "Bank-grade reconciliation out of the box",
+    icp: "Mid-market lenders and wealth managers still reconciling payments by hand across several processors.",
+    industry_pref: "Financial Services, Banking, Insurance",
+    company_size: "201–1,000, 1,000–5,000",
+    geography: "United States, United Kingdom",
+    personalization_level: 2,
+    email_template: "",
+    footer: FOOTER,
+  },
+  3: {
+    product_description: "Scheduling software for clinics that fills cancelled slots automatically and cuts no-shows with smart reminders.",
+    industry: "Healthcare",
+    value_proposition: "Reduce no-shows by a third without adding front-desk staff.",
+    differentiators: "HIPAA-ready, live in a week",
+    icp: "Multi-location clinic groups with high no-show rates and a growing patient base.",
+    industry_pref: "Healthcare",
+    company_size: "51–200, 201–1,000",
+    geography: "United States",
+    personalization_level: 2,
+    email_template: "",
+    footer: FOOTER,
+  },
+  4: {
+    product_description: "Shelf and inventory analytics that tell retail teams what's selling, what's stuck and what to reorder.",
+    industry: "Retail",
+    value_proposition: "Fewer stockouts and markdowns from one daily dashboard.",
+    differentiators: "Store-level forecasts, no data team needed",
+    icp: "Regional retail and grocery chains with 20+ stores and no in-house analytics team.",
+    industry_pref: "Retail, E-commerce, Consumer Goods",
+    company_size: "1,000–5,000, 5,000+",
+    geography: "United States",
+    personalization_level: 1,
+    email_template: "",
+    footer: FOOTER,
+  },
+  5: {
+    product_description: "Route optimization for freight carriers that plans loads and routes around live traffic and delivery windows.",
+    industry: "Logistics",
+    value_proposition: "Cut empty miles and fuel spend on every route.",
+    differentiators: "Plans around live delivery windows",
+    icp: "Regional freight carriers and 3PLs running their own fleets.",
+    industry_pref: "Logistics, Transportation",
+    company_size: "201–1,000, 1,000–5,000",
+    geography: "United States, Mexico",
+    personalization_level: 2,
+    email_template: "",
+    footer: FOOTER,
+  },
+};
+
+function campaignDetails(id: number): CampaignDetails {
+  const camp = CAMPAIGNS.find((c) => c.id === id) ?? CAMPAIGNS[0];
+  return {
+    name: camp.name,
+    created_at: camp.created_at,
+    product: camp.product,
+    tone: camp.tone,
+    top_n: camp.top_n,
+    ...(DETAILS[camp.id] ?? DETAILS[1]),
+  };
+}
+
 // Each demo campaign's "uploaded CSV", built from its companies so the View CSV
 // modal + download have something real-looking to show.
 const CSV_HEADERS = ["company_name", "domain", "industry", "country"];
@@ -324,6 +406,7 @@ export function resolveDemo<T>(rawPath: string): T {
   else if (/^\/api\/campaigns\/\d+\/companies$/.test(path)) out = COMPANIES.filter((c) => c.campaign_id === idIn(path, /campaigns\/(\d+)/));
   else if (/^\/api\/campaigns\/\d+\/pipeline$/.test(path)) out = CAMPAIGN_PIPELINE[idIn(path, /campaigns\/(\d+)/)] ?? PIPELINE;
   else if (/^\/api\/campaigns\/\d+\/snapshot$/.test(path)) out = SNAPSHOT;
+  else if (/^\/api\/campaigns\/\d+\/details$/.test(path)) out = campaignDetails(idIn(path, /campaigns\/(\d+)/));
   else if (/^\/api\/campaigns\/\d+\/csv$/.test(path)) out = campaignCsv(idIn(path, /campaigns\/(\d+)/));
   else if (/^\/api\/campaigns\/\d+\/csv\/download$/.test(path)) out = campaignCsvText(idIn(path, /campaigns\/(\d+)/));
   else if (/^\/api\/campaigns\/\d+$/.test(path)) out = CAMPAIGNS.find((c) => c.id === idIn(path, /campaigns\/(\d+)/)) ?? CAMPAIGNS[0];

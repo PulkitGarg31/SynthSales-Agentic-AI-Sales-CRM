@@ -89,6 +89,27 @@ export interface Campaign {
   has_csv: boolean;
 }
 
+/** What the user entered in the campaign wizard (read-only Details view).
+ *  The comma-joined fields are the wizard's chip selections. */
+export interface CampaignDetails {
+  name: string;
+  created_at: string;
+  product: string;
+  product_description: string;
+  industry: string;
+  value_proposition: string;
+  differentiators: string;
+  icp: string;
+  industry_pref: string;
+  company_size: string;
+  geography: string;
+  top_n: number;
+  tone: string;
+  personalization_level: number;
+  email_template: string;
+  footer: string;
+}
+
 /** Preview of a campaign's uploaded CSV (first rows; download for all). */
 export interface CampaignCsv {
   filename: string;

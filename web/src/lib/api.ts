@@ -10,6 +10,7 @@ import type {
   Campaign,
   CampaignCreate,
   CampaignCsv,
+  CampaignDetails,
   Company,
   CompanyDetail,
   Contact,
@@ -273,6 +274,8 @@ export const api = {
       { method: "POST", form }
     );
   },
+  campaignDetails: (id: number) =>
+    request<CampaignDetails>(`/api/campaigns/${id}/details`),
   campaignCsv: (id: number) => request<CampaignCsv>(`/api/campaigns/${id}/csv`),
   campaignCsvText: (id: number) =>
     request<string>(`/api/campaigns/${id}/csv/download`, { text: true }),

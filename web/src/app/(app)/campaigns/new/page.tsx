@@ -8,6 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAction } from "@/lib/hooks";
 import { useDemo } from "@/lib/demo";
 import type { CampaignCreate } from "@/lib/api-types";
+import { PERSONALIZATION_LABELS, TONES } from "@/lib/constants";
 import { BackLink } from "@/components/ui/BackLink";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -69,14 +70,6 @@ const RANKING_FACTORS: ChipOption[] = [
   ["Buyer accessibility", "Buyer accessibility: decision makers visible on LinkedIn"],
   ["Trigger recency", "Recency of relevant trigger events or news"],
 ].map(([label, value]) => ({ label, value }));
-
-const TONES = [
-  { label: "Professional", value: "professional" },
-  { label: "Friendly", value: "friendly" },
-  { label: "Concise & direct", value: "concise" },
-  { label: "Consultative", value: "consultative" },
-  { label: "Enthusiastic", value: "enthusiastic" },
-];
 
 const FOOTER_PLACEHOLDER = `Jordan Pierce
 Account Executive · Apex Cloud
@@ -510,9 +503,11 @@ export default function NewCampaignPage() {
                     value={draft.personalization_level}
                     onChange={(e) => set("personalization_level", Number(e.target.value))}
                   >
-                    <option value={1}>Low: template-first</option>
-                    <option value={2}>Balanced</option>
-                    <option value={3}>High: researched per contact</option>
+                    {Object.entries(PERSONALIZATION_LABELS).map(([v, label]) => (
+                      <option key={v} value={v}>
+                        {label}
+                      </option>
+                    ))}
                   </Select>
                 </Field>
               </div>
