@@ -29,6 +29,14 @@
    before paint; the ThemeToggle flips it. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Opt out of browser auto-darkening (Brave Night Mode, Chrome "force dark"):
+   we ship a real dark theme, so the light theme must not be recolored - the
+   browser darkened the cream but left dark buttons/bands dark (unreadable).
+   `only` is the opt-out keyword; .dark below switches to the dark palette. */
+:root {
+  color-scheme: only light;
+}
+
 /* Dark palette: near-neutral charcoal (only a whisper of warmth), the true
    brand cream as text, and a brighter ember accent - crisp, not muddy. Every
    utility reads these vars, so components need no dark: classes of their own. */

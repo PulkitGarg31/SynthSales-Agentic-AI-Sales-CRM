@@ -1532,3 +1532,12 @@ logout sends the demo tab to `/login`. `npm run build` green, eslint clean.
   on delete); browser run-through on the local stack (wizard Other/preset switching + validation,
   600-row upload → modal shows 500 + note, download = full original file, demo modal + download);
   `npm run build` green, eslint clean on changed files.
+
+### 2026-10-26 (fix: light mode unreadable under Brave Night Mode / Chrome auto-dark)
+Brave's Night Mode (Chromium "force dark") recolors any page that doesn't declare a color scheme. Dark
+mode already set `color-scheme: dark` (so it was left alone), but light mode declared nothing: the
+browser darkened the cream background and left the already-dark buttons and band dark — dark-on-dark
+"Get started", a muddy hero. Fix: `:root { color-scheme: only light; }` in `globals.css` (`only` is the
+opt-out keyword; `.dark` still switches to `color-scheme: dark`). Verified with headless Chrome over CDP
+(`Emulation.setAutoDarkModeOverride` + saved theme): live site reproduced the bug exactly; with the fix,
+light renders the true light theme and dark the true dark theme under auto-dark. `npm run build` green.
