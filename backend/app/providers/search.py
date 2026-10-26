@@ -77,16 +77,22 @@ _DDGS_COOLDOWN_S = 600  # 10 min, then probe ddgs once more
 _SERPER_RATE_COOLDOWN_S = 60
 
 
-def _serper_search(api_key: str, query: str, max_results: int) -> tuple[list[dict], str]:
+def _serper_search(
+    api_key: str, query: str, max_results: int, recent: bool = False
+) -> tuple[list[dict], str]:
     """One Serper (Google) call. Returns (results, status) where results are
-    mapped to the ddgs shape ``{title, href, body}`` so callers need no changes.
-    status ∈ ok | empty | rate_limited | exhausted | error."""
+    mapped to the ddgs shape ``{title, href, body}`` (+ ``date`` when Google
+    shows one) so callers need no changes. ``recent`` limits results to the
+    past year. status ∈ ok | empty | rate_limited | exhausted | error."""
+    payload = {"q": query, "num": max_results}
+    if recent:
+        payload["tbs"] = "qdr:y"  # Google's "past year" filter
     try:
         with httpx.Client(timeout=20) as client:
             resp = client.post(
                 SERPER_URL,
                 headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
-                json={"q": query, "num": max_results},
+                json=payload,
             )
     except Exception as exc:  # pragma: no cover
         logger.warning("Serper call failed for %r: %s", query, exc)
@@ -102,7 +108,12 @@ def _serper_search(api_key: str, query: str, max_results: int) -> tuple[list[dic
         return [], "error"
     organic = (resp.json() or {}).get("organic") or []
     out = [
-        {"title": r.get("title", ""), "href": r.get("link", ""), "body": r.get("snippet", "")}
+        {
+            "title": r.get("title", ""),
+            "href": r.get("link", ""),
+            "body": r.get("snippet", ""),
+            "date": r.get("date", ""),
+        }
         for r in organic
         if r.get("link")
     ]
@@ -444,22 +455,27 @@ class SearchProvider:
         return " → ".join(parts) if parts else "none"
 
     # ------------------------------------------------------------- backends
-    def _ddgs_search(self, query: str, max_results: int) -> list[dict]:
+    def _ddgs_search(self, query: str, max_results: int, recent: bool = False) -> list[dict]:
         """One ddgs call, guarded by the circuit breaker. Returns [] (and trips
-        the breaker after a streak of empties) when ddgs is blocked/unavailable."""
+        the breaker after a streak of empties) when ddgs is blocked/unavailable.
+        ``recent`` limits results to the past year."""
         if time.time() < self._ddgs_blocked_until or not self._ddgs_available():
             return []
         try:
             from ddgs import DDGS
 
             with DDGS() as ddg:
-                res = list(ddg.text(query, max_results=max_results))
+                res = list(ddg.text(
+                    query, max_results=max_results, timelimit="y" if recent else None
+                ))
         except Exception as exc:  # pragma: no cover
             logger.warning("DuckDuckGo search failed for %r: %s", query, exc)
             res = []
         if res:
             self._ddgs_fail_streak = 0
             return res
+        if recent:
+            return []  # no news in the past year is normal, not a sign of a block
         self._ddgs_fail_streak += 1
         if self._ddgs_fail_streak >= _DDGS_FAIL_THRESHOLD:
             self._ddgs_blocked_until = time.time() + _DDGS_COOLDOWN_S
@@ -470,7 +486,7 @@ class SearchProvider:
             )
         return []
 
-    def _serper_search(self, query: str, max_results: int) -> list[dict]:
+    def _serper_search(self, query: str, max_results: int, recent: bool = False) -> list[dict]:
         """Try the Serper key pool, draining ONE key at a time: stay on the
         current key until it's out of credits (403→retired) or rate-limited
         (429→short cooldown), then advance to the next. Returns [] if no key
@@ -483,7 +499,7 @@ class SearchProvider:
             idx = (self._serper_idx + offset) % n
             if idx in self._serper_exhausted or now < self._serper_cooldown.get(idx, 0):
                 continue
-            results, st = _serper_search(keys[idx], query, max_results)
+            results, st = _serper_search(keys[idx], query, max_results, recent)
             if st in ("ok", "empty"):
                 self._serper_idx = idx          # this key works — stick with it
                 return results                  # empty ⇒ Google genuinely had no hits
@@ -494,15 +510,16 @@ class SearchProvider:
             # error / exhausted / rate_limited → try the next key
         return []
 
-    def search(self, query: str, max_results: int = 6) -> list[dict]:
+    def search(self, query: str, max_results: int = 6, recent: bool = False) -> list[dict]:
         """One web search through the configured backend chain (default
         ddgs → serper). Returns a list of ``{title, href, body}`` dicts (the
-        ddgs shape every caller parses); never raises."""
+        ddgs shape every caller parses; Serper adds ``date``); never raises.
+        ``recent`` limits results to the past year."""
         for backend in settings.search_order_list:
             if backend == "ddgs":
-                res = self._ddgs_search(query, max_results)
+                res = self._ddgs_search(query, max_results, recent)
             elif backend == "serper":
-                res = self._serper_search(query, max_results)
+                res = self._serper_search(query, max_results, recent)
             else:
                 continue
             if res:
@@ -524,10 +541,11 @@ class SearchProvider:
         """Return raw snippets the AI agent can summarize into a profile."""
         target = f"{name} {domain}".strip()
         return {
+            # Signals are time-sensitive: only the past year counts.
             "overview": self.search(f"{target} company overview"),
-            "funding": self.search(f"{target} funding round investment"),
-            "news": self.search(f"{target} news"),
-            "hiring": self.search(f"{target} careers hiring jobs"),
+            "funding": self.search(f"{target} funding round investment", recent=True),
+            "news": self.search(f"{target} news", recent=True),
+            "hiring": self.search(f"{target} careers hiring jobs", recent=True),
         }
 
     def find_linkedin_profiles(

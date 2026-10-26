@@ -1590,3 +1590,21 @@ and outreach could quote bad news back at the prospect.
   85, Requirement 70, Growth 40; falling sales gave 90, 90, 40 ("strongly indicate a need"); layoffs
   plus a freeze gave 40, 40, 5. The draft for the falling-sales case spoke to "pipeline is a key focus"
   without mentioning the decline. No-AI scoring is unchanged with or without news.
+
+### 2026-10-26 (signals are limited to the past year and weighted by age)
+Before, news, funding and hiring searches had no date limit, Serper's result dates were dropped, the AI
+never saw a date (or today's date), and scoring couldn't tell a 2019 headline from last month's.
+- **Search:** `search(..., recent=True)` limits results to the past year (Serper `tbs: qdr:y`, ddgs
+  `timelimit="y"`); `research_company` uses it for funding, news and hiring (the overview stays
+  unlimited). Serper's `date` is kept on each result. A past-year search coming back empty no longer
+  counts toward the ddgs circuit breaker, since no news in a year is normal.
+- **Research:** snippets reach the AI as `[date] title: snippet`, sections are labelled "searched within
+  the past 12 months" (so undated ddgs results still count), the prompt includes today's date, and
+  signals older than 12 months are ignored. Dated signals are written as "Aug 2026: …", undated ones
+  with no label.
+- **Scoring:** the code computes each signal's age from its "Mon YYYY:" prefix and labels it for the AI
+  (last 3 months: full weight; 3–12 months or undated: half weight); signals older than 12 months are
+  removed before the AI sees them. The no-AI funding bonus uses the same weights.
+- Verified live: Serper past-year results came back dated Apr–Aug 2026. Same company, funding dated
+  1 month / 7 months / 3.5 years ago gave Growth indicators 90 / 70 / 40, and 40 with no funding. Vanta
+  research picked up undated past-year news ("new London office"); Sprinto correctly got none.

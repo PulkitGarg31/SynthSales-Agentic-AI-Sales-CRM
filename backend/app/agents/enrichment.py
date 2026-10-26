@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
@@ -18,6 +19,15 @@ METRIC_KEYS = (
     "industry", "size", "location",
     "recent_funding", "recent_news", "active_hiring", "summary",
 )
+
+
+def _snippet_text(s: dict) -> str:
+    """'[Aug 12, 2026] Title: snippet' - the date (when the search gave one)
+    and title let the AI tell this year's news from an old headline."""
+    date = (s.get("date") or "").strip()
+    head = " ".join(p for p in (f"[{date}]" if date else "", (s.get("title") or "").strip()) if p)
+    body = (s.get("body") or "").strip()
+    return f"{head}: {body}" if head and body else head or body
 
 
 def _host(url_or_domain: str) -> str:
@@ -292,10 +302,14 @@ class EnrichmentAgent(Agent):
     ) -> list[str]:
         """Fill the profile from search snippets. Returns the CSV values the
         research overrode (e.g. "industry 'Retail' → 'SaaS'") so they're logged."""
+        # The funding/news/hiring searches are limited to the past year, so an
+        # undated result there is still recent - say so, or the AI drops it.
         context = "\n".join(
-            f"{k}: " + " | ".join(s.get("body", "") for s in v[:3])
+            f"{k}{'' if k == 'overview' else ' (searched within the past 12 months)'}: "
+            + " | ".join(_snippet_text(s) for s in v[:3])
             for k, v in snippets.items() if v
         ) or "(no search results returned)"
+        today = datetime.now(timezone.utc).strftime("%d %b %Y")
 
         domain_note = ""
         if domain_status == "dead":
@@ -310,6 +324,7 @@ class EnrichmentAgent(Agent):
             )
         prompt = (
             f"Company: {company.name} (domain: {company.domain or 'n/a'}{domain_note})\n"
+            f"Today's date: {today}\n"
             f"Industry from CSV upload (treat as ground truth unless you have "
             f"direct contradicting evidence): {company.industry or 'not provided'}\n"
             f"We sell: {campaign.product} — {campaign.product_description}\n"
@@ -322,7 +337,13 @@ class EnrichmentAgent(Agent):
             "contradicts it. If the CSV had no industry, infer only from real "
             "evidence.\n"
             "3. recent_funding / recent_news / active_hiring: return null/false "
-            "if not actually mentioned in a snippet. Do not extrapolate.\n"
+            "if not actually mentioned in a snippet. Do not extrapolate. Only "
+            "count events from the last 12 months before today's date: results "
+            "in the past-12-months sections qualify even when undated, unless "
+            "their text dates the event earlier. Start recent_funding and "
+            "recent_news with the month and year when a snippet shows it (e.g. "
+            "'Aug 2026: raised a $40M Series C'); when it's undated, state the "
+            "event alone with no date label.\n"
             "4. research_points: 5–8 short factual bullets (each under ~160 "
             "chars, no leading dash). Each bullet must be grounded in a snippet "
             "or the CSV facts — cover what the company does, its industry/market, "

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from datetime import date, datetime, timezone
+
 from sqlalchemy.orm import Session
 
 from app.agents.base import Agent
@@ -14,6 +17,38 @@ FACTORS = [
     ("Market compatibility", 0.10),
     ("Growth indicators", 0.10),
 ]
+
+_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+
+
+def _months_old(signal: str | None, today: date) -> int | None:
+    """Age in months of a research signal, read from its 'Aug 2026: …' prefix
+    (enrichment writes it when the source was dated). None when undated."""
+    m = re.match(r"\s*([A-Za-z]{3})[a-z]*\.?\s+(\d{4})", signal or "")
+    if not m or m.group(1).lower() not in _MONTHS:
+        return None
+    return (today.year - int(m.group(2))) * 12 + today.month - (_MONTHS.index(m.group(1).lower()) + 1)
+
+
+def _recency_weight(signal: str | None, today: date) -> float:
+    """Last 3 months 1.0, 3-12 months 0.5, older 0.0. Undated counts as 0.5."""
+    months = _months_old(signal, today)
+    if months is None:
+        return 0.5
+    return 1.0 if months <= 3 else 0.5 if months <= 12 else 0.0
+
+
+def _aged(label: str, signal: str, today: date) -> str | None:
+    """'recent funding (1 month old: full weight): …' - the age is computed
+    here, not left to the AI. None (drop it) when older than 12 months."""
+    months = _months_old(signal, today)
+    weight = _recency_weight(signal, today)
+    if weight == 0.0:
+        return None
+    if months is None:
+        return f"{label} (undated, within the past year: half weight): {signal}"
+    age = "this month" if months <= 0 else f"{months} month{'s' if months != 1 else ''} old"
+    return f"{label} ({age}: {'full' if weight == 1.0 else 'half'} weight): {signal}"
 
 
 class ScoringAgent(Agent):
@@ -79,11 +114,13 @@ class ScoringAgent(Agent):
         enrichment profile. Returns (factors, explanation), or (None, None) if
         the response is unusable so the caller falls back to the heuristic."""
         profile = "\n".join(f"- {p}" for p in (c.research_points or [])) or "(no research points)"
-        signals = []
-        if c.recent_funding:
-            signals.append(f"recent funding: {c.recent_funding}")
-        if c.recent_news:
-            signals.append(f"recent news: {c.recent_news}")
+        today = datetime.now(timezone.utc).date()
+        signals = [
+            s for s in (
+                _aged("recent funding", c.recent_funding, today) if c.recent_funding else None,
+                _aged("recent news", c.recent_news, today) if c.recent_news else None,
+            ) if s
+        ]
         signals.append(f"actively hiring: {bool(c.active_hiring)}")
 
         prompt = (
@@ -99,7 +136,12 @@ class ScoringAgent(Agent):
             "freeze, budget cuts, insolvency, pending acquisition) lowers them. "
             "Growth indicators rates actual growth only (funding, hiring, "
             "expansion): a sign of need doesn't raise it, and weak growth doesn't "
-            "lower Product fit. If news moved a score, say so in match_explanation.\n\n"
+            "lower Product fit. If news moved a score, say so in match_explanation.\n"
+            f"Today's date: {today.strftime('%d %b %Y')}. Each signal below is "
+            "labelled with its age and weight: a full-weight signal (last 3 months) "
+            "should move scores clearly more than a half-weight one (3-12 months "
+            "old, or undated). Signals older than 12 months were removed. If age "
+            "changed a score, say so.\n\n"
             "=== WHAT WE SELL ===\n"
             f"Product: {campaign.product}\n"
             f"Description: {campaign.product_description}\n"
@@ -152,7 +194,8 @@ class ScoringAgent(Agent):
 
         evidence = len(c.research_points or [])      # 0–8 honest bullets, real signal
         base = 45 + min(evidence, 6) * 3             # 45–63 from research depth
-        funding = 12 if c.recent_funding else 0
+        today = datetime.now(timezone.utc).date()
+        funding = round(12 * _recency_weight(c.recent_funding, today)) if c.recent_funding else 0
         hiring = 10 if c.active_hiring else 0
         ind_bonus = 20 if industry_match else 0
         has_reqs = bool((campaign.business_requirements or "").strip())
