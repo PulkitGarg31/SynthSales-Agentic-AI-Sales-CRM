@@ -30,6 +30,9 @@ const INDUSTRIES = chips([
   "Transportation", "Travel", "Utilities", "Wholesale Distribution",
 ]);
 
+// Sentinel <option> value for "Other" in the "Your industry" dropdown.
+const OTHER_INDUSTRY = "__other__";
+
 const COUNTRIES = chips([
   "United States", "Canada", "Mexico", "United Kingdom", "Ireland", "Germany",
   "France", "Netherlands", "Spain", "Italy", "Sweden", "Denmark", "Switzerland",
@@ -234,6 +237,12 @@ export default function NewCampaignPage() {
   // path then re-uploads to this campaign instead of creating a duplicate.
   const [orphan, setOrphan] = useState<{ id: number; name: string } | null>(null);
 
+  // "Your industry": a preset from INDUSTRIES, or "Other" + a typed name. The
+  // payload is the same `industry` string either way.
+  const [otherIndustry, setOtherIndustry] = useState(false);
+  const showOtherIndustry =
+    otherIndustry || (draft.industry !== "" && !INDUSTRIES.some((i) => i.value === draft.industry));
+
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const toggle = (k: "industries" | "geographies" | "sizes" | "signals" | "ranking") => (v: string) =>
     setDraft((d) => ({
@@ -375,16 +384,40 @@ export default function NewCampaignPage() {
                   placeholder="A unified data platform that serves operational data to teams in real time, with no custom pipelines."
                 />
               </Field>
-              <Field label="Your industry" htmlFor="cw-industry" hint="The category your product sits in." required error={industryErr} warn={maxNote(draft.industry, 60)}>
-                <Input
+              <Field label="Your industry" htmlFor="cw-industry" hint="The industry your company operates in." required>
+                <Select
                   id="cw-industry"
-                  maxLength={60}
-                  aria-invalid={industryErr ? true : undefined}
-                  value={draft.industry}
-                  onChange={(e) => set("industry", e.target.value)}
-                  placeholder="Data infrastructure"
-                />
+                  value={showOtherIndustry ? OTHER_INDUSTRY : draft.industry}
+                  onChange={(e) => {
+                    const other = e.target.value === OTHER_INDUSTRY;
+                    setOtherIndustry(other);
+                    set("industry", other ? "" : e.target.value);
+                  }}
+                >
+                  <option value="" disabled>
+                    Select your industry…
+                  </option>
+                  {INDUSTRIES.map((i) => (
+                    <option key={i.value} value={i.value}>
+                      {i.label}
+                    </option>
+                  ))}
+                  <option value={OTHER_INDUSTRY}>Other (type your own)</option>
+                </Select>
               </Field>
+              {showOtherIndustry && (
+                <Field label="Industry name" htmlFor="cw-industry-other" required error={industryErr} warn={maxNote(draft.industry, 60)}>
+                  <Input
+                    id="cw-industry-other"
+                    maxLength={60}
+                    autoFocus
+                    aria-invalid={industryErr ? true : undefined}
+                    value={draft.industry}
+                    onChange={(e) => set("industry", e.target.value)}
+                    placeholder="Data infrastructure"
+                  />
+                </Field>
+              )}
               <Field label="Value proposition" htmlFor="cw-value" hint="The outcome customers get." warn={maxNote(draft.value_proposition, 300)}>
                 <Textarea
                   id="cw-value"
