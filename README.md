@@ -1668,3 +1668,21 @@ real campaign and in the demo; `npm run build` green.
   (re-researched rank-3 company → rank 1 Qualified and the old #1 demoted; research-only stays Reviewed
   and unranked; an AI failure sets the marker and real research clears it); Research page shows the
   badge; `alembic check` clean; `npm run build` green.
+
+### 2026-10-26 (fix: "AI unavailable" under load, since Groq's limits were mishandled)
+With Gemini's free daily quota used up, research relied on Groq, whose free tier allows 8,000
+tokens/minute. Research runs 4 companies at once, so Groq answered 429 within seconds; we benched it
+for a flat 60s (Groq's own reset is ~1–56s), the slow free OpenRouter model couldn't absorb the rest,
+and companies got the "AI unavailable" fallback. Reproduced: 15 companies, Groq as the only working
+backend, gave **10/15 failed** with the old handling.
+- **Provider retry hints:** a 429 benches a backend for its `Retry-After` header or Gemini's
+  `RetryInfo.retryDelay` (clamped to 1s–5min), not a flat 60s.
+- **Wait instead of failing:** when every backend in the chain is rate-limited, `complete()` waits for
+  the first to free up and goes again, for up to `MAX_RATE_LIMIT_WAIT_S` = 90s (a full Groq minute
+  window; with 30s, 3/15 still failed). The agents are background jobs, so a short wait beats a
+  fallback profile.
+- **Fewer Groq tokens:** `gpt-oss` models get `reasoning_effort: "low"`.
+- **`/health` → `integrations.ai_chain`** lists providers and models in failover order (no keys), so a
+  deploy's real chain can be checked from outside.
+- Verified: the same 15-company burst with the fix gave **0/15 failed** (75s total). The underlying
+  limit is the free tiers: a paid Gemini key removes the wait.

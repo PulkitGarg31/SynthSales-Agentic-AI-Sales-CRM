@@ -231,6 +231,9 @@ def health():
         "app": settings.app_name,
         "integrations": {
             "ai": ai.available,
+            # Providers + models in failover order (no keys), so a deploy's real
+            # chain can be checked from outside: "gemini(…) → groq(…) → …".
+            "ai_chain": " → ".join(ai._chain_repr()) or "none",
             "search": search.status,
             # Free syntax/MX verification always runs; paid layer is optional.
             "email_verification": verification.paid_mode or "free (syntax+MX)",

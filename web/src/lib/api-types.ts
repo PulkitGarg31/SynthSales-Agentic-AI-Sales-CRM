@@ -338,6 +338,8 @@ export interface HealthOut {
   app: string;
   integrations: {
     ai: boolean;
+    /** Providers + models in failover order, e.g. "gemini(…) → groq(…)". */
+    ai_chain?: string;
     search: string;
     email_verification: string;
     email_finder: string;

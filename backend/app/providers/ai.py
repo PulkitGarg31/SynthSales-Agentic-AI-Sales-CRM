@@ -35,7 +35,8 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # How long to skip a backend after a 429, in seconds. Free-tier limits typically
 # reset within a minute (RPM) or an hour/day (TPD) — 60s is a sane default that
 # avoids hammering and recovers quickly for short bursts.
-RATE_LIMIT_COOLDOWN_S = 60
+RATE_LIMIT_COOLDOWN_S = 60  # when a rate-limited provider gives no retry hint
+MAX_RATE_LIMIT_WAIT_S = 90  # longest a call waits for a rate-limited chain (covers a full Groq minute window)
 OPENROUTER_REASONING_HEADROOM = 3072
 
 KNOWN = {"gemini", "groq", "openrouter"}
@@ -97,20 +98,30 @@ class AIProvider:
         return self._model_for(self.provider)
 
     def complete(self, prompt: str, system: str = "", max_tokens: int = 1024) -> str:
-        for name in self.chain:
-            if self._cooled_down(name):
-                continue
-            text, rate_limited = self._call(name, prompt, system, max_tokens)
-            if text:
-                return text
-            if rate_limited:
-                self._cooldown[name] = time.time() + RATE_LIMIT_COOLDOWN_S
-                logger.warning(
-                    "AI backend %s rate-limited; cooling down %ss, failing over.",
-                    name, RATE_LIMIT_COOLDOWN_S,
-                )
-            # Other errors: fall through to next backend without cooldown.
-        return ""
+        deadline = time.time() + MAX_RATE_LIMIT_WAIT_S
+        while True:
+            for name in self.chain:
+                if self._cooled_down(name):
+                    continue
+                text, retry_after = self._call(name, prompt, system, max_tokens)
+                if text:
+                    return text
+                if retry_after is not None:
+                    # Rate-limited: bench it for as long as the provider says
+                    # (Groq's per-minute token limit resets in ~1s), not a flat 60s.
+                    self._cooldown[name] = time.time() + retry_after
+                    logger.warning(
+                        "AI backend %s rate-limited; retry in %.0fs, failing over.",
+                        name, retry_after,
+                    )
+                # Other errors: fall through to next backend without cooldown.
+            # Every backend failed. If some are only briefly rate-limited, wait
+            # for the first to free up and go again - these are background
+            # jobs, so a few seconds' wait beats an "AI unavailable" profile.
+            pending = [self._cooldown[n] for n in self.chain if self._cooled_down(n)]
+            if not pending or min(pending) > deadline:
+                return ""
+            time.sleep(max(0.0, min(pending) - time.time()) + 0.1)
 
     def complete_json(self, prompt: str, system: str = "") -> dict | None:
         raw = self.complete(prompt, system=system)
@@ -129,14 +140,21 @@ class AIProvider:
         until = self._cooldown.get(name, 0)
         return time.time() < until
 
-    def _call(self, name: str, prompt: str, system: str, max_tokens: int) -> tuple[str, bool]:
-        """Returns (text, rate_limited). Empty text + rate_limited=True triggers failover."""
+    def _call(self, name: str, prompt: str, system: str, max_tokens: int) -> tuple[str, float | None]:
+        """Returns (text, retry_after). retry_after is set (seconds) only when the
+        backend rate-limited us; empty text then triggers failover."""
         if name == "gemini":
             return self._gemini(prompt, system, max_tokens)
         if name == "groq":
             return self._openai_compat(
                 GROQ_URL, settings.groq_api_key, settings.groq_model,
                 prompt, system, max_tokens,
+                # gpt-oss reasons before answering; low effort spends far fewer
+                # tokens, so more calls fit in the free tier's 8k tokens/minute.
+                extra_body=(
+                    {"reasoning_effort": "low"}
+                    if settings.groq_model.startswith("openai/gpt-oss") else None
+                ),
             )
         if name == "openrouter":
             return self._openai_compat(
@@ -155,10 +173,28 @@ class AIProvider:
                 # keeps the answer whole; non-reasoning models ignore it.
                 extra_body={"reasoning": {"effort": "low"}},
             )
-        return "", False
+        return "", None
+
+    @staticmethod
+    def _retry_after(resp: httpx.Response) -> float:
+        """Seconds until a rate-limited backend may be retried: the provider's
+        hint (Retry-After header, or Gemini's RetryInfo.retryDelay), else the
+        default cooldown. Clamped to 1s-5min."""
+        hint = resp.headers.get("retry-after")
+        if not hint:
+            try:
+                for d in resp.json().get("error", {}).get("details", []):
+                    if str(d.get("retryDelay", "")).endswith("s"):
+                        hint = d["retryDelay"][:-1]
+            except Exception:
+                pass
+        try:
+            return max(1.0, min(300.0, float(hint)))
+        except (TypeError, ValueError):
+            return float(RATE_LIMIT_COOLDOWN_S)
 
     # ----------------------------------------------------------------- gemini
-    def _gemini(self, prompt: str, system: str, max_tokens: int) -> tuple[str, bool]:
+    def _gemini(self, prompt: str, system: str, max_tokens: int) -> tuple[str, float | None]:
         body: dict = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {
@@ -182,27 +218,28 @@ class AIProvider:
                     json=body,
                 )
                 if resp.status_code == 429:
-                    return "", True
+                    return "", self._retry_after(resp)
                 if resp.status_code != 200:
                     logger.warning("Gemini HTTP %s: %s", resp.status_code, resp.text[:300])
-                    return "", False
+                    return "", None
                 candidates = resp.json().get("candidates", [])
                 if not candidates:
-                    return "", False
+                    return "", None
                 parts = candidates[0].get("content", {}).get("parts", [])
-                return "".join(p.get("text", "") for p in parts).strip(), False
+                return "".join(p.get("text", "") for p in parts).strip(), None
         except Exception as exc:  # pragma: no cover
             logger.warning("Gemini call failed: %s", exc)
-            return "", False
+            return "", None
 
     # ------------------------------- shared OpenAI-compatible POST (Groq, OR)
-    @staticmethod
+    @classmethod
     def _openai_compat(
+        cls,
         url: str, api_key: str, model: str,
         prompt: str, system: str, max_tokens: int,
         extra_headers: dict | None = None,
         extra_body: dict | None = None,
-    ) -> tuple[str, bool]:
+    ) -> tuple[str, float | None]:
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
@@ -224,17 +261,17 @@ class AIProvider:
                     },
                 )
                 if resp.status_code == 429:
-                    return "", True
+                    return "", cls._retry_after(resp)
                 if resp.status_code != 200:
                     logger.warning("%s HTTP %s: %s", url, resp.status_code, resp.text[:300])
-                    return "", False
+                    return "", None
                 choices = resp.json().get("choices", [])
                 if not choices:
-                    return "", False
-                return (choices[0].get("message", {}).get("content") or "").strip(), False
+                    return "", None
+                return (choices[0].get("message", {}).get("content") or "").strip(), None
         except Exception as exc:  # pragma: no cover
             logger.warning("%s call failed: %s", url, exc)
-            return "", False
+            return "", None
 
 
 ai = AIProvider()
