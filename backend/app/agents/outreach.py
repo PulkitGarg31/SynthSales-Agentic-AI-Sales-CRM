@@ -104,17 +104,33 @@ class OutreachAgent(Agent):
                 if sender
                 else "Refer to the sender as 'we' — do not invent a sender company name. "
             )
+            # Every product detail the user gave (blank ones omitted): the
+            # description keeps the pitch accurate, the differentiators give
+            # it an edge - the value proposition alone was too thin.
+            product_info = "\n".join(
+                f"- {label}: {value.strip()}"
+                for label, value in (
+                    ("Product", campaign.product),
+                    ("What it does", campaign.product_description),
+                    ("Value proposition", campaign.value_proposition),
+                    ("Differentiators", campaign.differentiators),
+                )
+                if (value or "").strip()
+            )
             base_prompt = (
                 f"Write a short, personalized cold outreach email.\n"
                 f"Recipient: {contact.name}, {contact.role} at {company.name}.\n"
                 f"Company research: {company.research_summary}\n"
                 f"{sender_line}"
-                f"We sell: {campaign.product} — {campaign.value_proposition or campaign.product_description}\n"
+                f"What we sell:\n{product_info}\n"
                 f"Tone: {campaign.tone}. Personalization level: {campaign.personalization_level}/3.\n"
                 f"{'Use this template: ' + campaign.email_template if campaign.email_template else ''}\n"
                 "Rules: the email must be final copy, ready to send exactly as written. "
                 "Never use placeholders, bracketed fill-ins, or merge fields (no "
                 "'[Your Company]', no '[briefly mention ...]', no '{{name}}'). "
+                "Lead with the value proposition, stay accurate to what the product "
+                "does, and mention at most one differentiator, only where it matters "
+                "to this recipient. "
                 + identity_rule +
                 "If the product info above is thin, keep the pitch to one short "
                 "sentence using only what is given rather than padding with template "

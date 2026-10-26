@@ -1565,3 +1565,12 @@ light renders the true light theme and dark the true dark theme under auto-dark.
   domain, industry/country override vs. low confidence, fallback, email with no domain) plus a live
   run of the domain check (vanta.com kept; stripe.com for Drata → drata.com; Sprinto's missing
   domain → sprinto.com).
+
+### 2026-10-26 (outreach uses every product detail)
+The outreach AI used to get only `product` + (`value_proposition` OR `product_description`), so key
+differentiators never reached an email, and a filled value proposition hid the description. The
+prompt now gets a "What we sell" block with every non-blank field (product, what it does, value
+proposition, differentiators) and the rule: lead with the value proposition, stay accurate to what the
+product does, and mention at most one differentiator where it matters to the recipient. The no-AI
+fallback template is unchanged. Verified: prompt-capture checks (all four fields present; blanks
+omitted) plus one live draft that used the value proposition, the description and one differentiator.
