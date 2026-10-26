@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Company, Contact, EmailDraft, Meeting, Message, Thread
+from app.models import CampaignUpload, Company, Contact, EmailDraft, Meeting, Message, Thread
 from app.schemas import CampaignOut, CompanyOut
 
 
@@ -44,6 +44,10 @@ def campaign_rollups(db: Session, campaign) -> CampaignOut:
     out.emails_sent = emails_sent
     out.replies_received = replies
     out.meetings_booked = meetings
+    out.has_csv = (
+        db.query(CampaignUpload.id).filter(CampaignUpload.campaign_id == campaign.id).first()
+        is not None
+    )
     return out
 
 

@@ -8,6 +8,7 @@ import type {
   Agent,
   AppNotification,
   Campaign,
+  CampaignCsv,
   Company,
   CompanyDetail,
   Contact,
@@ -52,11 +53,11 @@ export const DEMO_USER: User = {
 };
 
 const CAMPAIGNS: Campaign[] = [
-  { id: 1, name: "Apex Cloud — Q2 Enterprise Push", product: "Apex Cloud Data Platform", status: "Running", tone: "consultative", top_n: 50, created_at: "2026-04-10T09:00:00Z", companies_uploaded: 18, companies_researched: 18, emails_sent: 6, replies_received: 2, meetings_booked: 4 },
-  { id: 2, name: "FinTech Mid-Market Expansion", product: "LedgerOne Payments API", status: "Running", tone: "professional", top_n: 40, created_at: "2026-04-22T09:00:00Z", companies_uploaded: 24, companies_researched: 24, emails_sent: 9, replies_received: 3, meetings_booked: 1 },
-  { id: 3, name: "HealthOps Pilot Outreach", product: "HealthOps Scheduling Suite", status: "Paused", tone: "friendly", top_n: 30, created_at: "2026-05-01T09:00:00Z", companies_uploaded: 12, companies_researched: 12, emails_sent: 4, replies_received: 1, meetings_booked: 0 },
-  { id: 4, name: "Retail Analytics — Spring", product: "ShelfIQ Analytics", status: "Completed", tone: "concise", top_n: 60, created_at: "2026-03-05T09:00:00Z", companies_uploaded: 40, companies_researched: 40, emails_sent: 22, replies_received: 7, meetings_booked: 4 },
-  { id: 5, name: "Logistics Net-New", product: "CargoX Route Optimizer", status: "Running", tone: "professional", top_n: 50, created_at: "2026-05-20T09:00:00Z", companies_uploaded: 4, companies_researched: 4, emails_sent: 0, replies_received: 0, meetings_booked: 0 },
+  { id: 1, name: "Apex Cloud — Q2 Enterprise Push", product: "Apex Cloud Data Platform", status: "Running", tone: "consultative", top_n: 50, created_at: "2026-04-10T09:00:00Z", companies_uploaded: 18, companies_researched: 18, emails_sent: 6, replies_received: 2, meetings_booked: 4, has_csv: true },
+  { id: 2, name: "FinTech Mid-Market Expansion", product: "LedgerOne Payments API", status: "Running", tone: "professional", top_n: 40, created_at: "2026-04-22T09:00:00Z", companies_uploaded: 24, companies_researched: 24, emails_sent: 9, replies_received: 3, meetings_booked: 1, has_csv: true },
+  { id: 3, name: "HealthOps Pilot Outreach", product: "HealthOps Scheduling Suite", status: "Paused", tone: "friendly", top_n: 30, created_at: "2026-05-01T09:00:00Z", companies_uploaded: 12, companies_researched: 12, emails_sent: 4, replies_received: 1, meetings_booked: 0, has_csv: true },
+  { id: 4, name: "Retail Analytics — Spring", product: "ShelfIQ Analytics", status: "Completed", tone: "concise", top_n: 60, created_at: "2026-03-05T09:00:00Z", companies_uploaded: 40, companies_researched: 40, emails_sent: 22, replies_received: 7, meetings_booked: 4, has_csv: true },
+  { id: 5, name: "Logistics Net-New", product: "CargoX Route Optimizer", status: "Running", tone: "professional", top_n: 50, created_at: "2026-05-20T09:00:00Z", companies_uploaded: 4, companies_researched: 4, emails_sent: 0, replies_received: 0, meetings_booked: 0, has_csv: true },
 ];
 
 const FACTOR_LABELS: [string, number][] = [
@@ -266,6 +267,35 @@ const DASHBOARD: Dashboard = {
   ],
 };
 
+// Each demo campaign's "uploaded CSV", built from its companies so the View CSV
+// modal + download have something real-looking to show.
+const CSV_HEADERS = ["company_name", "domain", "industry", "country"];
+
+function csvRows(id: number): string[][] {
+  return COMPANIES.filter((c) => c.campaign_id === id).map((c) => [c.name, c.domain, c.industry, c.location]);
+}
+
+function csvCell(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+function campaignCsvText(id: number): string {
+  return [CSV_HEADERS, ...csvRows(id)].map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
+}
+
+function campaignCsv(id: number): CampaignCsv {
+  const camp = CAMPAIGNS.find((c) => c.id === id) ?? CAMPAIGNS[0];
+  const rows = csvRows(camp.id);
+  return {
+    filename: `${camp.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.csv`,
+    uploaded_at: camp.created_at,
+    size_bytes: campaignCsvText(camp.id).length,
+    total_rows: rows.length,
+    headers: CSV_HEADERS,
+    rows,
+  };
+}
+
 const SNAPSHOT: SnapshotStatus = { available: false, reason: "none" };
 
 function companyDetail(id: number): CompanyDetail {
@@ -294,6 +324,8 @@ export function resolveDemo<T>(rawPath: string): T {
   else if (/^\/api\/campaigns\/\d+\/companies$/.test(path)) out = COMPANIES.filter((c) => c.campaign_id === idIn(path, /campaigns\/(\d+)/));
   else if (/^\/api\/campaigns\/\d+\/pipeline$/.test(path)) out = CAMPAIGN_PIPELINE[idIn(path, /campaigns\/(\d+)/)] ?? PIPELINE;
   else if (/^\/api\/campaigns\/\d+\/snapshot$/.test(path)) out = SNAPSHOT;
+  else if (/^\/api\/campaigns\/\d+\/csv$/.test(path)) out = campaignCsv(idIn(path, /campaigns\/(\d+)/));
+  else if (/^\/api\/campaigns\/\d+\/csv\/download$/.test(path)) out = campaignCsvText(idIn(path, /campaigns\/(\d+)/));
   else if (/^\/api\/campaigns\/\d+$/.test(path)) out = CAMPAIGNS.find((c) => c.id === idIn(path, /campaigns\/(\d+)/)) ?? CAMPAIGNS[0];
   else if (/^\/api\/companies\/\d+$/.test(path)) out = companyDetail(idIn(path, /companies\/(\d+)/));
   else if (path === "/api/contacts") out = CONTACTS;

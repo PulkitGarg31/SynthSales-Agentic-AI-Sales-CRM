@@ -1512,3 +1512,23 @@ the token/demo keys; `AuthProvider` reloads the tab on one (login, logout, enter
 and `useDemo()` subscribes to it instead of a no-op. Verified on the dev server with two tabs: an
 unrelated key doesn't reload; a simulated login over the demo reloads and drops the demo identity; a
 logout sends the demo tab to `/login`. `npm run build` green, eslint clean.
+
+### 2026-10-26 (view the uploaded CSV per campaign + "Your industry" dropdown)
+- **Uploaded CSV view:** the upload used to parse rows into companies and discard the file. Now the
+  original is kept in a new `campaign_uploads` table (one row per campaign, `ondelete=CASCADE`,
+  migration `d24a84b0998e`; a re-upload replaces it; separate table so campaign lists never load file
+  text, and `duplicate` — which copies only campaign columns — gets no CSV, matching its zero
+  companies). `GET /api/campaigns/{id}/csv` returns a server-parsed preview (headers + first 500 rows,
+  cells capped at 500 chars); `GET …/csv/download` returns the stored file as `text/csv`. Both are
+  owner-scoped (404 otherwise); the stored filename is sanitized (it's echoed in Content-Disposition).
+  `CampaignOut.has_csv` shows a **View CSV** button on the campaign page → a wide modal with a
+  scrollable table, a "first 500 of N" note and **Download CSV**. Campaigns created before this have
+  no stored file, so no button. The demo serves a CSV per demo campaign from its fixture companies.
+- **Industry dropdown:** the wizard's free-text "Your industry" is now a select over the existing
+  38-industry list plus **Other**, which reveals a text field (2–60 chars). Same `industry` string —
+  no backend change.
+- Verified: `alembic upgrade head` + `alembic check` clean; 23-check API smoke (quoted commas, BOM,
+  ragged rows, filename sanitizing, foreign-user 404s, re-upload replace, duplicate has none, cascade
+  on delete); browser run-through on the local stack (wizard Other/preset switching + validation,
+  600-row upload → modal shows 500 + note, download = full original file, demo modal + download);
+  `npm run build` green, eslint clean on changed files.

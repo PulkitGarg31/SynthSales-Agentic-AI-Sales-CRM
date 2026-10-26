@@ -85,6 +85,18 @@ export interface Campaign {
   emails_sent: number;
   replies_received: number;
   meetings_booked: number;
+  /** The original upload is stored — GET /api/campaigns/{id}/csv. */
+  has_csv: boolean;
+}
+
+/** Preview of a campaign's uploaded CSV (first rows; download for all). */
+export interface CampaignCsv {
+  filename: string;
+  uploaded_at: string;
+  size_bytes: number;
+  total_rows: number;
+  headers: string[];
+  rows: string[][];
 }
 
 export interface ScoreFactor {

@@ -10,11 +10,14 @@ export function Modal({
   onClose,
   title,
   children,
+  wide = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** Wider panel for tables (default is a narrow dialog). */
+  wide?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +61,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-paper p-6 focus:outline-none"
+        className={`max-h-[85vh] w-full ${wide ? "max-w-5xl" : "max-w-md"} overflow-y-auto rounded-2xl border border-line bg-paper p-6 focus:outline-none`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <h2 className="display text-xl mb-3">{title}</h2>

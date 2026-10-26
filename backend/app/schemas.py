@@ -221,6 +221,18 @@ class CampaignOut(ORMModel):
     emails_sent: int = 0
     replies_received: int = 0
     meetings_booked: int = 0
+    has_csv: bool = False  # the original upload is stored (GET /{id}/csv)
+
+
+class CampaignCsvOut(BaseModel):
+    """Preview of a campaign's stored CSV: headers + the first rows, parsed
+    server-side. `total_rows` is the full count; download for everything."""
+    filename: str
+    uploaded_at: datetime
+    size_bytes: int
+    total_rows: int
+    headers: list[str]
+    rows: list[list[str]]
 
 
 class PipelineAgentOut(BaseModel):

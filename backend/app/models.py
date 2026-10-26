@@ -266,6 +266,22 @@ class VerifiedContact(Base):
     )
 
 
+class CampaignUpload(Base):
+    """The original CSV a campaign's companies were imported from, kept verbatim
+    so the user can view/download it. One row per campaign; a re-upload replaces it."""
+    __tablename__ = "campaign_uploads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), unique=True
+    )
+    filename: Mapped[str] = mapped_column(String(255), default="")
+    content: Mapped[str] = mapped_column(Text, default="")
+    row_count: Mapped[int] = mapped_column(Integer, default=0)
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class PipelineSnapshot(Base):
     """One-row-per-campaign undo buffer. Captures the campaign's pipeline output
     (company agent-fields + contacts + drafts) before a destructive op; a single

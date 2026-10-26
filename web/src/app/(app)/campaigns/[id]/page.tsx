@@ -18,6 +18,7 @@ import { ErrorCard } from "@/components/ui/ErrorCard";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { ConfirmModal, Modal } from "@/components/ui/Modal";
 import { SkeletonRows } from "@/components/ui/Skeleton";
+import { CsvModal } from "@/components/campaigns/CsvModal";
 import { PipelineTimeline } from "@/components/campaigns/PipelineTimeline";
 import { UndoLastRun } from "@/components/campaigns/UndoLastRun";
 
@@ -218,6 +219,7 @@ function CampaignDetailInner() {
   }, [search, router, id]);
 
   const [editing, setEditing] = useState(false);
+  const [viewingCsv, setViewingCsv] = useState(false);
 
   // After a run is accepted: pick up "Running" rows right away, then poll.
   const started = () => {
@@ -277,7 +279,12 @@ function CampaignDetailInner() {
               replies · {campaign.data.meetings_booked} meetings
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {campaign.data.has_csv && (
+              <Button variant="secondary" onClick={() => setViewingCsv(true)}>
+                View CSV
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => setEditing(true)}>
               Edit
             </Button>
@@ -377,6 +384,8 @@ function CampaignDetailInner() {
           onSaved={campaign.reload}
         />
       )}
+
+      {viewingCsv && <CsvModal campaignId={id} onClose={() => setViewingCsv(false)} />}
     </div>
   );
 }

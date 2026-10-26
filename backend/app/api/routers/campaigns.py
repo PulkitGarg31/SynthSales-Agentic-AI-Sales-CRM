@@ -1,5 +1,6 @@
 import csv
 import io
+import re
 
 from fastapi import (
     APIRouter,
@@ -7,6 +8,7 @@ from fastapi import (
     Depends,
     File,
     HTTPException,
+    Response,
     UploadFile,
 )
 from sqlalchemy.orm import Session
@@ -23,9 +25,21 @@ from app.api.deps import get_current_user
 from app.api.pagination import Page, paginate
 from app.core.database import SessionLocal, get_db
 from app.core.ratelimit import enforce
-from app.models import AgentConfig, Campaign, Company, Contact, EmailDraft, Meeting, Thread, User
+from app.models import (
+    AgentConfig,
+    Campaign,
+    CampaignUpload,
+    Company,
+    Contact,
+    EmailDraft,
+    Meeting,
+    Thread,
+    User,
+    utcnow,
+)
 from app.schemas import (
     CampaignCreate,
+    CampaignCsvOut,
     CampaignOut,
     CampaignUpdate,
     CompanyOut,
@@ -227,9 +241,83 @@ async def upload_companies(
             )
         )
         added += 1
+    # Keep the original file so the user can view/download it later; a
+    # re-upload replaces it. Postgres text can't hold NUL bytes.
+    upload = db.query(CampaignUpload).filter(CampaignUpload.campaign_id == c.id).first()
+    if not upload:
+        upload = CampaignUpload(campaign_id=c.id)
+        db.add(upload)
+    upload.filename = _safe_filename(file.filename or "", c.id)
+    upload.content = raw.replace("\x00", "")
+    upload.row_count = seen
+    upload.size_bytes = total
+    upload.uploaded_at = utcnow()
     db.commit()
     add_log(db, user.id, "Campaign", f"Uploaded {added} companies to '{c.name}' ({skipped} skipped).")
     return {"added": added, "skipped": skipped}
+
+
+CSV_PREVIEW_ROWS = 500
+CSV_PREVIEW_CELL = 500
+
+
+def _safe_filename(name: str, campaign_id: int) -> str:
+    """ASCII-only, header-safe filename (it's echoed in Content-Disposition)."""
+    base = re.split(r"[\\/]", name)[-1]
+    clean = re.sub(r"[^A-Za-z0-9._\- ()]+", "_", base).strip(" ._")[:200]
+    if not clean:
+        return f"campaign-{campaign_id}.csv"
+    return clean if clean.lower().endswith(".csv") else f"{clean}.csv"
+
+
+def _stored_csv(db: Session, user: User, campaign_id: int) -> CampaignUpload:
+    c = _owned(db, user, campaign_id)
+    upload = db.query(CampaignUpload).filter(CampaignUpload.campaign_id == c.id).first()
+    if not upload:
+        raise HTTPException(status_code=404, detail="No CSV stored for this campaign")
+    return upload
+
+
+@router.get("/{campaign_id}/csv", response_model=CampaignCsvOut)
+def get_campaign_csv(
+    campaign_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """Preview of the uploaded CSV: headers + the first rows, parsed here so
+    quoted commas/newlines render correctly. Download for the full file."""
+    upload = _stored_csv(db, user, campaign_id)
+    headers: list[str] = []
+    rows: list[list[str]] = []
+    try:
+        reader = csv.reader(io.StringIO(upload.content))
+        headers = [h.strip()[:CSV_PREVIEW_CELL] for h in next(reader, [])]
+        for row in reader:
+            if not any(cell.strip() for cell in row):
+                continue
+            rows.append([cell[:CSV_PREVIEW_CELL] for cell in row])
+            if len(rows) >= CSV_PREVIEW_ROWS:
+                break
+    except csv.Error:
+        pass  # malformed tail: show what parsed; the download still has it all
+    return CampaignCsvOut(
+        filename=upload.filename,
+        uploaded_at=upload.uploaded_at,
+        size_bytes=upload.size_bytes,
+        total_rows=upload.row_count,
+        headers=headers,
+        rows=rows,
+    )
+
+
+@router.get("/{campaign_id}/csv/download")
+def download_campaign_csv(
+    campaign_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    upload = _stored_csv(db, user, campaign_id)
+    return Response(
+        content=upload.content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{upload.filename}"'},
+    )
 
 
 def _run_pipeline_task(campaign_id: int, owner_id: int) -> None:

@@ -9,6 +9,7 @@ import type {
   AuthProviders,
   Campaign,
   CampaignCreate,
+  CampaignCsv,
   Company,
   CompanyDetail,
   Contact,
@@ -112,10 +113,12 @@ type FetchOpts = {
   body?: unknown;
   auth?: boolean;
   form?: FormData;
+  /** Return the body as text instead of parsing JSON (e.g. a CSV download). */
+  text?: boolean;
 };
 
 async function request<T>(path: string, opts: FetchOpts = {}): Promise<T> {
-  const { method = "GET", body, auth = true, form } = opts;
+  const { method = "GET", body, auth = true, form, text = false } = opts;
 
   // Demo mode intercepts authenticated app traffic (reads → fixtures, writes →
   // blocked) but lets public auth calls (login/register/etc., auth:false) reach
@@ -175,6 +178,7 @@ async function request<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   }
 
   if (res.status === 204) return undefined as T;
+  if (text) return (await res.text()) as T;
   return (await res.json()) as T;
 }
 
@@ -269,6 +273,9 @@ export const api = {
       { method: "POST", form }
     );
   },
+  campaignCsv: (id: number) => request<CampaignCsv>(`/api/campaigns/${id}/csv`),
+  campaignCsvText: (id: number) =>
+    request<string>(`/api/campaigns/${id}/csv/download`, { text: true }),
   runCampaign: (id: number) =>
     request<{ detail: string; companies: number }>(`/api/campaigns/${id}/run`, {
       method: "POST",
