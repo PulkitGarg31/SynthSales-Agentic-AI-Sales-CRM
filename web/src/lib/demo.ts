@@ -3,20 +3,17 @@
 // module adds the React hook components use to render demo affordances, plus the
 // per-session "already saw the welcome" flag.
 import { useSyncExternalStore } from "react";
-import { isDemo } from "./api";
-
-// The demo flag never changes within a session (entering/leaving navigates away),
-// so there's nothing to subscribe to — a no-op unsubscribe satisfies the store API.
-const noopSubscribe = () => () => {};
+import { isDemo, onSessionChange } from "./api";
 
 /**
  * Reactive `isDemo()` for components. Uses useSyncExternalStore so the server
  * snapshot is always false and the client reads localStorage — no hydration
- * mismatch, no setState-in-effect.
+ * mismatch, no setState-in-effect. Subscribes to session changes from other
+ * tabs, since the flag is shared localStorage.
  */
 export function useDemo(): boolean {
   return useSyncExternalStore(
-    noopSubscribe,
+    onSessionChange,
     () => isDemo(),
     () => false,
   );

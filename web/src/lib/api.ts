@@ -70,6 +70,18 @@ export function exitDemo() {
   window.localStorage.removeItem(TOKEN_KEY);
   window.sessionStorage.removeItem("synthsales_demo_welcomed");
 }
+/** Subscribe to session changes made in *other* tabs (login, logout, entering or
+ *  leaving the demo). The token + demo flag are shared by every tab, so a tab
+ *  still running on the old session would mix two accounts. Returns unsubscribe. */
+export function onSessionChange(cb: () => void): () => void {
+  const onStorage = (e: StorageEvent) => {
+    if (e.storageArea !== window.localStorage) return;
+    // key === null means localStorage.clear().
+    if (e.key === null || e.key === TOKEN_KEY || e.key === DEMO_KEY) cb();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
 
 /** Thrown by `request()` for any mutation attempted in demo mode; useAction
  *  turns it into a friendly "create an account" toast instead of an error. */

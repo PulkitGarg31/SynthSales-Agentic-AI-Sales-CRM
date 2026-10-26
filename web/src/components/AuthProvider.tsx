@@ -11,7 +11,15 @@ import {
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { api, ApiError, clearToken, exitDemo, getToken, isDemo } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  clearToken,
+  exitDemo,
+  getToken,
+  isDemo,
+  onSessionChange,
+} from "@/lib/api";
 import type { User } from "@/lib/api-types";
 import { useAction } from "@/lib/hooks";
 import { Button } from "@/components/ui/Button";
@@ -97,6 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (retryTimer.current) clearTimeout(retryTimer.current);
     };
   }, [refresh]);
+
+  // `me` and the shell (sidebar campaigns) load once per mount. If another tab
+  // switches session - a real login over the demo, a logout, entering the demo -
+  // reload, or this tab keeps the old identity over the new session's data.
+  useEffect(() => onSessionChange(() => window.location.reload()), []);
 
   if (!me) {
     return (

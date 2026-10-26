@@ -1501,3 +1501,14 @@ auto-starts once per account on the dashboard, anchors to the greeting + sidebar
 mobile sheet for those on small screens), has Next/Back + a step counter + progress dots + Skip at
 every step, keyboard nav, and a "Replay product tour" control in Settings → Profile. Trigger flag is
 device-local (`synthsales_onboarded_<id>`); a DB-backed flag (cross-device) is a possible follow-up.
+
+### 2026-10-26 (fix: live demo could show a real account's data under the demo identity)
+The demo flag + sentinel token share `localStorage` with a real session, so every tab sees the same
+slot. A real login in one tab silently flipped an open demo tab: its once-loaded `me` (Alex Rivera)
+and sidebar (the 5 demo campaigns) stayed, while every new page fetch went to the real API with the
+real token — the dashboard showed the real account's "Q3 Enterprise" with live, un-greyed buttons
+acting on that account. Fix: `api.ts::onSessionChange()` listens for cross-tab `storage` changes to
+the token/demo keys; `AuthProvider` reloads the tab on one (login, logout, entering/leaving the demo),
+and `useDemo()` subscribes to it instead of a no-op. Verified on the dev server with two tabs: an
+unrelated key doesn't reload; a simulated login over the demo reloads and drops the demo identity; a
+logout sends the demo tab to `/login`. `npm run build` green, eslint clean.
