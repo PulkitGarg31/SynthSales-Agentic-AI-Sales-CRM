@@ -269,7 +269,7 @@ export const api = {
   uploadCompanies: (id: number, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<{ added: number; skipped: number }>(
+    return request<{ added: number; skipped: number; duplicates?: number; no_name?: number }>(
       `/api/campaigns/${id}/companies/upload`,
       { method: "POST", form }
     );

@@ -1686,3 +1686,19 @@ backend, gave **10/15 failed** with the old handling.
   deploy's real chain can be checked from outside.
 - Verified: the same 15-company burst with the fix gave **0/15 failed** (75s total). The underlying
   limit is the free tiers: a paid Gemini key removes the wait.
+
+### 2026-10-26 (CSV duplicates: domain first, name fallback)
+Upload used to treat a row as a duplicate only when name AND domain both matched, so `Vanta Inc,
+vanta.com`, `Vanta, https://www.vanta.com` and `Vanta,` (no domain) were all kept: researched, scored
+and searched twice. Now:
+- **Same domain = same company** (case-insensitive; `_normalize_domain` also strips a leading
+  `www.`, so stored domains are cleaner too).
+- **No domain → match on the name** (`_company_key`: case, punctuation and legal endings like
+  Inc/Ltd/LLC/GmbH ignored). If one of two same-name rows lacks a domain, they're the same company and
+  the first keeps the domain if it had none. Two same-name rows with *different* domains stay separate
+  (they can be different companies).
+- Checked against earlier rows in the file and companies already in the campaign.
+- The response and toast separate them: "4 companies added · 4 duplicates skipped · 1 row without a
+  company name skipped" (`skipped` is kept as the total).
+- Verified: a 9-row CSV of variants gave 4 added / 4 duplicates / 1 nameless, Drata picked up
+  `drata.com` from its duplicate, and re-uploading the same file added 0. `npm run build` green.

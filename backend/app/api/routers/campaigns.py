@@ -178,7 +178,22 @@ def _normalize_domain(raw: str) -> str:
             d = d[len(pre):]
     d = d.split("/")[0].split("?")[0].split("#")[0]
     d = d.split("@")[-1].split(":")[0]
-    return d.strip().strip(".")
+    d = d.strip().strip(".")
+    return d[4:] if d.startswith("www.") else d
+
+
+# Legal-form endings ignored when matching duplicate names ("Vanta Inc" = "Vanta").
+_LEGAL_SUFFIX_RE = re.compile(
+    r"\b(inc|incorporated|llc|ltd|limited|corp|corporation|co|company|gmbh|plc|"
+    r"pvt|private|sa|ag|bv|nv|pty|srl|oy|ab)\b"
+)
+
+
+def _company_key(name: str) -> str:
+    """Duplicate-matching key for a company name: lowercase, punctuation and
+    legal-form endings dropped, spaces collapsed."""
+    key = re.sub(r"[^a-z0-9]+", " ", (name or "").lower())
+    return re.sub(r"\s+", " ", _LEGAL_SUFFIX_RE.sub(" ", key)).strip()
 
 
 @router.post("/{campaign_id}/companies/upload")
@@ -216,12 +231,18 @@ async def upload_companies(
                     return (row[actual] or "").strip()
         return ""
 
-    existing = {
-        (co.name.lower(), co.domain.lower())
-        for co in db.query(Company).filter(Company.campaign_id == c.id)
-    }
+    # Duplicates: the same domain is the same company; without a domain, fall
+    # back to the name (case, punctuation and "Inc"/"Ltd" ignored). Covers
+    # rows earlier in this file and companies already in the campaign.
+    by_domain: dict[str, Company] = {}
+    by_name: dict[str, Company] = {}
+    for co in db.query(Company).filter(Company.campaign_id == c.id):
+        if co.domain:
+            by_domain.setdefault(_normalize_domain(co.domain), co)
+        by_name.setdefault(_company_key(co.name), co)
     added = 0
-    skipped = 0
+    duplicates = 0
+    no_name = 0
     seen = 0
     for row in reader:
         seen += 1
@@ -231,24 +252,35 @@ async def upload_companies(
         # 500 the whole upload (Postgres rejects, not truncates, over-length text).
         name = pick(row, "company_name", "company", "name")[:200]
         if not name:
-            skipped += 1
+            no_name += 1
             continue
         domain = _normalize_domain(pick(row, "domain", "website", "url"))[:200]
-        key = (name.lower(), domain.lower())
-        if key in existing:
-            skipped += 1
+        name_key = _company_key(name)
+        if domain and domain in by_domain:
+            duplicates += 1
             continue
-        existing.add(key)
-        db.add(
-            Company(
-                campaign_id=c.id,
-                name=name,
-                domain=domain,
-                industry=pick(row, "industry", "sector")[:120],
-                location=pick(row, "country", "location", "region")[:120],
-                status="Researching",
-            )
+        same_name = by_name.get(name_key) if name_key else None
+        if same_name is not None and (not domain or not same_name.domain):
+            # Same name and at most one of the two rows has a domain: same
+            # company. Keep the first row, but take the domain if it lacked one.
+            if domain and not same_name.domain:
+                same_name.domain = domain
+                same_name.domain_status = "unknown"  # re-probe with the new domain
+                by_domain[domain] = same_name
+            duplicates += 1
+            continue
+        company = Company(
+            campaign_id=c.id,
+            name=name,
+            domain=domain,
+            industry=pick(row, "industry", "sector")[:120],
+            location=pick(row, "country", "location", "region")[:120],
+            status="Researching",
         )
+        db.add(company)
+        if domain:
+            by_domain[domain] = company
+        by_name.setdefault(name_key, company)
         added += 1
     # Keep the original file so the user can view/download it later; a
     # re-upload replaces it. Postgres text can't hold NUL bytes.
@@ -262,8 +294,13 @@ async def upload_companies(
     upload.size_bytes = total
     upload.uploaded_at = utcnow()
     db.commit()
-    add_log(db, user.id, "Campaign", f"Uploaded {added} companies to '{c.name}' ({skipped} skipped).")
-    return {"added": added, "skipped": skipped}
+    skipped = duplicates + no_name
+    add_log(
+        db, user.id, "Campaign",
+        f"Uploaded {added} companies to '{c.name}' "
+        f"({duplicates} duplicates, {no_name} rows without a name skipped).",
+    )
+    return {"added": added, "skipped": skipped, "duplicates": duplicates, "no_name": no_name}
 
 
 CSV_PREVIEW_ROWS = 500

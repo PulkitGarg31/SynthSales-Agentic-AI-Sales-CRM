@@ -288,7 +288,14 @@ export default function NewCampaignPage() {
         }
       },
       {
-        success: (r) => `${r.result.added} companies added (${r.result.skipped} skipped)`,
+        success: (r) =>
+          [
+            `${r.result.added} companies added`,
+            r.result.duplicates ? `${r.result.duplicates} duplicates skipped` : "",
+            r.result.no_name ? `${r.result.no_name} rows without a company name skipped` : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
         onDone: (r) => router.push(`/campaigns/${r.id}?fresh=1`),
       },
     );
