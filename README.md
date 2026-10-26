@@ -1617,3 +1617,21 @@ treat as a negative)". A real hiring freeze still counts against a company: it a
 the scoring rules treat as a blocker. The no-AI scorer was already neutral (+10 for hiring, 0
 otherwise). Verified by capturing the prompt; the live AI comparison couldn't run because Gemini was
 rate-limited and both fallback models (Groq, OpenRouter) returned "model not found".
+
+### 2026-10-26 (AI fallback models fixed)
+When Gemini (free tier) hit its rate limit, both fallbacks failed with 404 "model not found":
+`llama-3.3-70b-versatile` isn't available to the Groq key, and `meta-llama/llama-3.3-70b-instruct:free`
+is no longer free on OpenRouter. Every agent then dropped silently to its no-AI path.
+- **New defaults** (`config.py`, `.env.example`, local `.env`): Groq `openai/gpt-oss-120b`, OpenRouter
+  `nvidia/nemotron-3-ultra-550b-a55b:free`, both picked from what the keys can actually use (Groq
+  `/models`, OpenRouter's `:free` list) and tested on real research and scoring calls.
+- **OpenRouter calls** now send `reasoning: {effort: "low"}` and get 3,072 extra `max_tokens`: current
+  free models reason before answering, and at 1,024 tokens the research JSON was cut off (≈600
+  reasoning tokens even at low effort). Free models are limited by request count, so the headroom
+  costs nothing.
+- Verified: full chain gemini → groq → openrouter with Gemini rate-limited. Groq answered every call
+  (about 2s each). OpenRouter nemotron-ultra passes research and scoring but is slow (20–60s), so it
+  stays the last resort. The other free OpenRouter models were rate-limited upstream, returned
+  provider 404s, or spent their whole budget reasoning.
+- **Deploy note:** if `GROQ_MODEL` or `OPENROUTER_MODEL` are set in Render's environment, they override
+  these defaults and must be updated there.

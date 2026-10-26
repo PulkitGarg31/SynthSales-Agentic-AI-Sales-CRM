@@ -36,6 +36,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # reset within a minute (RPM) or an hour/day (TPD) — 60s is a sane default that
 # avoids hammering and recovers quickly for short bursts.
 RATE_LIMIT_COOLDOWN_S = 60
+OPENROUTER_REASONING_HEADROOM = 3072
 
 KNOWN = {"gemini", "groq", "openrouter"}
 
@@ -140,12 +141,19 @@ class AIProvider:
         if name == "openrouter":
             return self._openai_compat(
                 OPENROUTER_URL, settings.openrouter_api_key, settings.openrouter_model,
-                prompt, system, max_tokens,
+                # + headroom for the reasoning tokens (free models are limited
+                # by request count, not tokens, so the extra room costs nothing).
+                prompt, system, max_tokens + OPENROUTER_REASONING_HEADROOM,
                 extra_headers={
                     # Optional but encouraged by OpenRouter for app attribution.
                     "HTTP-Referer": "http://localhost:3000",
                     "X-Title": settings.app_name,
                 },
+                # Most current free models reason before answering, and those
+                # tokens count against max_tokens - at the default effort they
+                # can eat the whole budget and truncate the JSON. Low effort
+                # keeps the answer whole; non-reasoning models ignore it.
+                extra_body={"reasoning": {"effort": "low"}},
             )
         return "", False
 
@@ -193,6 +201,7 @@ class AIProvider:
         url: str, api_key: str, model: str,
         prompt: str, system: str, max_tokens: int,
         extra_headers: dict | None = None,
+        extra_body: dict | None = None,
     ) -> tuple[str, bool]:
         messages = []
         if system:
@@ -211,6 +220,7 @@ class AIProvider:
                         "messages": messages,
                         "max_tokens": max_tokens,
                         "temperature": 0.7,
+                        **(extra_body or {}),
                     },
                 )
                 if resp.status_code == 429:

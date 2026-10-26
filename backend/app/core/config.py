@@ -51,9 +51,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
     openrouter_api_key: str = ""
-    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
 
     # Web search. The free DuckDuckGo scraper (`ddgs`) needs no key but gets
     # rate-limited from datacenter IPs, so for deployment configure Serper.io
