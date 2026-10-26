@@ -147,6 +147,9 @@ export interface Company {
   recent_news?: string | null;
   active_hiring: boolean;
   enrichment_confidence: number;
+  /** Non-empty when research fell back to its no-AI profile: show "AI
+   *  unavailable", not the fallback's fixed confidence number. */
+  research_fallback?: string;
   domain_status: "live" | "parked" | "dead" | "unknown";
   contacts_found: number;
   contacts_verified: number;

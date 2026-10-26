@@ -185,6 +185,10 @@ class Company(Base):
     # no search hits, or AI couldn't find supporting signals. Scoring uses this
     # to cap fabricated/low-evidence companies away from "Strong".
     enrichment_confidence: Mapped[int] = mapped_column(Integer, default=50)
+    # Why research fell back to its no-AI profile: "" (real AI research, or a
+    # dead domain), "no_ai_key", "ai_unusable" or "no_snippets". The UI shows
+    # "AI unavailable" instead of the fallback's fixed confidence number.
+    research_fallback: Mapped[str] = mapped_column(String(20), default="", server_default="")
     # INTERNAL backend-only signal — NOT exposed in CompanyOut / frontend.
     # Per-metric 0–100 confidence for each AI-filled field (keys: industry, size,
     # location, recent_funding, recent_news, active_hiring, summary). Scoring

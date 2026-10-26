@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.agents.employee_finder import employee_finder_agent
 from app.agents.enrichment import enrichment_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
+from app.agents.scoring import scoring_agent
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.ratelimit import enforce
@@ -89,6 +90,10 @@ def enrich(
         "Too many re-research requests. Please wait a few minutes.",
     )
     enrichment_agent.run(db, c, c.campaign, user.id, force_ai=True)
+    # A score and tag based on the old research would be stale: if the campaign
+    # has been scored, re-score this company and re-rank so they update.
+    if c.rank > 0:
+        scoring_agent.rescore(db, c, c.campaign, user.id)
     return get_company(company_id, db, user)
 
 

@@ -64,7 +64,13 @@ function CompanyRow({ company }: { company: Company }) {
         </Badge>
       </td>
       <td className="px-5 py-3 text-right tabular-nums text-ink-soft">
-        {company.enrichment_confidence}/100
+        {company.research_fallback ? (
+          <span title="Research ran without AI, so there's no real profile yet. Re-research this company.">
+            <Badge tone="amber">AI unavailable</Badge>
+          </span>
+        ) : (
+          `${company.enrichment_confidence}/100`
+        )}
       </td>
       <td className="px-5 py-3 text-right tabular-nums">{company.contacts_found}</td>
     </tr>

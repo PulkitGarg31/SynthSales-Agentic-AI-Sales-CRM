@@ -355,6 +355,7 @@ class CompanyOut(ORMModel):
     recent_news: str | None = None
     active_hiring: bool
     enrichment_confidence: int = 50
+    research_fallback: str = ""  # non-empty → research ran without AI ("AI unavailable")
     domain_status: str = "unknown"
     contacts_found: int = 0
     contacts_verified: int = 0

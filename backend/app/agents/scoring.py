@@ -68,17 +68,7 @@ class ScoringAgent(Agent):
             )
         for c in companies:
             self._score(c, campaign)
-
-        # Rank by score (desc), assign ranks, pick top N.
-        ranked = sorted(companies, key=lambda c: c.ai_score, reverse=True)
-        for i, c in enumerate(ranked, start=1):
-            c.rank = i
-            # Preserve user-set states ("Excluded", "Approved", "Contacted"); only
-            # toggle automatic ones. Below-top-N now flips to "Reviewed" rather
-            # than back to "Researching" — the research IS done, the company
-            # just wasn't selected for outreach this round.
-            if c.status in ("Researching", "Qualified", "Reviewed"):
-                c.status = "Qualified" if i <= campaign.top_n else "Reviewed"
+        self._rank(campaign, companies)
         db.commit()
         self.log(
             db,
@@ -87,6 +77,36 @@ class ScoringAgent(Agent):
             f"top {min(campaign.top_n, len(companies))} qualified.",
         )
         return len(companies)
+
+    def rescore(self, db: Session, company: Company, campaign: Campaign, owner_id: int) -> None:
+        """Re-score one company (after a single re-research) and re-rank the
+        campaign against everyone else's existing scores: one AI call instead
+        of one per company. Only companies scoring already ranked take part, so
+        a not-yet-scored company is never shown as ranked."""
+        self._score(company, campaign)
+        scored = [
+            c for c in db.query(Company).filter(Company.campaign_id == campaign.id)
+            if c.rank > 0 or c.id == company.id
+        ]
+        self._rank(campaign, scored)
+        db.commit()
+        self.log(
+            db, owner_id,
+            f"Re-scored {company.name} after re-research: {company.ai_score}/100, rank {company.rank}.",
+        )
+
+    @staticmethod
+    def _rank(campaign: Campaign, companies: list[Company]) -> None:
+        """Rank by score (desc) and pick the top N as Qualified."""
+        ranked = sorted(companies, key=lambda c: c.ai_score, reverse=True)
+        for i, c in enumerate(ranked, start=1):
+            c.rank = i
+            # Preserve user-set states ("Excluded", "Approved", "Contacted"); only
+            # toggle automatic ones. Below-top-N flips to "Reviewed" rather than
+            # back to "Researching" — the research IS done, the company just
+            # wasn't selected for outreach this round.
+            if c.status in ("Researching", "Qualified", "Reviewed"):
+                c.status = "Qualified" if i <= campaign.top_n else "Reviewed"
 
     # ---- Per-company scoring ------------------------------------------------
     def _score(self, c: Company, campaign: Campaign) -> None:

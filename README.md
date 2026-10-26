@@ -1648,3 +1648,23 @@ companies. `TONES` and `PERSONALIZATION_LABELS` moved to `lib/constants.ts` (the
 had their own copies). The demo serves details for each demo campaign. Verified: API (200 with only
 wizard fields, 404 for an unknown campaign, 401 with no login) and the popup in the browser for a
 real campaign and in the demo; `npm run build` green.
+
+### 2026-10-26 (one meaning for "Qualified", re-score after re-research, "AI unavailable")
+- **"Qualified" now only comes from scoring.** Research used to tag a company Qualified whenever its
+  confidence was ≥ 40, so after a research-only run almost the whole list read "Qualified" while
+  score was 0 and nobody had been ranked. Research now leaves "Reviewed" (researched, not selected);
+  only scoring promotes the top N (`ScoringAgent._rank`, now shared).
+- **A single Re-research updates the tag.** The per-company button never reset the status, so a
+  company kept its old "Reviewed" even after research improved. If the campaign has been scored,
+  `POST /companies/{id}/enrich` now re-scores that company (one AI call) and re-ranks the campaign
+  against everyone else's existing scores (`ScoringAgent.rescore`). Unscored companies are left
+  unranked.
+- **"AI unavailable" instead of a fake number.** A no-AI fallback saved a fixed confidence (22 / 20 / 30)
+  that looked like a real rating. New `companies.research_fallback` (migration `1cd831ca8cd8`) stores
+  the reason; real research and dead-domain rows keep "". The Research list, company page and
+  re-research toast show "AI unavailable". The migration backfills existing fallback rows by their
+  fixed confidence plus fallback wording.
+- Verified: backfill on test rows (fallback rows tagged, a real 85 row untouched); stubbed agent checks
+  (re-researched rank-3 company → rank 1 Qualified and the old #1 demoted; research-only stays Reviewed
+  and unranked; an AI failure sets the marker and real research clears it); Research page shows the
+  badge; `alembic check` clean; `npm run build` green.

@@ -51,6 +51,8 @@ function enrichToast(r: CompanyDetailData): string {
     return "Re-research complete. Site still unreachable, no new signals.";
   if (r.domain_status === "parked")
     return "Re-research complete. The site still appears parked.";
+  if (r.research_fallback)
+    return "The AI is unavailable right now, so there's no new profile. Try again in a few minutes.";
   return `Re-research complete. Confidence ${r.enrichment_confidence}/100.`;
 }
 
@@ -397,7 +399,8 @@ export function CompanyDetail({ id }: { id: number }) {
             )}
             {meta && <span>{meta}</span>}
             <span className="tabular-nums">
-              Score {c.ai_score} · confidence {c.enrichment_confidence}/100
+              Score {c.ai_score} ·{" "}
+              {c.research_fallback ? "AI unavailable" : `confidence ${c.enrichment_confidence}/100`}
             </span>
           </div>
         </div>

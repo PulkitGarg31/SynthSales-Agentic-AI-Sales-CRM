@@ -174,10 +174,12 @@ class EnrichmentAgent(Agent):
             company.research_summary = self._summary_from_points(company.research_points)
 
         # Once enrichment has run, status must move out of "Researching" (which
-        # means "not yet processed"). Promote to "Qualified" if we have enough
-        # signal; otherwise mark "Reviewed" — researched, but not auto-qualified.
+        # means "not yet processed") to "Reviewed": researched, not selected.
+        # Only scoring promotes the top N to "Qualified", so the tag has one
+        # meaning (it used to be set here from confidence, which tagged most of
+        # a list "Qualified" before scoring had picked anyone).
         if company.status == "Researching":
-            company.status = "Qualified" if company.enrichment_confidence >= 40 else "Reviewed"
+            company.status = "Reviewed"
         db.commit()
         self.log(
             db, owner_id,
@@ -254,6 +256,7 @@ class EnrichmentAgent(Agent):
 
     # ---- Dead / parked domain paths -----------------------------------------
     def _mark_dead_domain(self, company: Company) -> None:
+        company.research_fallback = ""  # not an AI problem - the site is down
         ctx = _csv_context(company)
         company.industry = company.industry or "Unknown"
         company.size = company.size or "Unknown"
@@ -377,6 +380,7 @@ class EnrichmentAgent(Agent):
             )
             return []
 
+        company.research_fallback = ""  # real AI research this time
         confidence = int(data.get("confidence") or 0)
         if not had_snippets:
             confidence = min(confidence, 25)
@@ -435,6 +439,7 @@ class EnrichmentAgent(Agent):
         campaign: Campaign,
         reason: str = "no_ai_key",
     ) -> None:
+        company.research_fallback = reason  # shown as "AI unavailable"
         # No research ran, so there's no evidence: anything the CSV didn't give
         # stays "Unknown" rather than a guess (agents never fabricate).
         company.industry = company.industry or "Unknown"
