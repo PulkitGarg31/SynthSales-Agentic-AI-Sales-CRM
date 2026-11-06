@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { exitDemo, isDemo } from "@/lib/api";
+import { isDemo } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
 import { demoWelcomed, markDemoWelcomed } from "@/lib/demo";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/Button";
  * and routes to signup. Mounted inside AuthProvider so it overlays every page.
  */
 export function DemoWelcomeModal() {
-  const router = useRouter();
+  // signOut() in demo mode clears the demo and routes to /signup.
+  const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -29,10 +30,7 @@ export function DemoWelcomeModal() {
     markDemoWelcomed();
     setOpen(false);
   };
-  const createAccount = () => {
-    exitDemo();
-    router.replace("/signup");
-  };
+  const createAccount = signOut;
 
   return (
     <Modal open onClose={dismiss} title="You're viewing the demo">

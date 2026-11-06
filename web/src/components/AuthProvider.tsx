@@ -31,7 +31,8 @@ interface AuthCtx {
   me: User;
   /** Re-fetch /me (e.g. after toggling outbound or connecting an integration). */
   refresh: () => Promise<void>;
-  /** Clear token, tear down the WS connection, and return to /login. */
+  /** Clear the session and return to /login - or, when leaving the read-only
+   *  demo (entered from the signup page), back to /signup. */
   signOut: () => void;
 }
 
@@ -82,11 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const signOut = useCallback(() => {
-    // Demo mode has no server session — just clear the demo flag/token locally.
+    // Demo mode has no server session — just clear the demo flag/token locally
+    // and return the visitor to signup, where the demo was entered from.
+    // setMe(null) unmounts the app pages first, so no demo poll fires tokenless.
     if (isDemo()) {
       exitDemo();
       setMe(null);
-      router.replace("/login");
+      router.replace("/signup");
       return;
     }
     // Best-effort server-side revocation; never block the redirect on it

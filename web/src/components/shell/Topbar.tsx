@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, Settings, ShieldCheck } from "lucide-react";
+import { ArrowLeft, LogOut, Menu, Settings, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -12,11 +12,24 @@ import { eyebrowFor } from "@/lib/nav";
 import { useDemo } from "@/lib/demo";
 import { Bell } from "./Bell";
 
-/** Persistent "this account is read-only" marker shown only in the demo. */
-function DemoChip() {
+/** Demo-only: a persistent, always-visible way out of the read-only demo, back
+ *  to the signup page it was entered from (the welcome modal shows only once). */
+function DemoExit() {
   const demo = useDemo();
+  const { signOut } = useAuth();
   if (!demo) return null;
-  return <Badge tone="amber">Demo · read-only</Badge>;
+  return (
+    <button
+      onClick={signOut}
+      aria-label="Exit the read-only demo and go to sign up"
+      className="transition-opacity hover:opacity-75"
+    >
+      <Badge tone="amber">
+        <ArrowLeft size={12} strokeWidth={2} className="mr-1" />
+        Exit demo
+      </Badge>
+    </button>
+  );
 }
 
 function OutboundChip() {
@@ -43,6 +56,7 @@ function initialsOf(name: string): string {
 
 function UserMenu() {
   const { me, signOut } = useAuth();
+  const demo = useDemo();
   const [open, setOpen] = useState(false);
 
   // The shell persists across navigation - close on route change so a menu
@@ -106,7 +120,7 @@ function UserMenu() {
                 }}
                 className={itemCls}
               >
-                <LogOut size={15} strokeWidth={1.75} /> Sign out
+                <LogOut size={15} strokeWidth={1.75} /> {demo ? "Exit demo" : "Sign out"}
               </button>
             </div>
           </div>
@@ -137,7 +151,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
       </div>
       <div className="flex items-center gap-3">
-        <DemoChip />
+        <DemoExit />
         <OutboundChip />
         <ThemeToggle />
         <Bell />
