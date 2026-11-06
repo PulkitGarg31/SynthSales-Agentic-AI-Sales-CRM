@@ -20,6 +20,9 @@ export function useDemo(): boolean {
 }
 
 const WELCOME_KEY = "synthsales_demo_welcomed";
+// Same-tab signal: a sessionStorage write fires no `storage` event in the tab
+// that made it, so markDemoWelcomed() announces itself for useDemoWelcomed().
+const WELCOMED_EVENT = "synthsales:demo-welcomed";
 
 export function demoWelcomed(): boolean {
   if (typeof window === "undefined") return false;
@@ -29,4 +32,18 @@ export function demoWelcomed(): boolean {
 export function markDemoWelcomed() {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(WELCOME_KEY, "1");
+  window.dispatchEvent(new Event(WELCOMED_EVENT));
+}
+
+/** Reactive demoWelcomed(): flips true the moment the welcome popup is
+ *  dismissed, so the demo's product tour can start right after it. */
+export function useDemoWelcomed(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      window.addEventListener(WELCOMED_EVENT, cb);
+      return () => window.removeEventListener(WELCOMED_EVENT, cb);
+    },
+    demoWelcomed,
+    () => false,
+  );
 }

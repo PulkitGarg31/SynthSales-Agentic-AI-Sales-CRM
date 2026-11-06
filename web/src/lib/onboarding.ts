@@ -64,6 +64,19 @@ export const ONBOARDING_STEPS: TourStep[] = [
   },
 ];
 
+/** The read-only demo's tour: the same walkthrough, plus a closing step on the
+ *  topbar "Exit demo" button (anchor lives in shell/Topbar.tsx) as the CTA. */
+export const DEMO_TOUR_STEPS: TourStep[] = [
+  ...ONBOARDING_STEPS,
+  {
+    id: "demo-exit",
+    target: "demo-exit",
+    title: "Ready to run it for real?",
+    body: "This demo is read-only. When you're ready, use Exit demo up here to create an account and run the agents on your own target companies.",
+    placement: "bottom",
+  },
+];
+
 const keyFor = (userId: number | string) => `synthsales_onboarded_${userId}`;
 
 export function onboardingSeen(userId: number | string): boolean {

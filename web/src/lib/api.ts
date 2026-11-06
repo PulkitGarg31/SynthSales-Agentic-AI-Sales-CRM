@@ -32,7 +32,8 @@ import type {
   User,
 } from "./api-types";
 
-import { resolveDemo } from "./demo-fixtures";
+import { DEMO_USER, resolveDemo } from "./demo-fixtures";
+import { resetOnboarding } from "./onboarding";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
@@ -61,10 +62,12 @@ export function isDemo(): boolean {
   if (typeof window === "undefined") return false;
   return window.localStorage.getItem(DEMO_KEY) === "1";
 }
-/** Enter the read-only demo: set the flag + sentinel token, then route to /dashboard. */
+/** Enter the read-only demo: set the flag + sentinel token, then route to /dashboard.
+ *  Each entry is a fresh visit, so the demo's product tour shows again. */
 export function enterDemo() {
   window.localStorage.setItem(DEMO_KEY, "1");
   window.localStorage.setItem(TOKEN_KEY, DEMO_TOKEN);
+  resetOnboarding(DEMO_USER.id);
 }
 /** Leave the demo: clear the flag, sentinel token, and the per-session welcome. */
 export function exitDemo() {

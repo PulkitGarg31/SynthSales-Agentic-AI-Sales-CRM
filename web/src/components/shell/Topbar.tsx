@@ -21,6 +21,7 @@ function DemoExit() {
   return (
     <button
       onClick={signOut}
+      data-tour="demo-exit"
       aria-label="Exit the read-only demo and go to sign up"
       className="transition-opacity hover:opacity-75"
     >
